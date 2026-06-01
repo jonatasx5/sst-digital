@@ -1,0 +1,861 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SST Digital — Autentique</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.0.0/tabler-icons.min.css">
+<style>
+:root {
+  --verde: #1D9E75;
+  --verde-dark: #0F6E56;
+  --verde-light: #E1F5EE;
+  --fundo: #F4F6F8;
+  --card: #FFFFFF;
+  --borda: #E5E9EF;
+  --texto: #1A2332;
+  --texto2: #6B7A8D;
+  --danger: #E53E3E;
+  --warning: #D97706;
+  --sidebar-w: 220px;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: 'Inter', sans-serif; background: var(--fundo); color: var(--texto); min-height: 100vh; }
+
+/* ── Layout ── */
+.layout { display: flex; min-height: 100vh; }
+.sidebar { width: var(--sidebar-w); background: #0F1923; position: fixed; top:0; left:0; height:100vh; display:flex; flex-direction:column; z-index:100; }
+.main { margin-left: var(--sidebar-w); flex:1; padding: 24px; min-height:100vh; }
+
+/* ── Sidebar ── */
+.sb-logo { padding: 20px 16px 16px; border-bottom: 1px solid #1E2D3D; }
+.sb-logo h1 { font-size:15px; font-weight:700; color:#fff; letter-spacing:.5px; }
+.sb-logo p { font-size:11px; color:#4A7FA5; margin-top:2px; }
+.sb-nav { padding: 12px 8px; flex:1; }
+.nav-item { display:flex; align-items:center; gap:10px; padding:9px 12px; border-radius:8px; cursor:pointer; color:#8BA5BF; font-size:13px; font-weight:500; margin-bottom:2px; transition:all .15s; border:none; background:none; width:100%; text-align:left; }
+.nav-item i { font-size:17px; }
+.nav-item:hover { background:#1A2D3D; color:#fff; }
+.nav-item.active { background:var(--verde); color:#fff; }
+.sb-bottom { padding:12px 8px; border-top:1px solid #1E2D3D; }
+.sb-status { padding:8px 12px; border-radius:8px; background:#1A2D3D; }
+.sb-status-dot { width:7px; height:7px; border-radius:50%; background:#10B981; display:inline-block; margin-right:6px; }
+.sb-status span { font-size:11px; color:#8BA5BF; }
+
+/* ── Cards ── */
+.card { background:var(--card); border:1px solid var(--borda); border-radius:12px; padding:20px; margin-bottom:16px; }
+.card-title { font-size:14px; font-weight:600; color:var(--texto); display:flex; align-items:center; gap:8px; margin-bottom:16px; }
+.card-title i { color:var(--verde); font-size:17px; }
+
+/* ── Page header ── */
+.page-header { display:flex; align-items:center; justify-content:space-between; margin-bottom:20px; }
+.page-title { font-size:20px; font-weight:700; }
+.page-sub { font-size:13px; color:var(--texto2); margin-top:2px; }
+
+/* ── Botões ── */
+.btn { padding:8px 16px; border-radius:8px; font-size:13px; font-weight:500; cursor:pointer; border:1px solid; display:inline-flex; align-items:center; gap:6px; transition:all .15s; white-space:nowrap; }
+.btn-primary { background:var(--verde); border-color:var(--verde-dark); color:#fff; }
+.btn-primary:hover { background:var(--verde-dark); }
+.btn-outline { background:#fff; border-color:var(--borda); color:var(--texto); }
+.btn-outline:hover { background:var(--fundo); }
+.btn-danger { background:#FEF2F2; border-color:#FECACA; color:var(--danger); }
+.btn-danger:hover { background:#FEE2E2; }
+.btn-sm { padding:5px 10px; font-size:12px; }
+.btn:disabled { opacity:.5; cursor:not-allowed; }
+
+/* ── Inputs ── */
+.field { margin-bottom:12px; }
+.field label { font-size:12px; font-weight:500; color:var(--texto2); display:block; margin-bottom:4px; text-transform:uppercase; letter-spacing:.4px; }
+.field input, .field select, .field textarea { width:100%; padding:8px 12px; border:1px solid var(--borda); border-radius:8px; font-size:13px; color:var(--texto); background:#fff; font-family:inherit; }
+.field input:focus, .field select:focus { outline:none; border-color:var(--verde); }
+.field textarea { resize:vertical; min-height:60px; }
+.grid2 { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+.grid3 { display:grid; grid-template-columns:1fr 1fr 1fr; gap:12px; }
+
+/* ── Tabela ── */
+.table-wrap { overflow-x:auto; }
+table { width:100%; border-collapse:collapse; font-size:13px; }
+th { padding:10px 12px; text-align:left; font-weight:600; color:var(--texto2); border-bottom:2px solid var(--borda); font-size:11px; text-transform:uppercase; letter-spacing:.5px; white-space:nowrap; }
+td { padding:10px 12px; border-bottom:1px solid var(--borda); vertical-align:middle; }
+tr:last-child td { border-bottom:none; }
+tr:hover td { background:#F9FAFB; }
+.fn { font-weight:500; }
+.fc { font-size:11px; color:var(--texto2); margin-top:1px; }
+
+/* ── Badge ── */
+.badge { display:inline-flex; align-items:center; gap:4px; padding:3px 10px; border-radius:99px; font-size:11px; font-weight:500; }
+.b-green { background:#D1FAE5; color:#065F46; }
+.b-amber { background:#FEF3C7; color:#92400E; }
+.b-red { background:#FEE2E2; color:#991B1B; }
+.b-blue { background:#DBEAFE; color:#1E40AF; }
+.b-gray { background:#F3F4F6; color:#374151; }
+
+/* ── Upload zone ── */
+.upload-zone { border:2px dashed var(--borda); border-radius:12px; padding:32px; text-align:center; cursor:pointer; transition:all .2s; }
+.upload-zone:hover, .upload-zone.drag { border-color:var(--verde); background:var(--verde-light); }
+.upload-zone i { font-size:36px; color:var(--verde); display:block; margin-bottom:8px; }
+.upload-zone p { font-size:13px; color:var(--texto2); }
+.upload-zone strong { color:var(--verde); }
+
+/* ── Funções matrix ── */
+.matriz-cargo { display:flex; align-items:center; justify-content:space-between; padding:10px 0; border-bottom:1px solid var(--borda); }
+.matriz-cargo:last-child { border-bottom:none; }
+.doc-checks { display:grid; grid-template-columns:1fr 1fr; gap:6px; margin-top:8px; }
+.chk-item { display:flex; align-items:center; gap:6px; font-size:12px; }
+.chk-item input { accent-color:var(--verde); width:15px; height:15px; }
+
+/* ── Lote ── */
+.func-item { display:flex; align-items:center; justify-content:space-between; padding:10px 12px; border:1px solid var(--borda); border-radius:8px; margin-bottom:6px; transition:all .15s; }
+.func-item.sel { border-color:var(--verde); background:var(--verde-light); }
+.func-avatar { width:34px; height:34px; border-radius:50%; background:var(--verde-light); color:var(--verde-dark); display:flex; align-items:center; justify-content:center; font-size:12px; font-weight:700; flex-shrink:0; }
+
+/* ── Preview envio ── */
+.preview-card { border:1px solid var(--borda); border-radius:10px; margin-bottom:8px; overflow:hidden; }
+.preview-header { padding:12px 16px; background:#F9FAFB; display:flex; align-items:center; justify-content:space-between; cursor:pointer; }
+.preview-body { padding:12px 16px; display:none; border-top:1px solid var(--borda); }
+.preview-body.open { display:block; }
+.doc-pill { display:inline-flex; align-items:center; gap:4px; padding:3px 10px; background:var(--verde-light); color:var(--verde-dark); border-radius:99px; font-size:11px; margin:2px; }
+
+/* ── Link resultado ── */
+.link-box { display:flex; align-items:center; gap:8px; background:#F9FAFB; border:1px solid var(--borda); border-radius:8px; padding:8px 12px; margin-top:6px; }
+.link-box input { flex:1; border:none; background:none; font-size:12px; color:var(--verde-dark); font-family:monospace; }
+.link-box input:focus { outline:none; }
+
+/* ── Progress ── */
+.prog-bar { height:6px; background:var(--borda); border-radius:99px; overflow:hidden; margin:8px 0; }
+.prog-fill { height:100%; background:var(--verde); border-radius:99px; transition:width .3s; }
+.prog-item { display:flex; align-items:center; gap:10px; padding:8px 0; border-bottom:1px solid var(--borda); font-size:12px; }
+.prog-item:last-child { border-bottom:none; }
+.p-ico { width:22px; height:22px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:11px; flex-shrink:0; }
+.pi-ok { background:#D1FAE5; color:#065F46; }
+.pi-go { background:#DBEAFE; color:#1E40AF; }
+.pi-wt { background:#F3F4F6; color:#6B7280; }
+
+/* ── Alert ── */
+.alert { padding:12px 16px; border-radius:8px; font-size:13px; display:flex; align-items:flex-start; gap:8px; margin-bottom:12px; }
+.al-info { background:#EFF6FF; color:#1E40AF; border:1px solid #BFDBFE; }
+.al-warn { background:#FFFBEB; color:#92400E; border:1px solid #FDE68A; }
+.al-success { background:#F0FDF4; color:#14532D; border:1px solid #BBF7D0; }
+.al-error { background:#FEF2F2; color:#991B1B; border:1px solid #FECACA; }
+
+/* ── Spinner ── */
+.spinner { width:32px; height:32px; border:3px solid var(--borda); border-top-color:var(--verde); border-radius:50%; animation:spin .8s linear infinite; margin:0 auto 12px; }
+@keyframes spin { to { transform:rotate(360deg); } }
+
+/* ── Panels ── */
+.panel { display:none; }
+.panel.active { display:block; }
+
+/* ── Scroll busca ── */
+.lista-scroll { max-height:320px; overflow-y:auto; }
+
+/* ── Modal ── */
+.modal-bg { display:none; position:fixed; inset:0; background:rgba(0,0,0,.5); z-index:200; align-items:center; justify-content:center; padding:16px; }
+.modal-bg.open { display:flex; }
+.modal { background:#fff; border-radius:16px; padding:24px; width:100%; max-width:480px; max-height:90vh; overflow-y:auto; }
+.modal-title { font-size:16px; font-weight:700; margin-bottom:16px; display:flex; align-items:center; justify-content:space-between; }
+.modal-close { background:none; border:none; cursor:pointer; font-size:20px; color:var(--texto2); }
+
+/* ── Responsivo mobile ── */
+@media (max-width:768px) {
+  .sidebar { transform:translateX(-100%); transition:transform .3s; }
+  .sidebar.open { transform:none; }
+  .main { margin-left:0; padding:16px; }
+  .grid2, .grid3 { grid-template-columns:1fr; }
+  .mobile-toggle { display:flex !important; }
+}
+.mobile-toggle { display:none; position:fixed; top:12px; left:12px; z-index:300; background:var(--verde); border:none; border-radius:8px; width:40px; height:40px; align-items:center; justify-content:center; cursor:pointer; color:#fff; font-size:20px; }
+</style>
+</head>
+<body>
+
+<button class="mobile-toggle" onclick="toggleSidebar()"><i class="ti ti-menu-2"></i></button>
+
+<div class="layout">
+<!-- ═══ SIDEBAR ═══ -->
+<aside class="sidebar" id="sidebar">
+  <div class="sb-logo">
+    <h1>🛡️ SST Digital</h1>
+    <p>JS Construtora</p>
+  </div>
+  <nav class="sb-nav">
+    <button class="nav-item active" onclick="irPara('funcionarios')"><i class="ti ti-users"></i>Funcionários</button>
+    <button class="nav-item" onclick="irPara('modelos')"><i class="ti ti-files"></i>Modelos & Funções</button>
+    <button class="nav-item" onclick="irPara('lote')"><i class="ti ti-package"></i>Montar Lote</button>
+    <button class="nav-item" onclick="irPara('envio')"><i class="ti ti-send"></i>Enviar</button>
+    <button class="nav-item" onclick="irPara('historico')"><i class="ti ti-clock"></i>Histórico</button>
+  </nav>
+  <div class="sb-bottom">
+    <div class="sb-status">
+      <span class="sb-status-dot"></span>
+      <span id="status-txt">Verificando API...</span>
+    </div>
+  </div>
+</aside>
+
+<!-- ═══ MAIN ═══ -->
+<main class="main">
+
+<!-- ── FUNCIONÁRIOS ── -->
+<div class="panel active" id="panel-funcionarios">
+  <div class="page-header">
+    <div><div class="page-title">Funcionários</div><div class="page-sub" id="func-count-sub">carregando...</div></div>
+    <div style="display:flex;gap:8px">
+      <button class="btn btn-outline btn-sm" onclick="abrirImport()"><i class="ti ti-table-import"></i>Importar Excel</button>
+      <button class="btn btn-primary btn-sm" onclick="abrirModalFunc(null)"><i class="ti ti-plus"></i>Novo</button>
+    </div>
+  </div>
+
+  <div class="card" style="padding:12px 16px;margin-bottom:12px">
+    <input type="text" id="busca-func" placeholder="🔍 Buscar por nome, CPF ou cargo..." style="width:100%;border:none;font-size:13px;color:var(--texto);outline:none;background:none" oninput="carregarFuncionarios()">
+  </div>
+
+  <div class="card" style="padding:0">
+    <div class="table-wrap">
+      <table>
+        <thead><tr>
+          <th>Funcionário</th><th>CPF</th><th>Cargo</th><th>Lotação</th><th>Admissão</th><th>Celular</th><th></th>
+        </tr></thead>
+        <tbody id="func-tbody"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- ── MODELOS & FUNÇÕES ── -->
+<div class="panel" id="panel-modelos">
+  <div class="page-header">
+    <div><div class="page-title">Modelos & Funções</div><div class="page-sub">Configure os documentos por cargo</div></div>
+  </div>
+
+  <div class="grid2">
+    <!-- Modelos -->
+    <div>
+      <div class="card">
+        <div class="card-title"><i class="ti ti-files"></i>Modelos .docx</div>
+        <div class="alert al-info" style="font-size:12px">
+          <i class="ti ti-info-circle"></i>
+          Use variáveis como <strong>{{NOME}}</strong>, <strong>{{CPF}}</strong>, <strong>{{CARGO}}</strong> nos documentos Word.
+        </div>
+        <div id="modelos-lista"></div>
+      </div>
+    </div>
+
+    <!-- Matriz cargo × docs -->
+    <div>
+      <div class="card">
+        <div class="card-title"><i class="ti ti-table"></i>Kit por Cargo</div>
+        <div class="field">
+          <label>Selecione o cargo</label>
+          <select id="sel-cargo" onchange="carregarMatriz()">
+            <option value="">-- Selecione --</option>
+          </select>
+        </div>
+        <div id="docs-checks"></div>
+        <div style="margin-top:12px">
+          <button class="btn btn-primary" onclick="salvarMatriz()"><i class="ti ti-device-floppy"></i>Salvar kit do cargo</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ── MONTAR LOTE ── -->
+<div class="panel" id="panel-lote">
+  <div class="page-header">
+    <div><div class="page-title">Montar Lote</div><div class="page-sub">Selecione os admitidos desta semana</div></div>
+    <button class="btn btn-primary" onclick="irParaEnvio()"><i class="ti ti-arrow-right"></i>Preparar envio</button>
+  </div>
+
+  <div class="grid2">
+    <div>
+      <div class="card">
+        <div class="card-title"><i class="ti ti-search"></i>Buscar funcionário</div>
+        <input type="text" id="busca-lote" placeholder="Nome ou cargo..." style="width:100%;padding:8px 12px;border:1px solid var(--borda);border-radius:8px;font-size:13px;margin-bottom:10px" oninput="filtrarLote()">
+        <div class="lista-scroll" id="lista-lote"></div>
+      </div>
+    </div>
+    <div>
+      <div class="card">
+        <div class="card-title"><i class="ti ti-package"></i>No lote (<span id="lote-count">0</span>)</div>
+        <div class="field">
+          <label>Descrição do lote</label>
+          <input type="text" id="lote-desc" value="">
+        </div>
+        <div id="lista-sel"></div>
+        <button class="btn btn-danger btn-sm" style="margin-top:8px" onclick="limparLote()"><i class="ti ti-trash"></i>Limpar lote</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ── ENVIO ── -->
+<div class="panel" id="panel-envio">
+  <div class="page-header">
+    <div><div class="page-title">Enviar Lote</div><div class="page-sub" id="envio-sub">Confirme os dados antes de enviar</div></div>
+  </div>
+
+  <div id="envio-preview-section">
+    <div id="envio-preview-lista"></div>
+    <div class="card" style="margin-top:8px">
+      <div class="card-title"><i class="ti ti-settings"></i>Opções de envio</div>
+      <div class="grid2">
+        <div class="field">
+          <label>Modo</label>
+          <select id="modo-envio">
+            <option value="real">Envio real (consome cota)</option>
+            <option value="sandbox">Sandbox / Teste (não consome)</option>
+          </select>
+        </div>
+      </div>
+      <button class="btn btn-primary" style="width:100%;justify-content:center;height:44px;font-size:14px" id="btn-enviar" onclick="enviarLote()">
+        <i class="ti ti-rocket"></i>Enviar Lote para Autentique
+      </button>
+    </div>
+  </div>
+
+  <div id="envio-sending" style="display:none">
+    <div class="card" style="text-align:center;padding:32px">
+      <div class="spinner"></div>
+      <div style="font-size:14px;font-weight:600;margin-bottom:4px">Processando lote...</div>
+      <div style="font-size:12px;color:var(--texto2)" id="send-status-txt">Iniciando...</div>
+      <div class="prog-bar" style="margin-top:16px"><div class="prog-fill" id="send-prog" style="width:0%"></div></div>
+      <div id="send-prog-list" style="margin-top:12px;text-align:left"></div>
+    </div>
+  </div>
+
+  <div id="envio-done" style="display:none">
+    <div class="card" style="text-align:center;padding:32px">
+      <i class="ti ti-circle-check" style="font-size:48px;color:var(--verde);display:block;margin-bottom:12px"></i>
+      <div style="font-size:16px;font-weight:700;margin-bottom:4px">Lote enviado!</div>
+      <div style="font-size:13px;color:var(--texto2);margin-bottom:20px" id="done-resumo"></div>
+    </div>
+    <div id="links-resultado"></div>
+    <div id="erros-resultado"></div>
+    <div style="display:flex;gap:8px;margin-top:12px">
+      <button class="btn btn-outline" onclick="novoLote()"><i class="ti ti-plus"></i>Novo lote</button>
+      <button class="btn btn-primary" onclick="irPara('historico')"><i class="ti ti-clock"></i>Ver histórico</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── HISTÓRICO ── -->
+<div class="panel" id="panel-historico">
+  <div class="page-header">
+    <div><div class="page-title">Histórico de Lotes</div></div>
+  </div>
+  <div class="card" style="padding:0">
+    <div id="historico-lista" style="padding:8px"></div>
+  </div>
+</div>
+
+</main>
+</div>
+
+<!-- ── MODAL FUNCIONÁRIO ── -->
+<div class="modal-bg" id="modal-func">
+  <div class="modal">
+    <div class="modal-title">
+      <span id="modal-func-titulo">Funcionário</span>
+      <button class="modal-close" onclick="fecharModal('modal-func')">×</button>
+    </div>
+    <input type="hidden" id="mf-id">
+    <div class="grid2">
+      <div class="field"><label>Nome completo *</label><input type="text" id="mf-nome"></div>
+      <div class="field"><label>CPF *</label><input type="text" id="mf-cpf"></div>
+    </div>
+    <div class="grid2">
+      <div class="field"><label>Matrícula</label><input type="text" id="mf-matricula"></div>
+      <div class="field"><label>Cargo *</label><input type="text" id="mf-cargo"></div>
+    </div>
+    <div class="grid2">
+      <div class="field"><label>Lotação / Contrato</label><input type="text" id="mf-lotacao"></div>
+      <div class="field"><label>Data admissão</label><input type="text" id="mf-admissao"></div>
+    </div>
+    <div class="grid2">
+      <div class="field"><label>Celular / WhatsApp</label><input type="text" id="mf-celular"></div>
+      <div class="field"><label>E-mail</label><input type="text" id="mf-email"></div>
+    </div>
+    <button class="btn btn-primary" style="width:100%;justify-content:center" onclick="salvarFunc()">
+      <i class="ti ti-device-floppy"></i>Salvar
+    </button>
+  </div>
+</div>
+
+<!-- ── MODAL IMPORT ── -->
+<div class="modal-bg" id="modal-import">
+  <div class="modal">
+    <div class="modal-title">
+      Importar Planilha do DP
+      <button class="modal-close" onclick="fecharModal('modal-import')">×</button>
+    </div>
+    <div class="upload-zone" id="uz-planilha" onclick="document.getElementById('inp-planilha').click()"
+      ondragover="event.preventDefault();this.classList.add('drag')"
+      ondragleave="this.classList.remove('drag')"
+      ondrop="dropPlanilha(event)">
+      <i class="ti ti-file-spreadsheet"></i>
+      <p>Clique ou arraste o Excel aqui</p>
+      <p><strong>Nome, CPF, Cargo, Contrato, Celular</strong></p>
+    </div>
+    <input type="file" id="inp-planilha" accept=".xlsx,.xls" style="display:none" onchange="uploadPlanilha(this)">
+    <div id="import-result" style="margin-top:12px"></div>
+  </div>
+</div>
+
+<!-- ── MODAL UPLOAD MODELO ── -->
+<div class="modal-bg" id="modal-modelo">
+  <div class="modal">
+    <div class="modal-title">
+      <span id="modal-modelo-titulo">Upload de modelo</span>
+      <button class="modal-close" onclick="fecharModal('modal-modelo')">×</button>
+    </div>
+    <input type="hidden" id="mm-doc-id">
+    <div class="upload-zone" onclick="document.getElementById('inp-modelo').click()">
+      <i class="ti ti-file-word"></i>
+      <p>Clique para selecionar o arquivo <strong>.docx</strong></p>
+    </div>
+    <input type="file" id="inp-modelo" accept=".docx" style="display:none" onchange="uploadModelo(this)">
+    <div id="modelo-result" style="margin-top:12px"></div>
+  </div>
+</div>
+
+<script>
+// ══════════════════════════════════════════════════════
+//  ESTADO GLOBAL
+// ══════════════════════════════════════════════════════
+let loteIds   = new Set();
+let todosFunc = [];
+let todosDocs = [];
+let lotePreview = [];
+
+// ══════════════════════════════════════════════════════
+//  NAVEGAÇÃO
+// ══════════════════════════════════════════════════════
+function irPara(aba) {
+  document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(b => b.classList.remove('active'));
+  document.getElementById('panel-'+aba).classList.add('active');
+  document.querySelectorAll('.nav-item').forEach(b => {
+    if (b.getAttribute('onclick')?.includes("'"+aba+"'")) b.classList.add('active');
+  });
+  if (aba==='funcionarios') carregarFuncionarios();
+  if (aba==='modelos')      carregarModelos();
+  if (aba==='lote')         { filtrarLote(); renderLoteSel(); }
+  if (aba==='historico')    carregarHistorico();
+  // Fecha sidebar mobile
+  document.getElementById('sidebar').classList.remove('open');
+}
+
+function toggleSidebar() {
+  document.getElementById('sidebar').classList.toggle('open');
+}
+
+// ══════════════════════════════════════════════════════
+//  FUNCIONÁRIOS
+// ══════════════════════════════════════════════════════
+async function carregarFuncionarios() {
+  const busca = document.getElementById('busca-func').value;
+  const res = await fetch(`/api/funcionarios?busca=${encodeURIComponent(busca)}`);
+  todosFunc = await res.json();
+  document.getElementById('func-count-sub').textContent = `${todosFunc.length} funcionário(s) cadastrado(s)`;
+  const tbody = document.getElementById('func-tbody');
+  tbody.innerHTML = '';
+  todosFunc.forEach(f => {
+    const ini = f.nome.split(' ').map(w=>w[0]).slice(0,2).join('').toUpperCase();
+    tbody.innerHTML += `<tr>
+      <td><div style="display:flex;align-items:center;gap:8px">
+        <div style="width:30px;height:30px;border-radius:50%;background:var(--verde-light);color:var(--verde-dark);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;flex-shrink:0">${ini}</div>
+        <div><div class="fn">${f.nome}</div></div>
+      </div></td>
+      <td>${f.cpf}</td>
+      <td><div class="fn" style="font-size:12px">${f.cargo}</div></td>
+      <td style="font-size:12px;color:var(--texto2)">${f.lotacao||''}</td>
+      <td style="font-size:12px">${f.admissao||''}</td>
+      <td style="font-size:12px">${f.celular||''}</td>
+      <td><button class="btn btn-outline btn-sm" onclick='abrirModalFunc(${JSON.stringify(f)})'><i class="ti ti-edit"></i></button></td>
+    </tr>`;
+  });
+}
+
+function abrirModalFunc(f) {
+  f = f || {};
+  document.getElementById('modal-func-titulo').textContent = f.id ? 'Editar Funcionário' : 'Novo Funcionário';
+  ['id','nome','cpf','matricula','cargo','lotacao','admissao','celular','email'].forEach(k => {
+    document.getElementById('mf-'+k).value = f[k] || '';
+  });
+  abrirModal('modal-func');
+}
+
+async function salvarFunc() {
+  const dados = {};
+  ['id','nome','cpf','matricula','cargo','lotacao','admissao','celular','email'].forEach(k => {
+    dados[k] = document.getElementById('mf-'+k).value;
+  });
+  if (!dados.nome || !dados.cpf || !dados.cargo) { alert('Nome, CPF e Cargo são obrigatórios.'); return; }
+  await fetch('/api/funcionarios', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(dados) });
+  fecharModal('modal-func');
+  carregarFuncionarios();
+}
+
+function abrirImport() { abrirModal('modal-import'); }
+
+async function uploadPlanilha(inp) {
+  if (!inp.files[0]) return;
+  const fd = new FormData();
+  fd.append('file', inp.files[0]);
+  document.getElementById('import-result').innerHTML = '<div class="alert al-info"><i class="ti ti-loader-2"></i>Importando...</div>';
+  const res = await fetch('/api/funcionarios/importar', { method:'POST', body:fd });
+  const data = await res.json();
+  if (data.ok) {
+    document.getElementById('import-result').innerHTML = `<div class="alert al-success"><i class="ti ti-check"></i>✅ ${data.inseridos} inseridos · ${data.atualizados} atualizados</div>`;
+    carregarFuncionarios();
+  } else {
+    document.getElementById('import-result').innerHTML = `<div class="alert al-error"><i class="ti ti-x"></i>${data.erro}</div>`;
+  }
+}
+
+function dropPlanilha(e) {
+  e.preventDefault();
+  document.getElementById('uz-planilha').classList.remove('drag');
+  uploadPlanilha({ files: e.dataTransfer.files });
+}
+
+// ══════════════════════════════════════════════════════
+//  MODELOS & MATRIZ
+// ══════════════════════════════════════════════════════
+async function carregarModelos() {
+  const res = await fetch('/api/documentos');
+  todosDocs = await res.json();
+  const lista = document.getElementById('modelos-lista');
+  lista.innerHTML = '';
+  todosDocs.forEach(d => {
+    const cor = d.modelo_existe ? 'var(--verde)' : 'var(--danger)';
+    const ico = d.modelo_existe ? 'ti-check' : 'ti-upload';
+    lista.innerHTML += `<div style="display:flex;align-items:center;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--borda)">
+      <div>
+        <div style="font-size:12px;font-weight:500;color:${cor}"><i class="ti ${ico}" style="margin-right:4px"></i>${d.nome}</div>
+      </div>
+      <button class="btn btn-outline btn-sm" onclick="abrirUploadModelo('${d.id}','${d.nome.replace(/'/g,"\\'")}')">
+        <i class="ti ti-upload"></i>
+      </button>
+    </div>`;
+  });
+
+  // Cargos
+  const res2 = await fetch('/api/cargos');
+  const cargos = await res2.json();
+  const sel = document.getElementById('sel-cargo');
+  sel.innerHTML = '<option value="">-- Selecione --</option>';
+  cargos.forEach(c => sel.innerHTML += `<option value="${c}">${c}</option>`);
+}
+
+async function carregarMatriz() {
+  const cargo = document.getElementById('sel-cargo').value;
+  if (!cargo) return;
+  const res = await fetch(`/api/matriz/${encodeURIComponent(cargo)}`);
+  const docIds = await res.json();
+  const div = document.getElementById('docs-checks');
+  div.innerHTML = '';
+  todosDocs.forEach(d => {
+    const chk = docIds.includes(d.id) ? 'checked' : '';
+    div.innerHTML += `<div class="chk-item" style="margin-bottom:6px">
+      <input type="checkbox" id="chk-${d.id}" value="${d.id}" ${chk}>
+      <label for="chk-${d.id}" style="font-size:12px;cursor:pointer">${d.nome}</label>
+    </div>`;
+  });
+}
+
+async function salvarMatriz() {
+  const cargo = document.getElementById('sel-cargo').value;
+  if (!cargo) { alert('Selecione um cargo.'); return; }
+  const doc_ids = [...document.querySelectorAll('#docs-checks input:checked')].map(i=>i.value);
+  await fetch(`/api/matriz/${encodeURIComponent(cargo)}`, {
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({doc_ids})
+  });
+  alert(`✅ Kit do cargo "${cargo}" salvo com ${doc_ids.length} documento(s).`);
+}
+
+function abrirUploadModelo(docId, docNome) {
+  document.getElementById('mm-doc-id').value = docId;
+  document.getElementById('modal-modelo-titulo').textContent = `Upload: ${docNome}`;
+  document.getElementById('modelo-result').innerHTML = '';
+  document.getElementById('inp-modelo').value = '';
+  abrirModal('modal-modelo');
+}
+
+async function uploadModelo(inp) {
+  if (!inp.files[0]) return;
+  const docId = document.getElementById('mm-doc-id').value;
+  const fd = new FormData();
+  fd.append('file', inp.files[0]);
+  const res = await fetch(`/api/modelos/upload/${docId}`, { method:'POST', body:fd });
+  const data = await res.json();
+  document.getElementById('modelo-result').innerHTML = data.ok
+    ? `<div class="alert al-success"><i class="ti ti-check"></i>Arquivo enviado com sucesso!</div>`
+    : `<div class="alert al-error"><i class="ti ti-x"></i>Erro no upload</div>`;
+  carregarModelos();
+}
+
+// ══════════════════════════════════════════════════════
+//  LOTE
+// ══════════════════════════════════════════════════════
+async function filtrarLote() {
+  const q = document.getElementById('busca-lote').value.toLowerCase();
+  const lista = document.getElementById('lista-lote');
+  lista.innerHTML = '';
+  const todos = await fetch(`/api/funcionarios?busca=${encodeURIComponent(q)}`).then(r=>r.json());
+  todos.forEach(f => {
+    const sel = loteIds.has(f.id);
+    const ini = f.nome.split(' ').map(w=>w[0]).slice(0,2).join('').toUpperCase();
+    lista.innerHTML += `<div class="func-item ${sel?'sel':''}" id="fi-${f.id}">
+      <div style="display:flex;align-items:center;gap:8px">
+        <div class="func-avatar">${ini}</div>
+        <div>
+          <div style="font-size:13px;font-weight:500">${f.nome}</div>
+          <div style="font-size:11px;color:var(--texto2)">${f.cargo} · ${f.lotacao||''}</div>
+        </div>
+      </div>
+      <button class="btn ${sel?'btn-danger':'btn-primary'} btn-sm" onclick="toggleLote(${f.id})">
+        ${sel?'<i class="ti ti-x"></i>Remover':'<i class="ti ti-plus"></i>Add'}
+      </button>
+    </div>`;
+  });
+}
+
+function toggleLote(id) {
+  if (loteIds.has(id)) loteIds.delete(id);
+  else loteIds.add(id);
+  filtrarLote();
+  renderLoteSel();
+}
+
+async function renderLoteSel() {
+  const lista = document.getElementById('lista-sel');
+  document.getElementById('lote-count').textContent = loteIds.size;
+  lista.innerHTML = '';
+  if (!loteIds.size) { lista.innerHTML = '<p style="font-size:12px;color:var(--texto2);text-align:center;padding:12px">Nenhum selecionado</p>'; return; }
+  const todos = await fetch('/api/funcionarios').then(r=>r.json());
+  [...loteIds].forEach(id => {
+    const f = todos.find(x=>x.id===id);
+    if (!f) return;
+    lista.innerHTML += `<div style="display:flex;align-items:center;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--borda)">
+      <div style="font-size:12px;font-weight:500">${f.nome}</div>
+      <button class="btn btn-danger btn-sm" onclick="toggleLote(${id})"><i class="ti ti-x"></i></button>
+    </div>`;
+  });
+}
+
+function limparLote() { loteIds.clear(); filtrarLote(); renderLoteSel(); }
+
+async function irParaEnvio() {
+  if (!loteIds.size) { alert('Adicione ao menos um funcionário ao lote.'); return; }
+  irPara('envio');
+  await montarPreviewEnvio();
+}
+
+async function montarPreviewEnvio() {
+  document.getElementById('envio-preview-section').style.display='block';
+  document.getElementById('envio-sending').style.display='none';
+  document.getElementById('envio-done').style.display='none';
+
+  const desc = document.getElementById('lote-desc').value || `Lote ${new Date().toLocaleDateString('pt-BR')}`;
+  const res = await fetch('/api/lotes/preview', {
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({func_ids:[...loteIds]})
+  });
+  const data = await res.json();
+  lotePreview = data.funcionarios;
+
+  document.getElementById('envio-sub').textContent = `${lotePreview.length} funcionário(s) · ${data.total_docs} documento(s)`;
+
+  const lista = document.getElementById('envio-preview-lista');
+  lista.innerHTML = '';
+  lotePreview.forEach(f => {
+    lista.innerHTML += `<div class="preview-card">
+      <div class="preview-header" onclick="this.nextElementSibling.classList.toggle('open')">
+        <div style="display:flex;align-items:center;gap:10px">
+          <div class="func-avatar" style="width:32px;height:32px;font-size:11px">${f.nome.split(' ').map(w=>w[0]).slice(0,2).join('').toUpperCase()}</div>
+          <div>
+            <div style="font-size:13px;font-weight:600">${f.nome}</div>
+            <div style="font-size:11px;color:var(--texto2)">${f.cargo} · <span style="color:var(--verde);font-weight:500">${f.doc_ids.length} docs</span></div>
+          </div>
+        </div>
+        <div style="display:flex;align-items:center;gap:8px">
+          <input type="tel" value="${f.celular||''}" placeholder="WhatsApp" id="cel-${f.id}"
+            style="padding:5px 10px;border:1px solid var(--borda);border-radius:6px;font-size:12px;width:140px"
+            onclick="event.stopPropagation()">
+          <i class="ti ti-chevron-down" style="color:var(--texto2)"></i>
+        </div>
+      </div>
+      <div class="preview-body">
+        ${f.docs_nomes.map(d=>`<span class="doc-pill"><i class="ti ti-file-check" style="font-size:11px"></i>${d}</span>`).join('')}
+      </div>
+    </div>`;
+  });
+}
+
+async function enviarLote() {
+  if (!lotePreview.length) { alert('Nenhum lote carregado.'); return; }
+  if (!confirm(`Enviar ${lotePreview.length} funcionário(s) para o Autentique?`)) return;
+
+  // Coleta celulares editados
+  const celulares = {};
+  lotePreview.forEach(f => {
+    const inp = document.getElementById(`cel-${f.id}`);
+    if (inp) celulares[f.id] = inp.value;
+  });
+
+  const sandbox = document.getElementById('modo-envio').value === 'sandbox';
+  const desc = document.getElementById('lote-desc').value || `Lote ${new Date().toLocaleDateString('pt-BR')}`;
+
+  document.getElementById('envio-preview-section').style.display='none';
+  document.getElementById('envio-sending').style.display='block';
+
+  // Progresso visual
+  const progList = document.getElementById('send-prog-list');
+  progList.innerHTML = lotePreview.map(f=>`
+    <div class="prog-item" id="prog-${f.id}">
+      <div class="p-ico pi-wt" id="pico-${f.id}"><i class="ti ti-clock"></i></div>
+      <div style="flex:1">${f.nome} <span style="color:var(--texto2);font-size:11px">· ${f.doc_ids.length} docs</span></div>
+      <span class="badge b-gray" id="pbadge-${f.id}">Aguardando</span>
+    </div>`).join('');
+
+  document.getElementById('send-status-txt').textContent = 'Enviando para Autentique...';
+  document.getElementById('send-prog').style.width = '10%';
+
+  try {
+    const res = await fetch('/api/lotes/enviar', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({
+        func_ids: [...loteIds],
+        descricao: desc,
+        celulares,
+        sandbox
+      })
+    });
+    const data = await res.json();
+
+    // Marca todos como enviados
+    lotePreview.forEach((f,i) => {
+      const pct = Math.round(((i+1)/lotePreview.length)*100);
+      document.getElementById('send-prog').style.width = pct+'%';
+      document.getElementById('pico-'+f.id).className = 'p-ico pi-ok';
+      document.getElementById('pico-'+f.id).innerHTML = '<i class="ti ti-check"></i>';
+      document.getElementById('pbadge-'+f.id).textContent = 'Enviado';
+      document.getElementById('pbadge-'+f.id).className = 'badge b-green';
+    });
+
+    document.getElementById('send-prog').style.width = '100%';
+    setTimeout(() => mostrarResultado(data), 800);
+
+  } catch(e) {
+    document.getElementById('send-status-txt').textContent = 'Erro: '+e.message;
+  }
+}
+
+function mostrarResultado(data) {
+  document.getElementById('envio-sending').style.display='none';
+  document.getElementById('envio-done').style.display='block';
+  document.getElementById('done-resumo').textContent =
+    `${data.enviados} funcionário(s) · ${data.resultados?.reduce((s,r)=>s+r.links.length,0)||0} documentos enviados`;
+
+  const linksDiv = document.getElementById('links-resultado');
+  linksDiv.innerHTML = '';
+  (data.resultados||[]).forEach(r => {
+    linksDiv.innerHTML += `<div class="card" style="margin-bottom:8px">
+      <div style="font-size:13px;font-weight:600;margin-bottom:4px">👤 ${r.nome}</div>
+      <div style="font-size:11px;color:var(--texto2);margin-bottom:8px">📱 ${r.celular||'(sem celular)'} · ${r.cargo}</div>
+      ${r.links.map(l=>`
+        <div style="font-size:12px;font-weight:500;margin-bottom:4px">📄 ${l.doc}</div>
+        <div class="link-box">
+          <input type="text" value="${l.link}" readonly>
+          <button class="btn btn-primary btn-sm" onclick="copiar('${l.link}',this)"><i class="ti ti-copy"></i>Copiar</button>
+        </div>`).join('')}
+    </div>`;
+  });
+
+  if (data.erros?.length) {
+    const errosDiv = document.getElementById('erros-resultado');
+    errosDiv.innerHTML = `<div class="alert al-error"><i class="ti ti-alert-triangle"></i>
+      <div><strong>${data.erros.length} erro(s):</strong><br>${data.erros.join('<br>')}</div>
+    </div>`;
+  }
+}
+
+function copiar(texto, btn) {
+  navigator.clipboard.writeText(texto);
+  btn.innerHTML = '<i class="ti ti-check"></i>Copiado!';
+  setTimeout(()=>btn.innerHTML='<i class="ti ti-copy"></i>Copiar', 2000);
+}
+
+function novoLote() {
+  loteIds.clear();
+  lotePreview = [];
+  document.getElementById('envio-preview-section').style.display='block';
+  document.getElementById('envio-done').style.display='none';
+  document.getElementById('envio-preview-lista').innerHTML='';
+  irPara('lote');
+}
+
+// ══════════════════════════════════════════════════════
+//  HISTÓRICO
+// ══════════════════════════════════════════════════════
+async function carregarHistorico() {
+  const res = await fetch('/api/historico');
+  const lotes = await res.json();
+  const div = document.getElementById('historico-lista');
+  if (!lotes.length) {
+    div.innerHTML = '<p style="text-align:center;color:var(--texto2);padding:32px">Nenhum lote enviado ainda.</p>';
+    return;
+  }
+  div.innerHTML = '';
+  lotes.forEach(l => {
+    const pct = l.total_func ? Math.round((l.enviados||0)/l.total_func*100) : 0;
+    const cor = pct===100?'b-green':pct>0?'b-amber':'b-gray';
+    div.innerHTML += `<div style="display:flex;align-items:center;justify-content:space-between;padding:12px 8px;border-bottom:1px solid var(--borda)">
+      <div>
+        <div style="font-size:13px;font-weight:500">${l.descricao||'Lote #'+l.id}</div>
+        <div style="font-size:11px;color:var(--texto2)">${l.total_func||0} func · ${(l.criado_em||'').substring(0,16)}</div>
+        <div class="prog-bar" style="width:150px;margin-top:6px"><div class="prog-fill" style="width:${pct}%"></div></div>
+      </div>
+      <span class="badge ${cor}">${pct}% assinado</span>
+    </div>`;
+  });
+}
+
+// ══════════════════════════════════════════════════════
+//  MODAIS
+// ══════════════════════════════════════════════════════
+function abrirModal(id) { document.getElementById(id).classList.add('open'); }
+function fecharModal(id) { document.getElementById(id).classList.remove('open'); }
+
+// Fecha modal clicando fora
+document.querySelectorAll('.modal-bg').forEach(m => {
+  m.addEventListener('click', e => { if(e.target===m) m.classList.remove('open'); });
+});
+
+// ══════════════════════════════════════════════════════
+//  INICIALIZAÇÃO
+// ══════════════════════════════════════════════════════
+async function verificarAPI() {
+  try {
+    const res = await fetch('/api/autentique/verificar');
+    const data = await res.json();
+    document.getElementById('status-txt').textContent = data.ok ? 'API conectada' : 'API: erro';
+    document.querySelector('.sb-status-dot').style.background = data.ok ? '#10B981' : '#EF4444';
+  } catch(e) {
+    document.getElementById('status-txt').textContent = 'Sem conexão';
+    document.querySelector('.sb-status-dot').style.background = '#EF4444';
+  }
+}
+
+// Data padrão do lote
+document.getElementById('lote-desc').value = `Lote ${new Date().toLocaleDateString('pt-BR')}`;
+
+// Inicia
+carregarFuncionarios();
+verificarAPI();
+</script>
+</body>
+</html>

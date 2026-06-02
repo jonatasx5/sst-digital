@@ -1,330 +1,390 @@
 """
-Banco de dados SQLite do sistema SST Digital.
-Tabelas: funcionarios, funcao_documentos, lotes, lote_funcionarios, envios
+banco.py - Banco de dados com suporte a PostgreSQL e SQLite
+Usa PostgreSQL quando DATABASE_URL está disponível (Railway)
+Usa SQLite como fallback local
 """
 
-import sqlite3
 import os
-from config import DB_PATH
+import sqlite3
 
+DATABASE_URL = os.environ.get("DATABASE_URL", "")
+
+# Detecta se usa PostgreSQL ou SQLite
+USE_POSTGRES = bool(DATABASE_URL and DATABASE_URL.startswith("postgres"))
+
+if USE_POSTGRES:
+    import psycopg2
+    import psycopg2.extras
 
 def conectar():
-    conn = sqlite3.connect(DB_PATH)
-    conn.row_factory = sqlite3.Row
-    conn.execute("PRAGMA foreign_keys = ON")
-    return conn
+    if USE_POSTGRES:
+        conn = psycopg2.connect(DATABASE_URL)
+        return conn
+    else:
+        from config import DB_PATH
+        conn = sqlite3.connect(DB_PATH)
+        conn.row_factory = sqlite3.Row
+        conn.execute("PRAGMA foreign_keys = ON")
+        return conn
 
+def executar(query, params=(), fetchone=False, fetchall=False, commit=False):
+    """Executa query compatível com PostgreSQL e SQLite."""
+    if USE_POSTGRES:
+        # PostgreSQL usa %s ao invés de ?
+        query = query.replace("?", "%s")
+        query = query.replace("INTEGER PRIMARY KEY AUTOINCREMENT", "SERIAL PRIMARY KEY")
+        query = query.replace("datetime('now','localtime')", "NOW()")
+        query = query.replace("OR IGNORE", "ON CONFLICT DO NOTHING")
+        query = query.replace("INSERT OR IGNORE", "INSERT")
+
+    conn = conectar()
+    try:
+        if USE_POSTGRES:
+            cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+        else:
+            cur = conn.cursor()
+        
+        cur.execute(query, params)
+        
+        result = None
+        if fetchone:
+            row = cur.fetchone()
+            result = dict(row) if row else None
+        elif fetchall:
+            rows = cur.fetchall()
+            result = [dict(r) for r in rows]
+        
+        if commit:
+            conn.commit()
+            if USE_POSTGRES and not fetchone and not fetchall:
+                try:
+                    result = cur.fetchone()
+                    if result:
+                        result = dict(result)
+                except:
+                    pass
+        
+        return result
+    finally:
+        conn.close()
 
 def criar_banco():
-    """Cria todas as tabelas se não existirem."""
+    """Cria todas as tabelas."""
     conn = conectar()
-    c = conn.cursor()
-
-    # ── Funcionários ──────────────────────────────────────
-    c.execute("""
-        CREATE TABLE IF NOT EXISTS funcionarios (
-            id          INTEGER PRIMARY KEY AUTOINCREMENT,
-            nome        TEXT    NOT NULL,
-            cpf         TEXT    NOT NULL UNIQUE,
-            matricula   TEXT,
-            cargo       TEXT    NOT NULL,
-            lotacao     TEXT,
-            admissao    TEXT,
-            celular     TEXT,
-            email       TEXT,
-            ativo       INTEGER DEFAULT 1,
-            criado_em   TEXT    DEFAULT (datetime('now','localtime'))
-        )
-    """)
-
-    # ── Matriz Função × Documentos ────────────────────────
-    # Guarda quais documentos cada cargo recebe
-    c.execute("""
-        CREATE TABLE IF NOT EXISTS funcao_documentos (
-            id          INTEGER PRIMARY KEY AUTOINCREMENT,
-            cargo       TEXT    NOT NULL,
-            doc_id      TEXT    NOT NULL,
-            UNIQUE(cargo, doc_id)
-        )
-    """)
-
-    # ── Lotes de envio ────────────────────────────────────
-    c.execute("""
-        CREATE TABLE IF NOT EXISTS lotes (
-            id          INTEGER PRIMARY KEY AUTOINCREMENT,
-            descricao   TEXT,
-            criado_em   TEXT    DEFAULT (datetime('now','localtime')),
-            status      TEXT    DEFAULT 'pendente'
-        )
-    """)
-
-    # ── Funcionários em cada lote ─────────────────────────
-    c.execute("""
-        CREATE TABLE IF NOT EXISTS lote_funcionarios (
-            id              INTEGER PRIMARY KEY AUTOINCREMENT,
-            lote_id         INTEGER NOT NULL REFERENCES lotes(id),
-            funcionario_id  INTEGER NOT NULL REFERENCES funcionarios(id),
-            status          TEXT    DEFAULT 'pendente',
-            UNIQUE(lote_id, funcionario_id)
-        )
-    """)
-
-    # ── Envios individuais (um por doc por funcionário) ───
-    c.execute("""
-        CREATE TABLE IF NOT EXISTS envios (
-            id                  INTEGER PRIMARY KEY AUTOINCREMENT,
-            lote_funcionario_id INTEGER REFERENCES lote_funcionarios(id),
-            funcionario_id      INTEGER REFERENCES funcionarios(id),
-            doc_id              TEXT    NOT NULL,
-            doc_nome            TEXT,
-            pdf_path            TEXT,
-            autentique_id       TEXT,
-            link_assinatura     TEXT,
-            status              TEXT    DEFAULT 'pendente',
-            enviado_em          TEXT,
-            assinado_em         TEXT
-        )
-    """)
-
-    conn.commit()
-    conn.close()
-    print("✅ Banco criado/verificado com sucesso.")
-
-
-# ══════════════════════════════════════════════════════════
-#  FUNCIONÁRIOS
-# ══════════════════════════════════════════════════════════
-
-def importar_funcionarios(lista: list[dict]) -> tuple[int, int]:
-    """
-    Importa lista de funcionários do Excel.
-    Faz UPSERT pelo CPF (atualiza se já existir).
-    Retorna (inseridos, atualizados).
-    """
-    conn = conectar()
-    c = conn.cursor()
-    inseridos = atualizados = 0
-
-    for f in lista:
-        cpf = f.get("cpf", "").strip()
-        if not cpf:
-            continue
-        existe = c.execute("SELECT id FROM funcionarios WHERE cpf=?", (cpf,)).fetchone()
-        if existe:
-            c.execute("""
-                UPDATE funcionarios SET
-                    nome=?, cargo=?, lotacao=?, admissao=?,
-                    celular=?, email=?, ativo=1
-                WHERE cpf=?
-            """, (
-                f.get("nome",""), f.get("cargo",""), f.get("lotacao",""),
-                f.get("admissao",""), f.get("celular",""), f.get("email",""), cpf
-            ))
-            atualizados += 1
+    try:
+        if USE_POSTGRES:
+            cur = conn.cursor()
+            cur.execute("""
+                CREATE TABLE IF NOT EXISTS funcionarios (
+                    id SERIAL PRIMARY KEY,
+                    nome TEXT NOT NULL,
+                    cpf TEXT NOT NULL UNIQUE,
+                    matricula TEXT,
+                    cargo TEXT NOT NULL,
+                    lotacao TEXT,
+                    admissao TEXT,
+                    celular TEXT,
+                    email TEXT,
+                    ativo INTEGER DEFAULT 1,
+                    criado_em TIMESTAMP DEFAULT NOW()
+                )
+            """)
+            cur.execute("""
+                CREATE TABLE IF NOT EXISTS funcao_documentos (
+                    id SERIAL PRIMARY KEY,
+                    cargo TEXT NOT NULL,
+                    doc_id TEXT NOT NULL,
+                    UNIQUE(cargo, doc_id)
+                )
+            """)
+            cur.execute("""
+                CREATE TABLE IF NOT EXISTS lotes (
+                    id SERIAL PRIMARY KEY,
+                    descricao TEXT,
+                    criado_em TIMESTAMP DEFAULT NOW(),
+                    status TEXT DEFAULT 'pendente'
+                )
+            """)
+            cur.execute("""
+                CREATE TABLE IF NOT EXISTS lote_funcionarios (
+                    id SERIAL PRIMARY KEY,
+                    lote_id INTEGER REFERENCES lotes(id),
+                    funcionario_id INTEGER REFERENCES funcionarios(id),
+                    status TEXT DEFAULT 'pendente',
+                    UNIQUE(lote_id, funcionario_id)
+                )
+            """)
+            cur.execute("""
+                CREATE TABLE IF NOT EXISTS envios (
+                    id SERIAL PRIMARY KEY,
+                    lote_funcionario_id INTEGER REFERENCES lote_funcionarios(id),
+                    funcionario_id INTEGER REFERENCES funcionarios(id),
+                    doc_id TEXT NOT NULL,
+                    doc_nome TEXT,
+                    pdf_path TEXT,
+                    autentique_id TEXT,
+                    link_assinatura TEXT,
+                    status TEXT DEFAULT 'pendente',
+                    enviado_em TIMESTAMP,
+                    assinado_em TIMESTAMP
+                )
+            """)
+            conn.commit()
         else:
-            c.execute("""
-                INSERT INTO funcionarios (nome, cpf, matricula, cargo, lotacao, admissao, celular, email)
-                VALUES (?,?,?,?,?,?,?,?)
-            """, (
-                f.get("nome",""), cpf, f.get("matricula",""),
-                f.get("cargo",""), f.get("lotacao",""), f.get("admissao",""),
-                f.get("celular",""), f.get("email","")
-            ))
-            inseridos += 1
+            cur = conn.cursor()
+            cur.execute("""CREATE TABLE IF NOT EXISTS funcionarios (
+                id INTEGER PRIMARY KEY AUTOINCREMENT, nome TEXT NOT NULL,
+                cpf TEXT NOT NULL UNIQUE, matricula TEXT, cargo TEXT NOT NULL,
+                lotacao TEXT, admissao TEXT, celular TEXT, email TEXT,
+                ativo INTEGER DEFAULT 1, criado_em TEXT DEFAULT (datetime('now','localtime')))""")
+            cur.execute("""CREATE TABLE IF NOT EXISTS funcao_documentos (
+                id INTEGER PRIMARY KEY AUTOINCREMENT, cargo TEXT NOT NULL,
+                doc_id TEXT NOT NULL, UNIQUE(cargo, doc_id))""")
+            cur.execute("""CREATE TABLE IF NOT EXISTS lotes (
+                id INTEGER PRIMARY KEY AUTOINCREMENT, descricao TEXT,
+                criado_em TEXT DEFAULT (datetime('now','localtime')), status TEXT DEFAULT 'pendente')""")
+            cur.execute("""CREATE TABLE IF NOT EXISTS lote_funcionarios (
+                id INTEGER PRIMARY KEY AUTOINCREMENT, lote_id INTEGER, funcionario_id INTEGER,
+                status TEXT DEFAULT 'pendente', UNIQUE(lote_id, funcionario_id))""")
+            cur.execute("""CREATE TABLE IF NOT EXISTS envios (
+                id INTEGER PRIMARY KEY AUTOINCREMENT, lote_funcionario_id INTEGER,
+                funcionario_id INTEGER, doc_id TEXT NOT NULL, doc_nome TEXT,
+                pdf_path TEXT, autentique_id TEXT, link_assinatura TEXT,
+                status TEXT DEFAULT 'pendente', enviado_em TEXT, assinado_em TEXT)""")
+            conn.commit()
+        print(f"✅ Banco criado ({'PostgreSQL' if USE_POSTGRES else 'SQLite'})")
+    finally:
+        conn.close()
 
-    conn.commit()
-    conn.close()
+def buscar_funcionarios(termo="", apenas_ativos=True):
+    conn = conectar()
+    try:
+        if USE_POSTGRES:
+            cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+            filtro = "AND ativo=1" if apenas_ativos else ""
+            cur.execute(f"""SELECT * FROM funcionarios
+                WHERE (nome ILIKE %s OR cpf ILIKE %s OR cargo ILIKE %s OR lotacao ILIKE %s) {filtro}
+                ORDER BY nome""", (f"%{termo}%",)*4)
+        else:
+            cur = conn.cursor()
+            filtro = "AND ativo=1" if apenas_ativos else ""
+            cur.execute(f"""SELECT * FROM funcionarios
+                WHERE (nome LIKE ? OR cpf LIKE ? OR cargo LIKE ? OR lotacao LIKE ?) {filtro}
+                ORDER BY nome""", (f"%{termo}%",)*4)
+        rows = cur.fetchall()
+        return [dict(r) for r in rows]
+    finally:
+        conn.close()
+
+def importar_funcionarios(lista):
+    conn = conectar()
+    inseridos = atualizados = 0
+    try:
+        if USE_POSTGRES:
+            cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+        else:
+            cur = conn.cursor()
+        
+        for f in lista:
+            cpf = f.get("cpf","").strip()
+            if not cpf: continue
+            
+            if USE_POSTGRES:
+                cur.execute("SELECT id FROM funcionarios WHERE cpf=%s", (cpf,))
+            else:
+                cur.execute("SELECT id FROM funcionarios WHERE cpf=?", (cpf,))
+            
+            existe = cur.fetchone()
+            if existe:
+                if USE_POSTGRES:
+                    cur.execute("""UPDATE funcionarios SET nome=%s,cargo=%s,lotacao=%s,
+                        admissao=%s,celular=%s,email=%s,ativo=1 WHERE cpf=%s""",
+                        (f.get("nome",""),f.get("cargo",""),f.get("lotacao",""),
+                         f.get("admissao",""),f.get("celular",""),f.get("email",""),cpf))
+                else:
+                    cur.execute("""UPDATE funcionarios SET nome=?,cargo=?,lotacao=?,
+                        admissao=?,celular=?,email=?,ativo=1 WHERE cpf=?""",
+                        (f.get("nome",""),f.get("cargo",""),f.get("lotacao",""),
+                         f.get("admissao",""),f.get("celular",""),f.get("email",""),cpf))
+                atualizados += 1
+            else:
+                if USE_POSTGRES:
+                    cur.execute("""INSERT INTO funcionarios (nome,cpf,matricula,cargo,lotacao,admissao,celular,email)
+                        VALUES (%s,%s,%s,%s,%s,%s,%s,%s)""",
+                        (f.get("nome",""),cpf,f.get("matricula",""),f.get("cargo",""),
+                         f.get("lotacao",""),f.get("admissao",""),f.get("celular",""),f.get("email","")))
+                else:
+                    cur.execute("""INSERT INTO funcionarios (nome,cpf,matricula,cargo,lotacao,admissao,celular,email)
+                        VALUES (?,?,?,?,?,?,?,?)""",
+                        (f.get("nome",""),cpf,f.get("matricula",""),f.get("cargo",""),
+                         f.get("lotacao",""),f.get("admissao",""),f.get("celular",""),f.get("email","")))
+                inseridos += 1
+        
+        conn.commit()
+    finally:
+        conn.close()
     return inseridos, atualizados
 
-
-def buscar_funcionarios(termo: str = "", apenas_ativos: bool = True) -> list:
+def salvar_funcionario(dados):
     conn = conectar()
-    c = conn.cursor()
-    filtro_ativo = "AND ativo=1" if apenas_ativos else ""
-    rows = c.execute(f"""
-        SELECT * FROM funcionarios
-        WHERE (nome LIKE ? OR cpf LIKE ? OR cargo LIKE ? OR lotacao LIKE ?)
-        {filtro_ativo}
-        ORDER BY nome
-    """, (f"%{termo}%",) * 4).fetchall()
-    conn.close()
-    return [dict(r) for r in rows]
+    try:
+        if USE_POSTGRES:
+            cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+        else:
+            cur = conn.cursor()
+        
+        fid = dados.get("id")
+        if fid:
+            if USE_POSTGRES:
+                cur.execute("""UPDATE funcionarios SET nome=%s,cpf=%s,matricula=%s,cargo=%s,
+                    lotacao=%s,admissao=%s,celular=%s,email=%s WHERE id=%s""",
+                    (dados["nome"],dados["cpf"],dados.get("matricula",""),dados["cargo"],
+                     dados.get("lotacao",""),dados.get("admissao",""),dados.get("celular",""),
+                     dados.get("email",""),fid))
+            else:
+                cur.execute("""UPDATE funcionarios SET nome=?,cpf=?,matricula=?,cargo=?,
+                    lotacao=?,admissao=?,celular=?,email=? WHERE id=?""",
+                    (dados["nome"],dados["cpf"],dados.get("matricula",""),dados["cargo"],
+                     dados.get("lotacao",""),dados.get("admissao",""),dados.get("celular",""),
+                     dados.get("email",""),fid))
+        else:
+            if USE_POSTGRES:
+                cur.execute("""INSERT INTO funcionarios (nome,cpf,matricula,cargo,lotacao,admissao,celular,email)
+                    VALUES (%s,%s,%s,%s,%s,%s,%s,%s) RETURNING id""",
+                    (dados["nome"],dados["cpf"],dados.get("matricula",""),dados["cargo"],
+                     dados.get("lotacao",""),dados.get("admissao",""),dados.get("celular",""),dados.get("email","")))
+                fid = cur.fetchone()["id"]
+            else:
+                cur.execute("""INSERT INTO funcionarios (nome,cpf,matricula,cargo,lotacao,admissao,celular,email)
+                    VALUES (?,?,?,?,?,?,?,?)""",
+                    (dados["nome"],dados["cpf"],dados.get("matricula",""),dados["cargo"],
+                     dados.get("lotacao",""),dados.get("admissao",""),dados.get("celular",""),dados.get("email","")))
+                fid = cur.lastrowid
+        
+        conn.commit()
+        return fid
+    finally:
+        conn.close()
 
-
-def buscar_funcionario_por_cpf(cpf: str) -> dict | None:
+def docs_do_cargo(cargo):
     conn = conectar()
-    r = conn.execute("SELECT * FROM funcionarios WHERE cpf=?", (cpf,)).fetchone()
-    conn.close()
-    return dict(r) if r else None
+    try:
+        if USE_POSTGRES:
+            cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+            cur.execute("SELECT doc_id FROM funcao_documentos WHERE cargo=%s ORDER BY doc_id", (cargo,))
+        else:
+            cur = conn.cursor()
+            cur.execute("SELECT doc_id FROM funcao_documentos WHERE cargo=? ORDER BY doc_id", (cargo,))
+        rows = cur.fetchall()
+        return [dict(r)["doc_id"] for r in rows]
+    finally:
+        conn.close()
 
-
-def salvar_funcionario(dados: dict) -> int:
+def salvar_docs_cargo(cargo, doc_ids):
     conn = conectar()
-    c = conn.cursor()
-    if dados.get("id"):
-        c.execute("""
-            UPDATE funcionarios SET
-                nome=?, cpf=?, matricula=?, cargo=?, lotacao=?,
-                admissao=?, celular=?, email=?
-            WHERE id=?
-        """, (
-            dados["nome"], dados["cpf"], dados.get("matricula",""),
-            dados["cargo"], dados.get("lotacao",""), dados.get("admissao",""),
-            dados.get("celular",""), dados.get("email",""), dados["id"]
-        ))
-        fid = dados["id"]
-    else:
-        c.execute("""
-            INSERT INTO funcionarios (nome, cpf, matricula, cargo, lotacao, admissao, celular, email)
-            VALUES (?,?,?,?,?,?,?,?)
-        """, (
-            dados["nome"], dados["cpf"], dados.get("matricula",""),
-            dados["cargo"], dados.get("lotacao",""), dados.get("admissao",""),
-            dados.get("celular",""), dados.get("email","")
-        ))
-        fid = c.lastrowid
-    conn.commit()
-    conn.close()
-    return fid
+    try:
+        if USE_POSTGRES:
+            cur = conn.cursor()
+            cur.execute("DELETE FROM funcao_documentos WHERE cargo=%s", (cargo,))
+            for doc_id in doc_ids:
+                cur.execute("INSERT INTO funcao_documentos (cargo,doc_id) VALUES (%s,%s) ON CONFLICT DO NOTHING", (cargo,doc_id))
+        else:
+            cur = conn.cursor()
+            cur.execute("DELETE FROM funcao_documentos WHERE cargo=?", (cargo,))
+            for doc_id in doc_ids:
+                cur.execute("INSERT OR IGNORE INTO funcao_documentos (cargo,doc_id) VALUES (?,?)", (cargo,doc_id))
+        conn.commit()
+    finally:
+        conn.close()
 
-
-# ══════════════════════════════════════════════════════════
-#  MATRIZ FUNÇÃO × DOCUMENTOS
-# ══════════════════════════════════════════════════════════
-
-def salvar_docs_cargo(cargo: str, doc_ids: list[str]):
-    """Salva quais documentos um cargo recebe."""
+def buscar_cargos():
     conn = conectar()
-    c = conn.cursor()
-    c.execute("DELETE FROM funcao_documentos WHERE cargo=?", (cargo,))
-    for doc_id in doc_ids:
-        c.execute("INSERT OR IGNORE INTO funcao_documentos (cargo, doc_id) VALUES (?,?)", (cargo, doc_id))
-    conn.commit()
-    conn.close()
+    try:
+        if USE_POSTGRES:
+            cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+            cur.execute("SELECT DISTINCT cargo FROM funcionarios WHERE cargo IS NOT NULL AND cargo != '' ORDER BY cargo")
+        else:
+            cur = conn.cursor()
+            cur.execute("SELECT DISTINCT cargo FROM funcionarios WHERE cargo IS NOT NULL AND cargo != '' ORDER BY cargo")
+        rows = cur.fetchall()
+        return [dict(r)["cargo"] for r in rows]
+    finally:
+        conn.close()
 
-
-def docs_do_cargo(cargo: str) -> list[str]:
-    """Retorna lista de doc_ids configurados para um cargo."""
+def criar_lote(descricao=""):
     conn = conectar()
-    rows = conn.execute(
-        "SELECT doc_id FROM funcao_documentos WHERE cargo=? ORDER BY doc_id",
-        (cargo,)
-    ).fetchall()
-    conn.close()
-    return [r["doc_id"] for r in rows]
+    try:
+        if USE_POSTGRES:
+            cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+            cur.execute("INSERT INTO lotes (descricao) VALUES (%s) RETURNING id", (descricao,))
+            lote_id = cur.fetchone()["id"]
+        else:
+            cur = conn.cursor()
+            cur.execute("INSERT INTO lotes (descricao) VALUES (?)", (descricao,))
+            lote_id = cur.lastrowid
+        conn.commit()
+        return lote_id
+    finally:
+        conn.close()
 
-
-def listar_cargos_configurados() -> list[str]:
+def adicionar_ao_lote(lote_id, funcionario_id):
     conn = conectar()
-    rows = conn.execute(
-        "SELECT DISTINCT cargo FROM funcao_documentos ORDER BY cargo"
-    ).fetchall()
-    conn.close()
-    return [r["cargo"] for r in rows]
+    try:
+        if USE_POSTGRES:
+            cur = conn.cursor()
+            cur.execute("INSERT INTO lote_funcionarios (lote_id,funcionario_id) VALUES (%s,%s) ON CONFLICT DO NOTHING", (lote_id,funcionario_id))
+        else:
+            cur = conn.cursor()
+            cur.execute("INSERT OR IGNORE INTO lote_funcionarios (lote_id,funcionario_id) VALUES (?,?)", (lote_id,funcionario_id))
+        conn.commit()
+    finally:
+        conn.close()
 
-
-# ══════════════════════════════════════════════════════════
-#  LOTES
-# ══════════════════════════════════════════════════════════
-
-def criar_lote(descricao: str = "") -> int:
+def registrar_envio(dados):
     conn = conectar()
-    c = conn.cursor()
-    c.execute("INSERT INTO lotes (descricao) VALUES (?)", (descricao,))
-    lote_id = c.lastrowid
-    conn.commit()
-    conn.close()
-    return lote_id
+    try:
+        if USE_POSTGRES:
+            cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+            cur.execute("""INSERT INTO envios (funcionario_id,doc_id,doc_nome,pdf_path,
+                autentique_id,link_assinatura,status,enviado_em)
+                VALUES (%s,%s,%s,%s,%s,%s,%s,NOW()) RETURNING id""",
+                (dados["funcionario_id"],dados["doc_id"],dados.get("doc_nome",""),
+                 dados.get("pdf_path",""),dados.get("autentique_id",""),
+                 dados.get("link_assinatura",""),dados.get("status","enviado")))
+            eid = cur.fetchone()["id"]
+        else:
+            cur = conn.cursor()
+            cur.execute("""INSERT INTO envios (funcionario_id,doc_id,doc_nome,pdf_path,
+                autentique_id,link_assinatura,status,enviado_em)
+                VALUES (?,?,?,?,?,?,?,datetime('now','localtime'))""",
+                (dados["funcionario_id"],dados["doc_id"],dados.get("doc_nome",""),
+                 dados.get("pdf_path",""),dados.get("autentique_id",""),
+                 dados.get("link_assinatura",""),dados.get("status","enviado")))
+            eid = cur.lastrowid
+        conn.commit()
+        return eid
+    finally:
+        conn.close()
 
-
-def adicionar_ao_lote(lote_id: int, funcionario_id: int):
+def listar_lotes():
     conn = conectar()
-    conn.execute(
-        "INSERT OR IGNORE INTO lote_funcionarios (lote_id, funcionario_id) VALUES (?,?)",
-        (lote_id, funcionario_id)
-    )
-    conn.commit()
-    conn.close()
-
-
-def funcionarios_do_lote(lote_id: int) -> list:
-    conn = conectar()
-    rows = conn.execute("""
-        SELECT f.*, lf.id as lf_id, lf.status as lf_status
-        FROM lote_funcionarios lf
-        JOIN funcionarios f ON f.id = lf.funcionario_id
-        WHERE lf.lote_id = ?
-        ORDER BY f.nome
-    """, (lote_id,)).fetchall()
-    conn.close()
-    return [dict(r) for r in rows]
-
-
-def listar_lotes() -> list:
-    conn = conectar()
-    rows = conn.execute("""
-        SELECT l.*,
-               COUNT(lf.id) as total_func,
-               SUM(CASE WHEN lf.status='enviado' THEN 1 ELSE 0 END) as enviados
-        FROM lotes l
-        LEFT JOIN lote_funcionarios lf ON lf.lote_id = l.id
-        GROUP BY l.id
-        ORDER BY l.criado_em DESC
-    """).fetchall()
-    conn.close()
-    return [dict(r) for r in rows]
-
-
-# ══════════════════════════════════════════════════════════
-#  ENVIOS
-# ══════════════════════════════════════════════════════════
-
-def registrar_envio(dados: dict) -> int:
-    conn = conectar()
-    c = conn.cursor()
-    c.execute("""
-        INSERT INTO envios
-            (lote_funcionario_id, funcionario_id, doc_id, doc_nome,
-             pdf_path, autentique_id, link_assinatura, status, enviado_em)
-        VALUES (?,?,?,?,?,?,?,?,datetime('now','localtime'))
-    """, (
-        dados.get("lote_funcionario_id"), dados["funcionario_id"],
-        dados["doc_id"], dados.get("doc_nome",""),
-        dados.get("pdf_path",""), dados.get("autentique_id",""),
-        dados.get("link_assinatura",""), dados.get("status","enviado")
-    ))
-    eid = c.lastrowid
-    conn.commit()
-    conn.close()
-    return eid
-
-
-def envios_do_funcionario(funcionario_id: int) -> list:
-    conn = conectar()
-    rows = conn.execute("""
-        SELECT e.*, l.descricao as lote_desc, l.criado_em as lote_data
-        FROM envios e
-        LEFT JOIN lote_funcionarios lf ON lf.id = e.lote_funcionario_id
-        LEFT JOIN lotes l ON l.id = lf.lote_id
-        WHERE e.funcionario_id = ?
-        ORDER BY e.enviado_em DESC
-    """, (funcionario_id,)).fetchall()
-    conn.close()
-    return [dict(r) for r in rows]
-
-
-def atualizar_status_envio(envio_id: int, status: str, link: str = None):
-    conn = conectar()
-    if link:
-        conn.execute(
-            "UPDATE envios SET status=?, link_assinatura=? WHERE id=?",
-            (status, link, envio_id)
-        )
-    else:
-        conn.execute("UPDATE envios SET status=? WHERE id=?", (status, envio_id))
-    conn.commit()
-    conn.close()
-
+    try:
+        if USE_POSTGRES:
+            cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+            cur.execute("""SELECT l.*, COUNT(lf.id) as total_func,
+                SUM(CASE WHEN lf.status='enviado' THEN 1 ELSE 0 END) as enviados
+                FROM lotes l LEFT JOIN lote_funcionarios lf ON lf.lote_id=l.id
+                GROUP BY l.id ORDER BY l.criado_em DESC""")
+        else:
+            cur = conn.cursor()
+            cur.execute("""SELECT l.*, COUNT(lf.id) as total_func,
+                SUM(CASE WHEN lf.status='enviado' THEN 1 ELSE 0 END) as enviados
+                FROM lotes l LEFT JOIN lote_funcionarios lf ON lf.lote_id=l.id
+                GROUP BY l.id ORDER BY l.criado_em DESC""")
+        rows = cur.fetchall()
+        return [dict(r) for r in rows]
+    finally:
+        conn.close()
 
 if __name__ == "__main__":
     criar_banco()

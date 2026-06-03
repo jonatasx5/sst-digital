@@ -3,14 +3,21 @@ Configurações do sistema SST Digital
 Edite este arquivo com os dados da sua empresa.
 """
 
+import os
+
 # ─── AUTENTIQUE ───────────────────────────────────────────
-AUTENTIQUE_TOKEN = "5970c128466b61a704bfd03819b788d0323790a15467d377e8bc5897a7e77155"
+# Configure a variável de ambiente AUTENTIQUE_TOKEN no Railway (ou .env local)
+AUTENTIQUE_TOKEN = os.environ.get("AUTENTIQUE_TOKEN", "")
 AUTENTIQUE_URL   = "https://api.autentique.com.br/v2/graphql"
 
+# ─── AUTENTICAÇÃO DO SISTEMA ──────────────────────────────
+# Defina APP_PASSWORD no Railway para proteger o sistema
+APP_PASSWORD = os.environ.get("APP_PASSWORD", "")
+
 # ─── EMPRESA ──────────────────────────────────────────────
-EMPRESA   = "JS Construtora"          # Nome da empresa nos documentos
-RESP_SST  = ""                        # Nome do responsável SST (preencha)
-CNPJ      = ""                        # CNPJ da empresa (opcional)
+EMPRESA   = os.environ.get("EMPRESA", "JS Construtora")  # Nome da empresa nos documentos
+RESP_SST  = os.environ.get("RESP_SST", "")               # Nome do responsável SST
+CNPJ      = os.environ.get("CNPJ", "")                   # CNPJ da empresa (opcional)
 
 # ─── DOCUMENTOS ───────────────────────────────────────────
 # Lista com os 14 documentos disponíveis

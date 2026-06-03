@@ -1,0 +1,17 @@
+# Ambiente
+.env
+*.env
+
+# Banco local
+sst.db
+
+# Arquivos gerados
+output/
+modelos/
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.venv/
+venv/

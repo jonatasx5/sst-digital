@@ -317,3 +317,60 @@ def pasta_lote() -> str:
     pasta = os.path.join(OUTPUT_DIR, nome)
     os.makedirs(pasta, exist_ok=True)
     return pasta
+
+
+def juntar_pdfs(caminhos_pdf: list[str], pasta_saida: str, nome_funcionario: str) -> str | None:
+    """
+    Junta múltiplos PDFs em um único arquivo.
+    Retorna o caminho do PDF final ou None em caso de erro.
+    """
+    try:
+        import subprocess, re
+
+        nome_seguro = re.sub(r"[^\w\s-]", "", nome_funcionario)
+        nome_seguro = re.sub(r"\s+", "_", nome_seguro.strip())
+        pdf_final   = os.path.join(pasta_saida, f"Kit_SST__{nome_seguro}.pdf")
+
+        # Tenta usar pdfunite (ghostscript/poppler) — disponível no Docker
+        pdfunite = shutil.which("pdfunite")
+        if pdfunite:
+            cmd = [pdfunite] + caminhos_pdf + [pdf_final]
+            resultado = subprocess.run(cmd, capture_output=True, timeout=60)
+            if resultado.returncode == 0 and os.path.exists(pdf_final):
+                return pdf_final
+
+        # Tenta ghostscript
+        gs = shutil.which("gs")
+        if gs:
+            cmd = [gs, "-dBATCH", "-dNOPAUSE", "-q", "-sDEVICE=pdfwrite",
+                   f"-sOutputFile={pdf_final}"] + caminhos_pdf
+            resultado = subprocess.run(cmd, capture_output=True, timeout=60)
+            if resultado.returncode == 0 and os.path.exists(pdf_final):
+                return pdf_final
+
+        # Fallback: usa pypdf
+        try:
+            from pypdf import PdfWriter
+            writer = PdfWriter()
+            for caminho in caminhos_pdf:
+                writer.append(caminho)
+            with open(pdf_final, "wb") as f:
+                writer.write(f)
+            if os.path.exists(pdf_final):
+                return pdf_final
+        except ImportError:
+            pass
+
+        # Último fallback: retorna o primeiro PDF se não conseguir juntar
+        if caminhos_pdf:
+            shutil.copy(caminhos_pdf[0], pdf_final)
+            return pdf_final
+
+        return None
+
+    except Exception as e:
+        print(f"❌ Erro ao juntar PDFs: {e}")
+        # Retorna primeiro PDF como fallback
+        if caminhos_pdf and os.path.exists(caminhos_pdf[0]):
+            return caminhos_pdf[0]
+        return None

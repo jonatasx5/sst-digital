@@ -144,13 +144,13 @@ async def preview_lote(dados: dict):
 
 @app.post("/api/lotes/enviar")
 async def enviar_lote(dados: dict):
-    """Processa e envia o lote completo para o Autentique."""
-    func_ids   = dados.get("func_ids", [])
-    descricao  = dados.get("descricao", f"Lote {datetime.now().strftime('%d/%m/%Y')}")
-    celulares  = dados.get("celulares", {})  # {str(func_id): celular_editado}
-    sandbox    = dados.get("sandbox", False)
+    """Processa e envia o lote completo para o Autentique — PDF único por funcionário."""
+    func_ids  = dados.get("func_ids", [])
+    descricao = dados.get("descricao", f"Lote {datetime.now().strftime('%d/%m/%Y')}")
+    celulares = dados.get("celulares", {})
+    sandbox   = dados.get("sandbox", False)
 
-    todos  = banco.buscar_funcionarios("")
+    todos   = banco.buscar_funcionarios("")
     lote_id = banco.criar_lote(descricao)
     pasta   = processador.pasta_lote()
 
@@ -162,7 +162,6 @@ async def enviar_lote(dados: dict):
         if not f:
             continue
 
-        # Celular editado pelo usuário
         cel_editado = celulares.get(str(fid))
         if cel_editado:
             f = dict(f)
@@ -174,52 +173,67 @@ async def enviar_lote(dados: dict):
             continue
 
         banco.adicionar_ao_lote(lote_id, f["id"])
+
+        # Gera PDFs individuais
         pdfs = processador.gerar_kit_funcionario(f, doc_ids, pasta)
 
-        links_func = []
-        for res in pdfs:
-            if res["erro"]:
-                erros.append(f"{f['nome']} / {res['doc_nome']}: {res['erro']}")
-                continue
+        # Filtra PDFs gerados com sucesso
+        pdfs_ok = [r for r in pdfs if not r["erro"] and r["pdf_path"]]
+        pdfs_erro = [r for r in pdfs if r["erro"]]
 
-            ret = autentique.enviar_documento(
-                nome_documento=f"{res['doc_nome']} — {f['nome']}",
-                caminho_pdf=res["pdf_path"],
-                funcionario=f,
-                sandbox=sandbox
-            )
+        for r in pdfs_erro:
+            erros.append(f"{f['nome']} / {r['doc_nome']}: {r['erro']}")
 
-            banco.registrar_envio({
-                "funcionario_id":  f["id"],
-                "doc_id":          res["doc_id"],
-                "doc_nome":        res["doc_nome"],
-                "pdf_path":        res["pdf_path"],
-                "autentique_id":   ret.get("autentique_id"),
-                "link_assinatura": ret.get("link"),
-                "status":          "enviado" if ret["sucesso"] else "erro",
-            })
+        if not pdfs_ok:
+            erros.append(f"{f['nome']}: nenhum PDF gerado com sucesso")
+            continue
 
-            if ret["sucesso"]:
-                links_func.append({
-                    "doc":  res["doc_nome"],
-                    "link": ret.get("link",""),
-                })
-            else:
-                erros.append(f"{f['nome']} / {res['doc_nome']}: {ret['erro']}")
+        # Junta todos os PDFs em um único
+        pdf_final = processador.juntar_pdfs(
+            [r["pdf_path"] for r in pdfs_ok],
+            pasta,
+            f["nome"]
+        )
 
-        if links_func:
+        if not pdf_final:
+            erros.append(f"{f['nome']}: falha ao juntar PDFs")
+            continue
+
+        # Envia PDF único para o Autentique
+        nome_kit = f"Kit SST — {f['nome']}"
+        ret = autentique.enviar_documento(
+            nome_documento=nome_kit,
+            caminho_pdf=pdf_final,
+            funcionario=f,
+            sandbox=sandbox
+        )
+
+        # Registra no banco
+        banco.registrar_envio({
+            "funcionario_id":  f["id"],
+            "doc_id":          "kit_completo",
+            "doc_nome":        nome_kit,
+            "pdf_path":        pdf_final,
+            "autentique_id":   ret.get("autentique_id"),
+            "link_assinatura": ret.get("link"),
+            "status":          "enviado" if ret["sucesso"] else "erro",
+        })
+
+        if ret["sucesso"]:
             resultados.append({
                 "nome":    f["nome"],
-                "celular": f.get("celular",""),
+                "celular": f.get("celular", ""),
                 "cargo":   f["cargo"],
-                "links":   links_func,
+                "links":   [{"doc": nome_kit, "link": ret.get("link", "")}],
             })
+        else:
+            erros.append(f"{f['nome']}: {ret['erro']}")
 
     return {
-        "ok":        True,
-        "lote_id":   lote_id,
-        "enviados":  len(resultados),
-        "erros":     erros,
+        "ok":         True,
+        "lote_id":    lote_id,
+        "enviados":   len(resultados),
+        "erros":      erros,
         "resultados": resultados,
     }
 

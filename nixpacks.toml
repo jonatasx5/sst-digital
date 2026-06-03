@@ -1,8 +1,0 @@
-[phases.setup]
-nixPkgs = ["libreoffice-headless", "poppler_utils", "fontconfig", "liberation_ttf"]
-
-[phases.install]
-cmds = ["pip install -r requirements.txt"]
-
-[start]
-cmd = "python app.py"

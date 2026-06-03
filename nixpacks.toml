@@ -1,8 +1,5 @@
 [phases.setup]
-nixPkgs = ["python311", "libreoffice"]
-
-[phases.install]
-cmds = ["pip install -r requirements.txt"]
+nixPkgs = ["libreoffice"]
 
 [start]
 cmd = "uvicorn app:app --host 0.0.0.0 --port $PORT"

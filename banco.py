@@ -1,5 +1,6 @@
 """
 banco.py - Banco de dados com suporte a PostgreSQL e SQLite
+
 Usa PostgreSQL quando DATABASE_URL está disponível (Railway)
 Usa SQLite como fallback local
 """
@@ -12,13 +13,23 @@ DATABASE_URL = os.environ.get("DATABASE_URL", "")
 # Detecta se usa PostgreSQL ou SQLite
 USE_POSTGRES = bool(DATABASE_URL and DATABASE_URL.startswith("postgres"))
 
+# Import lazy — não falha na inicialização se psycopg2 não estiver disponível
+_psycopg2 = None
+_psycopg2_extras = None
+
 if USE_POSTGRES:
-    import psycopg2
-    import psycopg2.extras
+    try:
+        import psycopg2 as _psycopg2
+        import psycopg2.extras as _psycopg2_extras
+        print("✅ psycopg2 carregado — usando PostgreSQL")
+    except ImportError as e:
+        print(f"⚠️  psycopg2 não disponível ({e}) — usando SQLite")
+        USE_POSTGRES = False
+
 
 def conectar():
     if USE_POSTGRES:
-        conn = psycopg2.connect(DATABASE_URL)
+        conn = _psycopg2.connect(DATABASE_URL)
         return conn
     else:
         from config import DB_PATH
@@ -27,10 +38,10 @@ def conectar():
         conn.execute("PRAGMA foreign_keys = ON")
         return conn
 
+
 def executar(query, params=(), fetchone=False, fetchall=False, commit=False):
     """Executa query compatível com PostgreSQL e SQLite."""
     if USE_POSTGRES:
-        # PostgreSQL usa %s ao invés de ?
         query = query.replace("?", "%s")
         query = query.replace("INTEGER PRIMARY KEY AUTOINCREMENT", "SERIAL PRIMARY KEY")
         query = query.replace("datetime('now','localtime')", "NOW()")
@@ -40,33 +51,35 @@ def executar(query, params=(), fetchone=False, fetchall=False, commit=False):
     conn = conectar()
     try:
         if USE_POSTGRES:
-            cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+            cur = conn.cursor(cursor_factory=_psycopg2_extras.RealDictCursor)
         else:
             cur = conn.cursor()
-        
+
         cur.execute(query, params)
-        
         result = None
+
         if fetchone:
             row = cur.fetchone()
             result = dict(row) if row else None
         elif fetchall:
             rows = cur.fetchall()
             result = [dict(r) for r in rows]
-        
+
         if commit:
             conn.commit()
-            if USE_POSTGRES and not fetchone and not fetchall:
-                try:
-                    result = cur.fetchone()
-                    if result:
-                        result = dict(result)
-                except:
-                    pass
-        
+
+        if USE_POSTGRES and not fetchone and not fetchall:
+            try:
+                result = cur.fetchone()
+                if result:
+                    result = dict(result)
+            except Exception:
+                pass
+
         return result
     finally:
         conn.close()
+
 
 def criar_banco():
     """Cria todas as tabelas."""
@@ -152,22 +165,23 @@ def criar_banco():
                 pdf_path TEXT, autentique_id TEXT, link_assinatura TEXT,
                 status TEXT DEFAULT 'pendente', enviado_em TEXT, assinado_em TEXT)""")
             conn.commit()
+
         print(f"✅ Banco criado ({'PostgreSQL' if USE_POSTGRES else 'SQLite'})")
     finally:
         conn.close()
 
+
 def buscar_funcionarios(termo="", apenas_ativos=True):
     conn = conectar()
     try:
+        filtro = "AND ativo=1" if apenas_ativos else ""
         if USE_POSTGRES:
-            cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
-            filtro = "AND ativo=1" if apenas_ativos else ""
+            cur = conn.cursor(cursor_factory=_psycopg2_extras.RealDictCursor)
             cur.execute(f"""SELECT * FROM funcionarios
                 WHERE (nome ILIKE %s OR cpf ILIKE %s OR cargo ILIKE %s OR lotacao ILIKE %s) {filtro}
                 ORDER BY nome""", (f"%{termo}%",)*4)
         else:
             cur = conn.cursor()
-            filtro = "AND ativo=1" if apenas_ativos else ""
             cur.execute(f"""SELECT * FROM funcionarios
                 WHERE (nome LIKE ? OR cpf LIKE ? OR cargo LIKE ? OR lotacao LIKE ?) {filtro}
                 ORDER BY nome""", (f"%{termo}%",)*4)
@@ -176,25 +190,28 @@ def buscar_funcionarios(termo="", apenas_ativos=True):
     finally:
         conn.close()
 
+
 def importar_funcionarios(lista):
     conn = conectar()
     inseridos = atualizados = 0
     try:
         if USE_POSTGRES:
-            cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+            cur = conn.cursor(cursor_factory=_psycopg2_extras.RealDictCursor)
         else:
             cur = conn.cursor()
-        
+
         for f in lista:
-            cpf = f.get("cpf","").strip()
-            if not cpf: continue
-            
+            cpf = f.get("cpf", "").strip()
+            if not cpf:
+                continue
+
             if USE_POSTGRES:
                 cur.execute("SELECT id FROM funcionarios WHERE cpf=%s", (cpf,))
             else:
                 cur.execute("SELECT id FROM funcionarios WHERE cpf=?", (cpf,))
-            
+
             existe = cur.fetchone()
+
             if existe:
                 if USE_POSTGRES:
                     cur.execute("""UPDATE funcionarios SET nome=%s,cargo=%s,lotacao=%s,
@@ -219,20 +236,21 @@ def importar_funcionarios(lista):
                         (f.get("nome",""),cpf,f.get("matricula",""),f.get("cargo",""),
                          f.get("lotacao",""),f.get("admissao",""),f.get("celular",""),f.get("email","")))
                 inseridos += 1
-        
+
         conn.commit()
     finally:
         conn.close()
     return inseridos, atualizados
 
+
 def salvar_funcionario(dados):
     conn = conectar()
     try:
         if USE_POSTGRES:
-            cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+            cur = conn.cursor(cursor_factory=_psycopg2_extras.RealDictCursor)
         else:
             cur = conn.cursor()
-        
+
         fid = dados.get("id")
         if fid:
             if USE_POSTGRES:
@@ -260,17 +278,18 @@ def salvar_funcionario(dados):
                     (dados["nome"],dados["cpf"],dados.get("matricula",""),dados["cargo"],
                      dados.get("lotacao",""),dados.get("admissao",""),dados.get("celular",""),dados.get("email","")))
                 fid = cur.lastrowid
-        
+
         conn.commit()
         return fid
     finally:
         conn.close()
 
+
 def docs_do_cargo(cargo):
     conn = conectar()
     try:
         if USE_POSTGRES:
-            cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+            cur = conn.cursor(cursor_factory=_psycopg2_extras.RealDictCursor)
             cur.execute("SELECT doc_id FROM funcao_documentos WHERE cargo=%s ORDER BY doc_id", (cargo,))
         else:
             cur = conn.cursor()
@@ -280,6 +299,7 @@ def docs_do_cargo(cargo):
     finally:
         conn.close()
 
+
 def salvar_docs_cargo(cargo, doc_ids):
     conn = conectar()
     try:
@@ -287,35 +307,36 @@ def salvar_docs_cargo(cargo, doc_ids):
             cur = conn.cursor()
             cur.execute("DELETE FROM funcao_documentos WHERE cargo=%s", (cargo,))
             for doc_id in doc_ids:
-                cur.execute("INSERT INTO funcao_documentos (cargo,doc_id) VALUES (%s,%s) ON CONFLICT DO NOTHING", (cargo,doc_id))
+                cur.execute("INSERT INTO funcao_documentos (cargo,doc_id) VALUES (%s,%s) ON CONFLICT DO NOTHING", (cargo, doc_id))
         else:
             cur = conn.cursor()
             cur.execute("DELETE FROM funcao_documentos WHERE cargo=?", (cargo,))
             for doc_id in doc_ids:
-                cur.execute("INSERT OR IGNORE INTO funcao_documentos (cargo,doc_id) VALUES (?,?)", (cargo,doc_id))
+                cur.execute("INSERT OR IGNORE INTO funcao_documentos (cargo,doc_id) VALUES (?,?)", (cargo, doc_id))
         conn.commit()
     finally:
         conn.close()
+
 
 def buscar_cargos():
     conn = conectar()
     try:
         if USE_POSTGRES:
-            cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
-            cur.execute("SELECT DISTINCT cargo FROM funcionarios WHERE cargo IS NOT NULL AND cargo != '' ORDER BY cargo")
+            cur = conn.cursor(cursor_factory=_psycopg2_extras.RealDictCursor)
         else:
             cur = conn.cursor()
-            cur.execute("SELECT DISTINCT cargo FROM funcionarios WHERE cargo IS NOT NULL AND cargo != '' ORDER BY cargo")
+        cur.execute("SELECT DISTINCT cargo FROM funcionarios WHERE cargo IS NOT NULL AND cargo != '' ORDER BY cargo")
         rows = cur.fetchall()
         return [dict(r)["cargo"] for r in rows]
     finally:
         conn.close()
 
+
 def criar_lote(descricao=""):
     conn = conectar()
     try:
         if USE_POSTGRES:
-            cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+            cur = conn.cursor(cursor_factory=_psycopg2_extras.RealDictCursor)
             cur.execute("INSERT INTO lotes (descricao) VALUES (%s) RETURNING id", (descricao,))
             lote_id = cur.fetchone()["id"]
         else:
@@ -327,24 +348,26 @@ def criar_lote(descricao=""):
     finally:
         conn.close()
 
+
 def adicionar_ao_lote(lote_id, funcionario_id):
     conn = conectar()
     try:
         if USE_POSTGRES:
             cur = conn.cursor()
-            cur.execute("INSERT INTO lote_funcionarios (lote_id,funcionario_id) VALUES (%s,%s) ON CONFLICT DO NOTHING", (lote_id,funcionario_id))
+            cur.execute("INSERT INTO lote_funcionarios (lote_id,funcionario_id) VALUES (%s,%s) ON CONFLICT DO NOTHING", (lote_id, funcionario_id))
         else:
             cur = conn.cursor()
-            cur.execute("INSERT OR IGNORE INTO lote_funcionarios (lote_id,funcionario_id) VALUES (?,?)", (lote_id,funcionario_id))
+            cur.execute("INSERT OR IGNORE INTO lote_funcionarios (lote_id,funcionario_id) VALUES (?,?)", (lote_id, funcionario_id))
         conn.commit()
     finally:
         conn.close()
+
 
 def registrar_envio(dados):
     conn = conectar()
     try:
         if USE_POSTGRES:
-            cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+            cur = conn.cursor(cursor_factory=_psycopg2_extras.RealDictCursor)
             cur.execute("""INSERT INTO envios (funcionario_id,doc_id,doc_nome,pdf_path,
                 autentique_id,link_assinatura,status,enviado_em)
                 VALUES (%s,%s,%s,%s,%s,%s,%s,NOW()) RETURNING id""",
@@ -366,25 +389,23 @@ def registrar_envio(dados):
     finally:
         conn.close()
 
+
 def listar_lotes():
     conn = conectar()
     try:
         if USE_POSTGRES:
-            cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
-            cur.execute("""SELECT l.*, COUNT(lf.id) as total_func,
-                SUM(CASE WHEN lf.status='enviado' THEN 1 ELSE 0 END) as enviados
-                FROM lotes l LEFT JOIN lote_funcionarios lf ON lf.lote_id=l.id
-                GROUP BY l.id ORDER BY l.criado_em DESC""")
+            cur = conn.cursor(cursor_factory=_psycopg2_extras.RealDictCursor)
         else:
             cur = conn.cursor()
-            cur.execute("""SELECT l.*, COUNT(lf.id) as total_func,
-                SUM(CASE WHEN lf.status='enviado' THEN 1 ELSE 0 END) as enviados
-                FROM lotes l LEFT JOIN lote_funcionarios lf ON lf.lote_id=l.id
-                GROUP BY l.id ORDER BY l.criado_em DESC""")
+        cur.execute("""SELECT l.*, COUNT(lf.id) as total_func,
+            SUM(CASE WHEN lf.status='enviado' THEN 1 ELSE 0 END) as enviados
+            FROM lotes l LEFT JOIN lote_funcionarios lf ON lf.lote_id=l.id
+            GROUP BY l.id ORDER BY l.criado_em DESC""")
         rows = cur.fetchall()
         return [dict(r) for r in rows]
     finally:
         conn.close()
+
 
 if __name__ == "__main__":
     criar_banco()

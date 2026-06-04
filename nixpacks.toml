@@ -1,5 +1,8 @@
 [phases.setup]
 nixPkgs = ["libreoffice", "poppler_utils", "fontconfig", "liberation_ttf"]
 
+[phases.install]
+cmds = ["python -m venv /opt/venv && /opt/venv/bin/pip install -r requirements.txt"]
+
 [start]
-cmd = "python app.py"
+cmd = "/opt/venv/bin/python app.py"

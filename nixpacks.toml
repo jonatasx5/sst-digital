@@ -1,8 +1,5 @@
 [phases.setup]
-nixPkgs = ["python311", "python311Packages.pip", "libreoffice", "poppler_utils", "fontconfig", "liberation_ttf"]
-
-[phases.install]
-cmds = ["pip install --break-system-packages -r requirements.txt"]
+nixPkgs = ["libreoffice", "poppler_utils", "fontconfig", "liberation_ttf"]
 
 [start]
 cmd = "python app.py"

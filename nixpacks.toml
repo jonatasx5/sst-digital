@@ -1,2 +1,5 @@
 [phases.setup]
 nixPkgs = ["...", "libreoffice", "poppler_utils", "fontconfig", "liberation_ttf"]
+
+[start]
+cmd = "python app.py"

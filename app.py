@@ -92,10 +92,14 @@ async def importar_planilha(file: UploadFile = File(...), _=Depends(verificar_ac
 @app.get("/api/documentos")
 async def listar_documentos(_=Depends(verificar_acesso)):
     from config import MODELOS_DIR
+    # Modelos salvos no banco
+    modelos_banco = {m["id"] for m in banco.listar_modelos() if m.get("tem_conteudo")}
     docs = []
     for d in DOCUMENTOS:
-        existe = os.path.exists(os.path.join(MODELOS_DIR, f"{d['id']}.docx"))
-        docs.append({**d, "modelo_existe": existe})
+        existe_disco = os.path.exists(os.path.join(MODELOS_DIR, f"{d['id']}.docx"))
+        existe_banco = d["id"] in modelos_banco
+        docs.append({**d, "modelo_existe": existe_disco or existe_banco,
+                     "modelo_no_banco": existe_banco, "modelo_no_disco": existe_disco})
     return docs
 
 @app.get("/api/matriz/{cargo}")
@@ -112,17 +116,73 @@ async def listar_cargos(_=Depends(verificar_acesso)):
     return banco.buscar_cargos()
 
 # ══════════════════════════════════════════════════════════
-#  UPLOAD DE MODELOS
+#  MODELOS .DOCX — CRUD
 # ══════════════════════════════════════════════════════════
 
 @app.post("/api/modelos/upload/{doc_id}")
-async def upload_modelo(doc_id: str, file: UploadFile = File(...), _=Depends(verificar_acesso)):
+async def upload_modelo(doc_id: str, file: UploadFile = File(...),
+                        cargo: str = None, _=Depends(verificar_acesso)):
     from config import MODELOS_DIR
-    os.makedirs(MODELOS_DIR, exist_ok=True)
-    dest = os.path.join(MODELOS_DIR, f"{doc_id}.docx")
-    with open(dest, "wb") as f:
-        shutil.copyfileobj(file.file, f)
-    return {"ok": True, "arquivo": f"{doc_id}.docx"}
+    conteudo = await file.read()
+
+    # Salva no banco
+    nome_doc = next((d["nome"] for d in DOCUMENTOS if d["id"] == doc_id), doc_id)
+    banco.salvar_modelo(doc_id, nome_doc, conteudo, cargo=cargo)
+
+    # Também salva no disco (compatibilidade), apenas quando não é cargo-específico
+    if cargo is None:
+        os.makedirs(MODELOS_DIR, exist_ok=True)
+        dest = os.path.join(MODELOS_DIR, f"{doc_id}.docx")
+        with open(dest, "wb") as f:
+            f.write(conteudo)
+
+    return {"ok": True, "arquivo": f"{doc_id}.docx", "salvo_banco": True, "cargo": cargo}
+
+
+@app.get("/api/modelos")
+async def listar_modelos_banco(_=Depends(verificar_acesso)):
+    from config import MODELOS_DIR
+    modelos_banco = banco.listar_modelos()
+    banco_por_id = {m["id"]: m for m in modelos_banco if m.get("tem_conteudo") and m.get("cargo") is None}
+    resultado = []
+    for d in DOCUMENTOS:
+        existe_banco = d["id"] in banco_por_id
+        existe_disco = os.path.exists(os.path.join(MODELOS_DIR, f"{d['id']}.docx"))
+        resultado.append({
+            "id": d["id"],
+            "nome": d["nome"],
+            "tem_arquivo": existe_banco or existe_disco,
+            "no_banco": existe_banco,
+            "no_disco": existe_disco,
+        })
+    return resultado
+
+
+@app.get("/api/modelos/{doc_id}/download")
+async def download_modelo(doc_id: str, cargo: str = None, _=Depends(verificar_acesso)):
+    from fastapi.responses import Response
+    from config import MODELOS_DIR
+    conteudo = banco.buscar_modelo(doc_id, cargo=cargo)
+    if not conteudo:
+        # Fallback para disco
+        modelo_path = os.path.join(MODELOS_DIR, f"{doc_id}.docx")
+        if os.path.exists(modelo_path):
+            with open(modelo_path, "rb") as f:
+                conteudo = f.read()
+    if not conteudo:
+        from fastapi import HTTPException
+        raise HTTPException(status_code=404, detail="Modelo não encontrado")
+    return Response(
+        content=conteudo,
+        media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        headers={"Content-Disposition": f'attachment; filename="{doc_id}.docx"'}
+    )
+
+
+@app.delete("/api/modelos/{doc_id}")
+async def deletar_modelo(doc_id: str, cargo: str = None, _=Depends(verificar_acesso)):
+    banco.deletar_modelo(doc_id, cargo=cargo)
+    return {"ok": True}
 
 # ══════════════════════════════════════════════════════════
 #  LOTES

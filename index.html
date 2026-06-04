@@ -410,6 +410,7 @@ tr:hover td { background:#F9FAFB; }
       <button class="modal-close" onclick="fecharModal('modal-modelo')">×</button>
     </div>
     <input type="hidden" id="mm-doc-id">
+    <input type="hidden" id="mm-cargo">
     <div class="upload-zone" onclick="document.getElementById('inp-modelo').click()">
       <i class="ti ti-file-word"></i>
       <p>Clique para selecionar o arquivo <strong>.docx</strong></p>
@@ -523,30 +524,93 @@ function dropPlanilha(e) {
 // ══════════════════════════════════════════════════════
 //  MODELOS & MATRIZ
 // ══════════════════════════════════════════════════════
+const EPI_DOC_ID = '10_ficha_controle_epi';
+
 async function carregarModelos() {
-  const res = await fetch('/api/documentos');
-  todosDocs = await res.json();
+  const [resDoc, resMod, resCargos] = await Promise.all([
+    fetch('/api/documentos'),
+    fetch('/api/modelos'),
+    fetch('/api/cargos')
+  ]);
+  todosDocs = await resDoc.json();
+  const modelos = await resMod.json();
+  const cargos = await resCargos.json();
+
+  // Build lookup from /api/modelos
+  const modeloMap = {};
+  modelos.forEach(m => modeloMap[m.id] = m);
+
   const lista = document.getElementById('modelos-lista');
   lista.innerHTML = '';
   todosDocs.forEach(d => {
-    const cor = d.modelo_existe ? 'var(--verde)' : 'var(--danger)';
-    const ico = d.modelo_existe ? 'ti-check' : 'ti-upload';
-    lista.innerHTML += `<div style="display:flex;align-items:center;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--borda)">
-      <div>
-        <div style="font-size:12px;font-weight:500;color:${cor}"><i class="ti ${ico}" style="margin-right:4px"></i>${d.nome}</div>
-      </div>
-      <button class="btn btn-outline btn-sm" onclick="abrirUploadModelo('${d.id}','${d.nome.replace(/'/g,"\\'")}')">
+    const info = modeloMap[d.id] || {};
+    const temArquivo = info.tem_arquivo || d.modelo_existe;
+    const badgeCor = temArquivo ? 'var(--verde)' : 'var(--danger)';
+    const badgeTexto = temArquivo ? '&#10003; Enviado' : '&#10007; Sem arquivo';
+    const badgeStyle = `display:inline-block;padding:2px 8px;border-radius:10px;font-size:11px;font-weight:600;color:#fff;background:${badgeCor};margin-left:6px`;
+
+    const isEpi = d.id === EPI_DOC_ID;
+    const nomeSeguro = d.nome.replace(/'/g, "\\'");
+
+    let html = `<div id="modelo-row-${d.id}" style="padding:8px 0;border-bottom:1px solid var(--borda)">
+      <div style="display:flex;align-items:center;justify-content:space-between">
+        <div style="font-size:12px;font-weight:500">
+          ${d.nome}
+          <span style="${badgeStyle}">${badgeTexto}</span>
+          ${info.no_banco ? '<span style="font-size:10px;color:var(--verde);margin-left:4px" title="Salvo no banco de dados"><i class="ti ti-database"></i></span>' : ''}
+        </div>
+        <div style="display:flex;gap:4px">`;
+
+    if (temArquivo) {
+      html += `<button class="btn btn-outline btn-sm" title="Baixar para editar" onclick="downloadModelo('${d.id}')">
+        <i class="ti ti-download"></i>
+      </button>`;
+    }
+    html += `<button class="btn btn-outline btn-sm" title="Upload" onclick="abrirUploadModelo('${d.id}','${nomeSeguro}')">
         <i class="ti ti-upload"></i>
-      </button>
-    </div>`;
+      </button>`;
+
+    if (isEpi) {
+      html += `<button class="btn btn-outline btn-sm" title="Upload por cargo" onclick="toggleEpiCargos(this)">
+        <i class="ti ti-users"></i>
+      </button>`;
+    }
+    html += `</div></div>`;
+
+    // Sub-lista de cargos para EPI
+    if (isEpi) {
+      html += `<div id="epi-cargos" style="display:none;margin-top:6px;margin-left:12px;border-left:2px solid var(--borda);padding-left:10px">`;
+      cargos.forEach(c => {
+        const cSeguro = c.replace(/'/g, "\\'");
+        html += `<div style="display:flex;align-items:center;justify-content:space-between;padding:4px 0;font-size:11px">
+          <span>${c}</span>
+          <button class="btn btn-outline btn-sm" title="Upload EPI para ${c}" onclick="abrirUploadModelo('${d.id}','${nomeSeguro} — ${cSeguro}','${cSeguro}')">
+            <i class="ti ti-upload"></i>
+          </button>
+        </div>`;
+      });
+      html += `</div>`;
+    }
+
+    html += `</div>`;
+    lista.innerHTML += html;
   });
 
-  // Cargos
-  const res2 = await fetch('/api/cargos');
-  const cargos = await res2.json();
+  // Cargos no select da matriz
   const sel = document.getElementById('sel-cargo');
   sel.innerHTML = '<option value="">-- Selecione --</option>';
   cargos.forEach(c => sel.innerHTML += `<option value="${c}">${c}</option>`);
+}
+
+function toggleEpiCargos(btn) {
+  const div = document.getElementById('epi-cargos');
+  if (div) div.style.display = div.style.display === 'none' ? 'block' : 'none';
+}
+
+async function downloadModelo(docId, cargo) {
+  let url = `/api/modelos/${docId}/download`;
+  if (cargo) url += `?cargo=${encodeURIComponent(cargo)}`;
+  window.location.href = url;
 }
 
 async function carregarMatriz() {
@@ -576,8 +640,9 @@ async function salvarMatriz() {
   alert(`✅ Kit do cargo "${cargo}" salvo com ${doc_ids.length} documento(s).`);
 }
 
-function abrirUploadModelo(docId, docNome) {
+function abrirUploadModelo(docId, docNome, cargo) {
   document.getElementById('mm-doc-id').value = docId;
+  document.getElementById('mm-cargo').value = cargo || '';
   document.getElementById('modal-modelo-titulo').textContent = `Upload: ${docNome}`;
   document.getElementById('modelo-result').innerHTML = '';
   document.getElementById('inp-modelo').value = '';
@@ -587,14 +652,20 @@ function abrirUploadModelo(docId, docNome) {
 async function uploadModelo(inp) {
   if (!inp.files[0]) return;
   const docId = document.getElementById('mm-doc-id').value;
+  const cargo = document.getElementById('mm-cargo').value;
   const fd = new FormData();
   fd.append('file', inp.files[0]);
-  const res = await fetch(`/api/modelos/upload/${docId}`, { method:'POST', body:fd });
+  let url = `/api/modelos/upload/${docId}`;
+  if (cargo) url += `?cargo=${encodeURIComponent(cargo)}`;
+  const res = await fetch(url, { method:'POST', body:fd });
   const data = await res.json();
   document.getElementById('modelo-result').innerHTML = data.ok
-    ? `<div class="alert al-success"><i class="ti ti-check"></i>Arquivo enviado com sucesso!</div>`
+    ? `<div class="alert al-success"><i class="ti ti-check"></i>Arquivo enviado e salvo no banco!</div>`
     : `<div class="alert al-error"><i class="ti ti-x"></i>Erro no upload</div>`;
-  carregarModelos();
+  if (data.ok) {
+    fecharModal('modal-modelo');
+    carregarModelos();
+  }
 }
 
 // ══════════════════════════════════════════════════════

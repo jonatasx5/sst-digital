@@ -142,6 +142,17 @@ def criar_banco():
                     assinado_em TIMESTAMP
                 )
             """)
+            cur.execute("""
+                CREATE TABLE IF NOT EXISTS modelos (
+                    pk SERIAL PRIMARY KEY,
+                    id TEXT NOT NULL,
+                    nome TEXT NOT NULL,
+                    conteudo BYTEA,
+                    cargo TEXT DEFAULT NULL,
+                    criado_em TIMESTAMP DEFAULT NOW(),
+                    UNIQUE(id, cargo)
+                )
+            """)
             conn.commit()
         else:
             cur = conn.cursor()
@@ -164,6 +175,14 @@ def criar_banco():
                 funcionario_id INTEGER, doc_id TEXT NOT NULL, doc_nome TEXT,
                 pdf_path TEXT, autentique_id TEXT, link_assinatura TEXT,
                 status TEXT DEFAULT 'pendente', enviado_em TEXT, assinado_em TEXT)""")
+            cur.execute("""CREATE TABLE IF NOT EXISTS modelos (
+                pk INTEGER PRIMARY KEY AUTOINCREMENT,
+                id TEXT NOT NULL,
+                nome TEXT NOT NULL,
+                conteudo BLOB,
+                cargo TEXT DEFAULT NULL,
+                criado_em TEXT DEFAULT (datetime('now','localtime')),
+                UNIQUE(id, cargo))""")
             conn.commit()
 
         print(f"✅ Banco criado ({'PostgreSQL' if USE_POSTGRES else 'SQLite'})")
@@ -416,6 +435,109 @@ def listar_lotes():
             ORDER BY l.criado_em DESC""")
         rows = cur.fetchall()
         return [dict(r) for r in rows]
+    finally:
+        conn.close()
+
+
+def salvar_modelo(doc_id: str, nome: str, conteudo_bytes: bytes, cargo: str = None):
+    """Salva ou atualiza um modelo .docx no banco."""
+    conn = conectar()
+    try:
+        if USE_POSTGRES:
+            cur = conn.cursor()
+            cur.execute("SELECT pk FROM modelos WHERE id=%s AND cargo IS NOT DISTINCT FROM %s", (doc_id, cargo))
+            existe = cur.fetchone()
+            if existe:
+                cur.execute("UPDATE modelos SET nome=%s, conteudo=%s WHERE id=%s AND cargo IS NOT DISTINCT FROM %s",
+                            (nome, conteudo_bytes, doc_id, cargo))
+            else:
+                cur.execute("INSERT INTO modelos (id, nome, conteudo, cargo) VALUES (%s,%s,%s,%s)",
+                            (doc_id, nome, conteudo_bytes, cargo))
+        else:
+            cur = conn.cursor()
+            if cargo is None:
+                cur.execute("SELECT pk FROM modelos WHERE id=? AND cargo IS NULL", (doc_id,))
+            else:
+                cur.execute("SELECT pk FROM modelos WHERE id=? AND cargo=?", (doc_id, cargo))
+            existe = cur.fetchone()
+            if existe:
+                if cargo is None:
+                    cur.execute("UPDATE modelos SET nome=?, conteudo=? WHERE id=? AND cargo IS NULL",
+                                (nome, conteudo_bytes, doc_id))
+                else:
+                    cur.execute("UPDATE modelos SET nome=?, conteudo=? WHERE id=? AND cargo=?",
+                                (nome, conteudo_bytes, doc_id, cargo))
+            else:
+                cur.execute("INSERT INTO modelos (id, nome, conteudo, cargo) VALUES (?,?,?,?)",
+                            (doc_id, nome, conteudo_bytes, cargo))
+        conn.commit()
+    finally:
+        conn.close()
+
+
+def buscar_modelo(doc_id: str, cargo: str = None) -> bytes | None:
+    """
+    Retorna bytes do modelo .docx.
+    Tenta cargo específico primeiro, depois fallback para modelo geral (cargo IS NULL).
+    """
+    conn = conectar()
+    try:
+        if USE_POSTGRES:
+            cur = conn.cursor()
+            # Tenta específico de cargo primeiro
+            if cargo:
+                cur.execute("SELECT conteudo FROM modelos WHERE id=%s AND cargo=%s", (doc_id, cargo))
+                row = cur.fetchone()
+                if row and row[0]:
+                    return bytes(row[0])
+            # Fallback geral
+            cur.execute("SELECT conteudo FROM modelos WHERE id=%s AND cargo IS NULL", (doc_id,))
+            row = cur.fetchone()
+            return bytes(row[0]) if row and row[0] else None
+        else:
+            cur = conn.cursor()
+            if cargo:
+                cur.execute("SELECT conteudo FROM modelos WHERE id=? AND cargo=?", (doc_id, cargo))
+                row = cur.fetchone()
+                if row and row[0]:
+                    return bytes(row[0])
+            cur.execute("SELECT conteudo FROM modelos WHERE id=? AND cargo IS NULL", (doc_id,))
+            row = cur.fetchone()
+            return bytes(row[0]) if row and row[0] else None
+    finally:
+        conn.close()
+
+
+def listar_modelos() -> list:
+    """Retorna lista de modelos com id, nome, cargo e tem_conteudo (bool)."""
+    conn = conectar()
+    try:
+        if USE_POSTGRES:
+            cur = conn.cursor(_psycopg2_extras.RealDictCursor) if _psycopg2_extras else conn.cursor()
+            cur.execute("SELECT id, nome, cargo, (conteudo IS NOT NULL) AS tem_conteudo FROM modelos ORDER BY id, cargo")
+        else:
+            cur = conn.cursor()
+            cur.execute("SELECT id, nome, cargo, (conteudo IS NOT NULL) AS tem_conteudo FROM modelos ORDER BY id, cargo")
+        rows = cur.fetchall()
+        return [dict(r) for r in rows]
+    finally:
+        conn.close()
+
+
+def deletar_modelo(doc_id: str, cargo: str = None):
+    """Remove um modelo do banco."""
+    conn = conectar()
+    try:
+        if USE_POSTGRES:
+            cur = conn.cursor()
+            cur.execute("DELETE FROM modelos WHERE id=%s AND cargo IS NOT DISTINCT FROM %s", (doc_id, cargo))
+        else:
+            cur = conn.cursor()
+            if cargo is None:
+                cur.execute("DELETE FROM modelos WHERE id=? AND cargo IS NULL", (doc_id,))
+            else:
+                cur.execute("DELETE FROM modelos WHERE id=? AND cargo=?", (doc_id, cargo))
+        conn.commit()
     finally:
         conn.close()
 

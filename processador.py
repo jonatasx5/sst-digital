@@ -156,11 +156,6 @@ def preencher_docx(modelo_id: str, funcionario: dict, pasta_saida: str) -> str |
     Preenche um modelo .docx com os dados do funcionário.
     Retorna o caminho do arquivo gerado ou None se modelo não existe.
     """
-    modelo_path = os.path.join(MODELOS_DIR, f"{modelo_id}.docx")
-    if not os.path.exists(modelo_path):
-        print(f"⚠️  Modelo não encontrado: {modelo_path}")
-        return None
-
     os.makedirs(pasta_saida, exist_ok=True)
 
     # Monta dicionário de variáveis
@@ -179,7 +174,18 @@ def preencher_docx(modelo_id: str, funcionario: dict, pasta_saida: str) -> str |
         "CNPJ":          CNPJ,
     }
 
-    doc = Document(modelo_path)
+    # Tenta banco primeiro, fallback para disco
+    import banco as _banco
+    import io
+    conteudo_banco = _banco.buscar_modelo(modelo_id, cargo=funcionario.get("cargo"))
+    if conteudo_banco:
+        doc = Document(io.BytesIO(conteudo_banco))
+    else:
+        modelo_path = os.path.join(MODELOS_DIR, f"{modelo_id}.docx")
+        if not os.path.exists(modelo_path):
+            print(f"⚠️  Modelo não encontrado: {modelo_path}")
+            return None
+        doc = Document(modelo_path)
 
     # Processa parágrafos do corpo
     for para in doc.paragraphs:

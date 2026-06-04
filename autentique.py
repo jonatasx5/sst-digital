@@ -96,7 +96,6 @@ def enviar_documento(
         "message":           f"Olá {nome.split()[0]}, seu kit SST está disponível para assinatura.",
         "reminder":          "WEEKLY",
         "new_signature_style": True,
-        "sandbox":           sandbox,
     }
 
     operations = json.dumps({

@@ -19,7 +19,7 @@ from datetime import datetime
 import banco
 import processador
 import autentique
-from config import DOCUMENTOS, APP_PASSWORD
+from config import DOCUMENTOS, APP_PASSWORD, EMPRESA
 
 app = FastAPI(title="SST Digital")
 
@@ -55,7 +55,7 @@ banco.criar_banco()
 
 @app.get("/", response_class=HTMLResponse)
 async def index(_=Depends(verificar_acesso)):
-    with open("index.html", "r", encoding="utf-8") as f:
+    with open(os.path.join(os.path.dirname(__file__), "index.html"), "r", encoding="utf-8") as f:
         return f.read()
 
 # ══════════════════════════════════════════════════════════
@@ -144,8 +144,7 @@ async def preview_lote(dados: dict, _=Depends(verificar_acesso)):
         if not f:
             continue
         doc_ids = banco.docs_do_cargo(f["cargo"])
-        from config import DOCUMENTOS as DOCS
-        docs_nomes = [d["nome"] for d in DOCS if d["id"] in doc_ids]
+        docs_nomes = [d["nome"] for d in DOCUMENTOS if d["id"] in doc_ids]
         total_docs += len(doc_ids)
         preview.append({
             "id":       f["id"],
@@ -225,15 +224,18 @@ async def enviar_lote(dados: dict, _=Depends(verificar_acesso)):
         )
 
         # Registra no banco
-        banco.registrar_envio({
-            "funcionario_id":  f["id"],
-            "doc_id":          "kit_completo",
-            "doc_nome":        nome_kit,
-            "pdf_path":        pdf_final,
-            "autentique_id":   ret.get("autentique_id"),
-            "link_assinatura": ret.get("link"),
-            "status":          "enviado" if ret["sucesso"] else "erro",
-        })
+        try:
+            banco.registrar_envio({
+                "funcionario_id":  f["id"],
+                "doc_id":          "kit_completo",
+                "doc_nome":        nome_kit,
+                "pdf_path":        pdf_final,
+                "autentique_id":   ret.get("autentique_id"),
+                "link_assinatura": ret.get("link"),
+                "status":          "enviado" if ret.get("sucesso") else "erro",
+            })
+        except Exception as db_err:
+            print(f"⚠️  Falha ao registrar envio no banco para {f['nome']}: {db_err}")
 
         if ret["sucesso"]:
             resultados.append({
@@ -256,6 +258,10 @@ async def enviar_lote(dados: dict, _=Depends(verificar_acesso)):
 # ══════════════════════════════════════════════════════════
 #  AUTENTIQUE
 # ══════════════════════════════════════════════════════════
+
+@app.get("/api/config")
+async def get_config(_=Depends(verificar_acesso)):
+    return {"empresa": EMPRESA}
 
 @app.get("/api/autentique/verificar")
 async def verificar_autentique(_=Depends(verificar_acesso)):

@@ -5,6 +5,12 @@ Edite este arquivo com os dados da sua empresa.
 
 import os
 
+try:
+    from dotenv import load_dotenv
+    load_dotenv()
+except ImportError:
+    pass
+
 # ─── AUTENTIQUE ───────────────────────────────────────────
 # Configure a variável de ambiente AUTENTIQUE_TOKEN no Railway (ou .env local)
 AUTENTIQUE_TOKEN = os.environ.get("AUTENTIQUE_TOKEN", "")
@@ -43,7 +49,6 @@ DOCUMENTOS = [
 ]
 
 # ─── PASTAS ───────────────────────────────────────────────
-import os
 BASE_DIR    = os.path.dirname(os.path.abspath(__file__))
 MODELOS_DIR = os.path.join(BASE_DIR, "modelos")
 OUTPUT_DIR  = os.path.join(BASE_DIR, "output")

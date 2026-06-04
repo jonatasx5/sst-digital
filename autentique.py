@@ -83,9 +83,11 @@ def enviar_documento(
             "configs": {"cpf": cpf.replace(".", "").replace("-", "")} if cpf else {}
         }
     else:
-        signer = {
-            "name":   nome,
-            "action": "SIGN",
+        return {
+            "sucesso": False,
+            "autentique_id": None,
+            "link": None,
+            "erro": f"Funcionário '{nome}' não possui celular nem e-mail cadastrado — não é possível criar signatário."
         }
 
     # ── Monta o payload GraphQL multipart ─────────────────

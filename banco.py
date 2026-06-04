@@ -11,7 +11,7 @@ import sqlite3
 DATABASE_URL = os.environ.get("DATABASE_URL", "")
 
 # Detecta se usa PostgreSQL ou SQLite
-USE_POSTGRES = bool(DATABASE_URL and DATABASE_URL.startswith("postgres"))
+USE_POSTGRES = bool(DATABASE_URL and DATABASE_URL.startswith(("postgres://", "postgresql://")))
 
 # Import lazy — não falha na inicialização se psycopg2 não estiver disponível
 _psycopg2 = None
@@ -45,8 +45,8 @@ def executar(query, params=(), fetchone=False, fetchall=False, commit=False):
         query = query.replace("?", "%s")
         query = query.replace("INTEGER PRIMARY KEY AUTOINCREMENT", "SERIAL PRIMARY KEY")
         query = query.replace("datetime('now','localtime')", "NOW()")
+        query = query.replace("INSERT OR IGNORE", "INSERT ON CONFLICT DO NOTHING")
         query = query.replace("OR IGNORE", "ON CONFLICT DO NOTHING")
-        query = query.replace("INSERT OR IGNORE", "INSERT")
 
     conn = conectar()
     try:
@@ -248,8 +248,19 @@ def salvar_funcionario(dados):
     try:
         if USE_POSTGRES:
             cur = conn.cursor(cursor_factory=_psycopg2_extras.RealDictCursor)
+            # Verifica CPF duplicado em outro registro antes de UPDATE
+            fid_check = dados.get("id")
+            if fid_check:
+                cur.execute("SELECT id FROM funcionarios WHERE cpf=%s AND id<>%s", (dados["cpf"], fid_check))
+                if cur.fetchone():
+                    raise ValueError(f"CPF {dados['cpf']} já está cadastrado para outro funcionário.")
         else:
             cur = conn.cursor()
+            fid_check = dados.get("id")
+            if fid_check:
+                cur.execute("SELECT id FROM funcionarios WHERE cpf=? AND id<>?", (dados["cpf"], fid_check))
+                if cur.fetchone():
+                    raise ValueError(f"CPF {dados['cpf']} já está cadastrado para outro funcionário.")
 
         fid = dados.get("id")
         if fid:
@@ -397,10 +408,12 @@ def listar_lotes():
             cur = conn.cursor(cursor_factory=_psycopg2_extras.RealDictCursor)
         else:
             cur = conn.cursor()
-        cur.execute("""SELECT l.*, COUNT(lf.id) as total_func,
+        cur.execute("""SELECT l.id, l.descricao, l.criado_em, l.status,
+            COUNT(lf.id) as total_func,
             SUM(CASE WHEN lf.status='enviado' THEN 1 ELSE 0 END) as enviados
             FROM lotes l LEFT JOIN lote_funcionarios lf ON lf.lote_id=l.id
-            GROUP BY l.id ORDER BY l.criado_em DESC""")
+            GROUP BY l.id, l.descricao, l.criado_em, l.status
+            ORDER BY l.criado_em DESC""")
         rows = cur.fetchall()
         return [dict(r) for r in rows]
     finally:

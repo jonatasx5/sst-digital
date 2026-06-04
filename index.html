@@ -176,7 +176,7 @@ tr:hover td { background:#F9FAFB; }
 <aside class="sidebar" id="sidebar">
   <div class="sb-logo">
     <h1>🛡️ SST Digital</h1>
-    <p>JS Construtora</p>
+    <p id="sb-empresa">...</p>
   </div>
   <nav class="sb-nav">
     <button class="nav-item active" onclick="irPara('funcionarios')"><i class="ti ti-users"></i>Funcionários</button>
@@ -736,14 +736,18 @@ async function enviarLote() {
     });
     const data = await res.json();
 
-    // Marca todos como enviados
+    // Marca status individual baseado nos erros retornados
+    const nomesComErro = new Set((data.erros||[]).map(e => e.split(':')[0].trim()));
     lotePreview.forEach((f,i) => {
       const pct = Math.round(((i+1)/lotePreview.length)*100);
       document.getElementById('send-prog').style.width = pct+'%';
-      document.getElementById('pico-'+f.id).className = 'p-ico pi-ok';
-      document.getElementById('pico-'+f.id).innerHTML = '<i class="ti ti-check"></i>';
-      document.getElementById('pbadge-'+f.id).textContent = 'Enviado';
-      document.getElementById('pbadge-'+f.id).className = 'badge b-green';
+      const temErro = nomesComErro.has(f.nome);
+      document.getElementById('pico-'+f.id).className = temErro ? 'p-ico pi-err' : 'p-ico pi-ok';
+      document.getElementById('pico-'+f.id).innerHTML = temErro
+        ? '<i class="ti ti-x"></i>'
+        : '<i class="ti ti-check"></i>';
+      document.getElementById('pbadge-'+f.id).textContent = temErro ? 'Erro' : 'Enviado';
+      document.getElementById('pbadge-'+f.id).className = temErro ? 'badge b-red' : 'badge b-green';
     });
 
     document.getElementById('send-prog').style.width = '100%';
@@ -853,9 +857,18 @@ async function verificarAPI() {
 // Data padrão do lote
 document.getElementById('lote-desc').value = `Lote ${new Date().toLocaleDateString('pt-BR')}`;
 
+// Carrega nome da empresa na sidebar
+async function carregarEmpresa() {
+  try {
+    const data = await fetch('/api/config').then(r => r.json());
+    document.getElementById('sb-empresa').textContent = data.empresa || '';
+  } catch(e) {}
+}
+
 // Inicia
 carregarFuncionarios();
 verificarAPI();
+carregarEmpresa();
 </script>
 </body>
 </html>

@@ -15,7 +15,7 @@ from pathlib import Path
 import openpyxl
 from docx import Document
 
-from config import MODELOS_DIR, OUTPUT_DIR, EMPRESA, RESP_SST, DOCUMENTOS
+from config import MODELOS_DIR, OUTPUT_DIR, EMPRESA, RESP_SST, CNPJ, DOCUMENTOS
 
 
 # ══════════════════════════════════════════════════════════
@@ -54,71 +54,73 @@ def ler_planilha(caminho: str) -> tuple[list[dict], list[str]]:
     Retorna (lista_funcionarios, avisos).
     """
     wb = openpyxl.load_workbook(caminho, read_only=True, data_only=True)
-    ws = wb.active
+    try:
+        ws = wb.active
 
-    rows = list(ws.iter_rows(values_only=True))
-    if not rows:
-        return [], ["Planilha vazia."]
+        rows = list(ws.iter_rows(values_only=True))
+        if not rows:
+            return [], ["Planilha vazia."]
 
-    # Encontra linha de cabeçalho (primeira linha não vazia)
-    header_row = None
-    header_idx = 0
-    for i, row in enumerate(rows):
-        if any(cell is not None for cell in row):
-            header_row = [str(c).strip() if c is not None else "" for c in row]
-            header_idx = i
-            break
+        # Encontra linha de cabeçalho (primeira linha não vazia)
+        header_row = None
+        header_idx = 0
+        for i, row in enumerate(rows):
+            if any(cell is not None for cell in row):
+                header_row = [str(c).strip() if c is not None else "" for c in row]
+                header_idx = i
+                break
 
-    if header_row is None:
-        return [], ["Não foi possível identificar o cabeçalho."]
+        if header_row is None:
+            return [], ["Não foi possível identificar o cabeçalho."]
 
-    mapa = _mapear_cabecalho(header_row)
-    avisos = []
+        mapa = _mapear_cabecalho(header_row)
+        avisos = []
 
-    if "nome" not in mapa:
-        avisos.append("⚠️ Coluna 'Nome' não encontrada.")
-    if "cpf" not in mapa:
-        avisos.append("⚠️ Coluna 'CPF' não encontrada.")
+        if "nome" not in mapa:
+            avisos.append("⚠️ Coluna 'Nome' não encontrada.")
+        if "cpf" not in mapa:
+            avisos.append("⚠️ Coluna 'CPF' não encontrada.")
 
-    funcionarios = []
-    for row in rows[header_idx + 1:]:
-        if not any(cell is not None for cell in row):
-            continue
+        funcionarios = []
+        for row in rows[header_idx + 1:]:
+            if not any(cell is not None for cell in row):
+                continue
 
-        def get(chave):
-            idx = mapa.get(chave)
-            if idx is None or idx >= len(row):
-                return ""
-            v = row[idx]
-            return str(v).strip() if v is not None else ""
+            def get(chave):
+                idx = mapa.get(chave)
+                if idx is None or idx >= len(row):
+                    return ""
+                v = row[idx]
+                return str(v).strip() if v is not None else ""
 
-        nome = get("nome")
-        cpf  = get("cpf")
+            nome = get("nome")
+            cpf  = get("cpf")
 
-        if not nome or not cpf:
-            continue
+            if not nome or not cpf:
+                continue
 
-        # Formata CPF
-        cpf_num = re.sub(r"\D", "", cpf)
-        if len(cpf_num) == 11:
-            cpf = f"{cpf_num[:3]}.{cpf_num[3:6]}.{cpf_num[6:9]}-{cpf_num[9:]}"
+            # Formata CPF
+            cpf_num = re.sub(r"\D", "", cpf)
+            if len(cpf_num) == 11:
+                cpf = f"{cpf_num[:3]}.{cpf_num[3:6]}.{cpf_num[6:9]}-{cpf_num[9:]}"
 
-        # Formata celular
-        cel = re.sub(r"\D", "", get("celular"))
+            # Formata celular
+            cel = re.sub(r"\D", "", get("celular"))
 
-        funcionarios.append({
-            "nome":      nome,
-            "cpf":       cpf,
-            "matricula": get("matricula"),
-            "cargo":     get("cargo"),
-            "lotacao":   get("lotacao"),
-            "admissao":  get("admissao"),
-            "celular":   cel,
-            "email":     get("email"),
-        })
+            funcionarios.append({
+                "nome":      nome,
+                "cpf":       cpf,
+                "matricula": get("matricula"),
+                "cargo":     get("cargo"),
+                "lotacao":   get("lotacao"),
+                "admissao":  get("admissao"),
+                "celular":   cel,
+                "email":     get("email"),
+            })
 
-    wb.close()
-    return funcionarios, avisos
+        return funcionarios, avisos
+    finally:
+        wb.close()
 
 
 # ══════════════════════════════════════════════════════════
@@ -174,6 +176,7 @@ def preencher_docx(modelo_id: str, funcionario: dict, pasta_saida: str) -> str |
         "EMAIL":         funcionario.get("email", ""),
         "EMPRESA":       EMPRESA,
         "RESP_SST":      RESP_SST,
+        "CNPJ":          CNPJ,
     }
 
     doc = Document(modelo_path)
@@ -370,7 +373,10 @@ def juntar_pdfs(caminhos_pdf: list[str], pasta_saida: str, nome_funcionario: str
 
     except Exception as e:
         print(f"❌ Erro ao juntar PDFs: {e}")
-        # Retorna primeiro PDF como fallback
         if caminhos_pdf and os.path.exists(caminhos_pdf[0]):
-            return caminhos_pdf[0]
+            try:
+                shutil.copy(caminhos_pdf[0], pdf_final)
+                return pdf_final
+            except Exception:
+                return caminhos_pdf[0]
         return None

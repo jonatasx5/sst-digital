@@ -1,8 +1,9 @@
 [phases.setup]
-nixPkgs = ["libreoffice", "poppler_utils", "fontconfig", "liberation_ttf"]
+nixPkgs = ["python311", "libreoffice", "poppler_utils", "fontconfig", "liberation_ttf"]
+aptPkgs = ["python3-venv"]
 
 [phases.install]
-cmds = ["python -m venv /opt/venv && /opt/venv/bin/pip install -r requirements.txt"]
+cmds = ["python3.11 -m venv /opt/venv && /opt/venv/bin/pip install -r requirements.txt"]
 
 [start]
 cmd = "/opt/venv/bin/python app.py"

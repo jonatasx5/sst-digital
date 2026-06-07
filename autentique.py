@@ -143,6 +143,10 @@ def enviar_documento(
             return {"sucesso": False, "autentique_id": None, "link": None,
                     "erro": "Resposta inesperada da API"}
 
+        # Log para debug
+        import json as _json
+        print("AUTENTIQUE RESPONSE:", _json.dumps(doc, indent=2, ensure_ascii=False))
+
         # Extrai link de assinatura
         link = None
         sigs = doc.get("signatures", [])

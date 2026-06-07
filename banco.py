@@ -185,7 +185,7 @@ def criar_banco():
                 UNIQUE(id, cargo))""")
             conn.commit()
 
-        print(f"✅ Banco criado ({'PostgreSQL' if USE_POSTGRES else 'SQLite'})")
+        print(f"OK Banco criado ({'PostgreSQL' if USE_POSTGRES else 'SQLite'})")
     finally:
         conn.close()
 
@@ -316,6 +316,7 @@ def salvar_funcionario(dados):
 
 
 def docs_do_cargo(cargo):
+    from config import KIT_PADRAO
     conn = conectar()
     try:
         if USE_POSTGRES:
@@ -325,7 +326,10 @@ def docs_do_cargo(cargo):
             cur = conn.cursor()
             cur.execute("SELECT doc_id FROM funcao_documentos WHERE cargo=? ORDER BY doc_id", (cargo,))
         rows = cur.fetchall()
-        return [dict(r)["doc_id"] for r in rows]
+        docs_cargo = [dict(r)["doc_id"] for r in rows]
+        # Sempre inclui o Kit Padrão, sem duplicar
+        todos = KIT_PADRAO + [d for d in docs_cargo if d not in KIT_PADRAO]
+        return todos
     finally:
         conn.close()
 

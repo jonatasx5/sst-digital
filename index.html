@@ -228,6 +228,13 @@ tr:hover td { background:#F9FAFB; }
     <div><div class="page-title">Modelos & Funções</div><div class="page-sub">Configure os documentos por cargo</div></div>
   </div>
 
+  <!-- Kit Padrão -->
+  <div class="card" style="margin-bottom:16px;border-left:4px solid #10B981">
+    <div class="card-title"><i class="ti ti-shield-check"></i>Kit Padrão — Todos os Funcionários</div>
+    <div style="font-size:12px;color:var(--texto2);margin-bottom:10px">Estes documentos são enviados automaticamente para <strong>todos</strong> os funcionários, independente do cargo.</div>
+    <div id="kit-padrao-lista" style="display:flex;flex-wrap:wrap;gap:8px"></div>
+  </div>
+
   <div class="grid2">
     <!-- Modelos -->
     <div>
@@ -540,6 +547,27 @@ async function carregarModelos() {
   const modeloMap = {};
   modelos.forEach(m => modeloMap[m.id] = m);
 
+  // Renderiza Kit Padrão
+  const KIT_PADRAO = [
+    "01_treinamento_admissional",
+    "02_politica_de_seguranca",
+    "04_treinamento_nr06",
+    "05_treinamento_nr18",
+    "09_treinamento_produtos_quimicos",
+    "11_pop",
+    "12_treinamento_direcao_defensiva",
+  ];
+  const kitDiv = document.getElementById('kit-padrao-lista');
+  kitDiv.innerHTML = '';
+  KIT_PADRAO.forEach(id => {
+    const doc = todosDocs.find(d => d.id === id);
+    if (!doc) return;
+    const info = modeloMap[id] || {};
+    const tem = info.tem_arquivo || doc.modelo_existe;
+    const cor = tem ? '#10B981' : '#EF4444';
+    kitDiv.innerHTML += `<span style="padding:4px 10px;border-radius:20px;font-size:12px;font-weight:500;color:#fff;background:${cor}">${doc.nome}</span>`;
+  });
+
   const lista = document.getElementById('modelos-lista');
   lista.innerHTML = '';
   todosDocs.forEach(d => {
@@ -620,7 +648,12 @@ async function carregarMatriz() {
   const docIds = await res.json();
   const div = document.getElementById('docs-checks');
   div.innerHTML = '';
-  todosDocs.forEach(d => {
+  const KIT_PADRAO = [
+    "01_treinamento_admissional","02_politica_de_seguranca","04_treinamento_nr06",
+    "05_treinamento_nr18","09_treinamento_produtos_quimicos","11_pop","12_treinamento_direcao_defensiva"
+  ];
+  div.innerHTML = '<div style="font-size:11px;color:var(--texto2);margin-bottom:8px">Documentos adicionais ao Kit Padrão:</div>';
+  todosDocs.filter(d => !KIT_PADRAO.includes(d.id)).forEach(d => {
     const chk = docIds.includes(d.id) ? 'checked' : '';
     div.innerHTML += `<div class="chk-item" style="margin-bottom:6px">
       <input type="checkbox" id="chk-${d.id}" value="${d.id}" ${chk}>
@@ -637,7 +670,12 @@ async function salvarMatriz() {
     method:'POST', headers:{'Content-Type':'application/json'},
     body: JSON.stringify({doc_ids})
   });
-  alert(`✅ Kit do cargo "${cargo}" salvo com ${doc_ids.length} documento(s).`);
+  const KIT_PADRAO = [
+    "01_treinamento_admissional","02_politica_de_seguranca","04_treinamento_nr06",
+    "05_treinamento_nr18","09_treinamento_produtos_quimicos","11_pop","12_treinamento_direcao_defensiva"
+  ];
+  const total = KIT_PADRAO.length + doc_ids.length;
+  alert(`Kit do cargo "${cargo}" salvo!\n\n✅ ${KIT_PADRAO.length} documentos do Kit Padrão\n➕ ${doc_ids.length} documento(s) específico(s) do cargo\n\nTotal: ${total} documento(s)`);
 }
 
 function abrirUploadModelo(docId, docNome, cargo) {

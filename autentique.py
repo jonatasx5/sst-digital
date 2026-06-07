@@ -147,12 +147,14 @@ def enviar_documento(
         import json as _json
         print("AUTENTIQUE RESPONSE:", _json.dumps(doc, indent=2, ensure_ascii=False))
 
-        # Extrai link de assinatura
+        # Extrai link de assinatura (pega o primeiro sig com link não-nulo)
         link = None
         sigs = doc.get("signatures", [])
-        if sigs:
-            link_obj = sigs[0].get("link", {})
-            link = link_obj.get("short_link") if link_obj else None
+        for sig in sigs:
+            link_obj = sig.get("link")
+            if link_obj and link_obj.get("short_link"):
+                link = link_obj["short_link"]
+                break
 
         return {
             "sucesso":        True,

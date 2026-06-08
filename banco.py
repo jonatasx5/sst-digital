@@ -185,7 +185,228 @@ def criar_banco():
                 UNIQUE(id, cargo))""")
             conn.commit()
 
+        # Tabela catálogo de EPIs
+        if USE_POSTGRES:
+            cur.execute("""
+                CREATE TABLE IF NOT EXISTS catalogo_epis (
+                    id SERIAL PRIMARY KEY,
+                    descricao TEXT NOT NULL,
+                    ca TEXT DEFAULT '',
+                    quantidade_padrao INTEGER DEFAULT 1,
+                    ativo INTEGER DEFAULT 1,
+                    criado_em TIMESTAMP DEFAULT NOW(),
+                    UNIQUE(descricao)
+                )
+            """)
+            cur.execute("""
+                CREATE TABLE IF NOT EXISTS cargo_epis (
+                    id SERIAL PRIMARY KEY,
+                    cargo TEXT NOT NULL,
+                    epi_id INTEGER REFERENCES catalogo_epis(id) ON DELETE CASCADE,
+                    quantidade INTEGER DEFAULT 1,
+                    UNIQUE(cargo, epi_id)
+                )
+            """)
+        else:
+            cur.execute("""CREATE TABLE IF NOT EXISTS catalogo_epis (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                descricao TEXT NOT NULL UNIQUE,
+                ca TEXT DEFAULT '',
+                quantidade_padrao INTEGER DEFAULT 1,
+                ativo INTEGER DEFAULT 1,
+                criado_em TEXT DEFAULT (datetime('now','localtime')))""")
+            cur.execute("""CREATE TABLE IF NOT EXISTS cargo_epis (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                cargo TEXT NOT NULL,
+                epi_id INTEGER REFERENCES catalogo_epis(id) ON DELETE CASCADE,
+                quantidade INTEGER DEFAULT 1,
+                UNIQUE(cargo, epi_id))""")
+        conn.commit()
+
+        # Tabela CBO por cargo
+        if USE_POSTGRES:
+            cur.execute("""
+                CREATE TABLE IF NOT EXISTS cargo_cbo (
+                    id SERIAL PRIMARY KEY,
+                    cargo TEXT NOT NULL UNIQUE,
+                    cbo_codigo TEXT DEFAULT '',
+                    cbo_titulo TEXT DEFAULT '',
+                    cbo_descricao TEXT DEFAULT '',
+                    atualizado_em TIMESTAMP DEFAULT NOW()
+                )
+            """)
+        else:
+            cur.execute("""CREATE TABLE IF NOT EXISTS cargo_cbo (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                cargo TEXT NOT NULL UNIQUE,
+                cbo_codigo TEXT DEFAULT '',
+                cbo_titulo TEXT DEFAULT '',
+                cbo_descricao TEXT DEFAULT '',
+                atualizado_em TEXT DEFAULT (datetime('now','localtime')))""")
+        conn.commit()
+
         print(f"OK Banco criado ({'PostgreSQL' if USE_POSTGRES else 'SQLite'})")
+    finally:
+        conn.close()
+
+
+# ── CATÁLOGO DE EPIs ──────────────────────────────────────
+
+def salvar_epi_catalogo(descricao: str, ca: str = '', quantidade_padrao: int = 1) -> int:
+    conn = conectar()
+    try:
+        if USE_POSTGRES:
+            cur = conn.cursor(cursor_factory=_psycopg2_extras.RealDictCursor)
+            cur.execute("SELECT id FROM catalogo_epis WHERE descricao=%s", (descricao,))
+            row = cur.fetchone()
+            if row:
+                cur.execute("UPDATE catalogo_epis SET ca=%s, quantidade_padrao=%s WHERE descricao=%s",
+                            (ca, quantidade_padrao, descricao))
+                eid = row["id"]
+            else:
+                cur.execute("INSERT INTO catalogo_epis (descricao,ca,quantidade_padrao) VALUES (%s,%s,%s) RETURNING id",
+                            (descricao, ca, quantidade_padrao))
+                eid = cur.fetchone()["id"]
+        else:
+            cur = conn.cursor()
+            cur.execute("SELECT id FROM catalogo_epis WHERE descricao=?", (descricao,))
+            row = cur.fetchone()
+            if row:
+                cur.execute("UPDATE catalogo_epis SET ca=?, quantidade_padrao=? WHERE descricao=?",
+                            (ca, quantidade_padrao, descricao))
+                eid = row[0]
+            else:
+                cur.execute("INSERT INTO catalogo_epis (descricao,ca,quantidade_padrao) VALUES (?,?,?)",
+                            (descricao, ca, quantidade_padrao))
+                eid = cur.lastrowid
+        conn.commit()
+        return eid
+    finally:
+        conn.close()
+
+
+def listar_catalogo_epis() -> list:
+    conn = conectar()
+    try:
+        if USE_POSTGRES:
+            cur = conn.cursor(cursor_factory=_psycopg2_extras.RealDictCursor)
+        else:
+            cur = conn.cursor()
+        cur.execute("SELECT id, descricao, ca, quantidade_padrao FROM catalogo_epis WHERE ativo=1 ORDER BY descricao")
+        rows = cur.fetchall()
+        return [dict(r) for r in rows]
+    finally:
+        conn.close()
+
+
+def deletar_epi_catalogo(epi_id: int):
+    conn = conectar()
+    try:
+        if USE_POSTGRES:
+            cur = conn.cursor()
+            cur.execute("DELETE FROM catalogo_epis WHERE id=%s", (epi_id,))
+        else:
+            cur = conn.cursor()
+            cur.execute("DELETE FROM catalogo_epis WHERE id=?", (epi_id,))
+        conn.commit()
+    finally:
+        conn.close()
+
+
+def salvar_cargo_epis(cargo: str, epis: list):
+    """epis = lista de dicts com {epi_id, quantidade}"""
+    conn = conectar()
+    try:
+        if USE_POSTGRES:
+            cur = conn.cursor()
+            cur.execute("DELETE FROM cargo_epis WHERE cargo=%s", (cargo,))
+            for e in epis:
+                cur.execute("INSERT INTO cargo_epis (cargo,epi_id,quantidade) VALUES (%s,%s,%s) ON CONFLICT DO NOTHING",
+                            (cargo, e["epi_id"], e.get("quantidade", 1)))
+        else:
+            cur = conn.cursor()
+            cur.execute("DELETE FROM cargo_epis WHERE cargo=?", (cargo,))
+            for e in epis:
+                cur.execute("INSERT OR IGNORE INTO cargo_epis (cargo,epi_id,quantidade) VALUES (?,?,?)",
+                            (cargo, e["epi_id"], e.get("quantidade", 1)))
+        conn.commit()
+    finally:
+        conn.close()
+
+
+def listar_epis_do_cargo(cargo: str) -> list:
+    conn = conectar()
+    try:
+        if USE_POSTGRES:
+            cur = conn.cursor(cursor_factory=_psycopg2_extras.RealDictCursor)
+            cur.execute("""SELECT ce.id, ce.epi_id, c.descricao, c.ca, ce.quantidade
+                FROM cargo_epis ce JOIN catalogo_epis c ON c.id=ce.epi_id
+                WHERE ce.cargo=%s ORDER BY c.descricao""", (cargo,))
+        else:
+            cur = conn.cursor()
+            cur.execute("""SELECT ce.id, ce.epi_id, c.descricao, c.ca, ce.quantidade
+                FROM cargo_epis ce JOIN catalogo_epis c ON c.id=ce.epi_id
+                WHERE ce.cargo=? ORDER BY c.descricao""", (cargo,))
+        rows = cur.fetchall()
+        return [dict(r) for r in rows]
+    finally:
+        conn.close()
+
+
+def salvar_cargo_cbo(cargo: str, cbo_codigo: str, cbo_titulo: str, cbo_descricao: str):
+    conn = conectar()
+    try:
+        if USE_POSTGRES:
+            cur = conn.cursor()
+            cur.execute("SELECT id FROM cargo_cbo WHERE cargo=%s", (cargo,))
+            existe = cur.fetchone()
+            if existe:
+                cur.execute("""UPDATE cargo_cbo SET cbo_codigo=%s, cbo_titulo=%s, cbo_descricao=%s,
+                    atualizado_em=NOW() WHERE cargo=%s""", (cbo_codigo, cbo_titulo, cbo_descricao, cargo))
+            else:
+                cur.execute("""INSERT INTO cargo_cbo (cargo,cbo_codigo,cbo_titulo,cbo_descricao)
+                    VALUES (%s,%s,%s,%s)""", (cargo, cbo_codigo, cbo_titulo, cbo_descricao))
+        else:
+            cur = conn.cursor()
+            cur.execute("SELECT id FROM cargo_cbo WHERE cargo=?", (cargo,))
+            existe = cur.fetchone()
+            if existe:
+                cur.execute("""UPDATE cargo_cbo SET cbo_codigo=?, cbo_titulo=?, cbo_descricao=?,
+                    atualizado_em=datetime('now','localtime') WHERE cargo=?""",
+                    (cbo_codigo, cbo_titulo, cbo_descricao, cargo))
+            else:
+                cur.execute("""INSERT INTO cargo_cbo (cargo,cbo_codigo,cbo_titulo,cbo_descricao)
+                    VALUES (?,?,?,?)""", (cargo, cbo_codigo, cbo_titulo, cbo_descricao))
+        conn.commit()
+    finally:
+        conn.close()
+
+
+def buscar_cargo_cbo(cargo: str) -> dict | None:
+    conn = conectar()
+    try:
+        if USE_POSTGRES:
+            cur = conn.cursor(cursor_factory=_psycopg2_extras.RealDictCursor)
+            cur.execute("SELECT * FROM cargo_cbo WHERE cargo=%s", (cargo,))
+        else:
+            cur = conn.cursor()
+            cur.execute("SELECT * FROM cargo_cbo WHERE cargo=?", (cargo,))
+        row = cur.fetchone()
+        return dict(row) if row else None
+    finally:
+        conn.close()
+
+
+def listar_cargos_cbo() -> list:
+    conn = conectar()
+    try:
+        if USE_POSTGRES:
+            cur = conn.cursor(cursor_factory=_psycopg2_extras.RealDictCursor)
+        else:
+            cur = conn.cursor()
+        cur.execute("SELECT cargo, cbo_codigo, cbo_titulo FROM cargo_cbo ORDER BY cargo")
+        rows = cur.fetchall()
+        return [dict(r) for r in rows]
     finally:
         conn.close()
 

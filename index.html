@@ -181,8 +181,11 @@ tr:hover td { background:#F9FAFB; }
   <nav class="sb-nav">
     <button class="nav-item active" onclick="irPara('funcionarios')"><i class="ti ti-users"></i>Funcionários</button>
     <button class="nav-item" onclick="irPara('modelos')"><i class="ti ti-files"></i>Modelos & Funções</button>
+    <button class="nav-item" onclick="irPara('cadastro-epi')"><i class="ti ti-hard-hat"></i>Cadastro de EPI</button>
+    <button class="nav-item" onclick="irPara('envio-epi')"><i class="ti ti-shield-check"></i>Envio Ficha EPI</button>
     <button class="nav-item" onclick="irPara('lote')"><i class="ti ti-package"></i>Montar Lote</button>
     <button class="nav-item" onclick="irPara('envio')"><i class="ti ti-send"></i>Enviar</button>
+    <button class="nav-item" onclick="irPara('ordem-servico')"><i class="ti ti-clipboard-list"></i>Ordem de Serviço</button>
     <button class="nav-item" onclick="irPara('historico')"><i class="ti ti-clock"></i>Histórico</button>
   </nav>
   <div class="sb-bottom">
@@ -265,6 +268,182 @@ tr:hover td { background:#F9FAFB; }
       </div>
     </div>
   </div>
+
+  <!-- EPI & OS por Cargo -->
+  <div class="card" style="margin-top:16px">
+    <div class="card-title"><i class="ti ti-shield-half"></i>EPI & Ordem de Serviço por Cargo</div>
+    <div style="font-size:12px;color:var(--texto2);margin-bottom:14px">
+      Configure a Ficha de EPI e a Ordem de Serviço específicas para cada cargo. Ao fazer upload, o documento é automaticamente incluído no kit do cargo.
+    </div>
+    <div class="field" style="max-width:320px">
+      <label>Selecione o cargo</label>
+      <select id="sel-cargo-epi" onchange="carregarEpiOs()">
+        <option value="">-- Selecione --</option>
+      </select>
+    </div>
+    <div id="epi-os-painel" style="display:none">
+      <div class="grid2" style="margin-top:8px">
+        <!-- EPI -->
+        <div style="border:1px solid var(--borda);border-radius:10px;padding:16px">
+          <div style="font-size:13px;font-weight:600;margin-bottom:8px;display:flex;align-items:center;gap:6px">
+            <i class="ti ti-hard-hat" style="color:var(--verde)"></i>Ficha de EPI
+          </div>
+          <div id="epi-status" style="margin-bottom:10px"></div>
+          <div style="display:flex;flex-wrap:wrap;gap:6px">
+            <button class="btn btn-primary btn-sm" onclick="uploadEpiOs('epi')"><i class="ti ti-upload"></i>Upload</button>
+            <button class="btn btn-outline btn-sm" id="btn-epi-editar" style="display:none" onclick="editarTexto('epi')"><i class="ti ti-edit"></i>Editar</button>
+            <button class="btn btn-outline btn-sm" id="btn-epi-download" style="display:none" onclick="downloadEpiOs('epi')"><i class="ti ti-download"></i>Baixar</button>
+            <button class="btn btn-danger btn-sm" id="btn-epi-deletar" style="display:none" onclick="deletarEpiOs('epi')"><i class="ti ti-trash"></i></button>
+          </div>
+        </div>
+        <!-- OS -->
+        <div style="border:1px solid var(--borda);border-radius:10px;padding:16px">
+          <div style="font-size:13px;font-weight:600;margin-bottom:8px;display:flex;align-items:center;gap:6px">
+            <i class="ti ti-clipboard-list" style="color:var(--verde)"></i>Ordem de Serviço
+          </div>
+          <div id="os-status" style="margin-bottom:10px"></div>
+          <div style="display:flex;flex-wrap:wrap;gap:6px">
+            <button class="btn btn-primary btn-sm" onclick="uploadEpiOs('os')"><i class="ti ti-upload"></i>Upload</button>
+            <button class="btn btn-outline btn-sm" id="btn-os-editar" style="display:none" onclick="editarTexto('os')"><i class="ti ti-edit"></i>Editar</button>
+            <button class="btn btn-outline btn-sm" id="btn-os-download" style="display:none" onclick="downloadEpiOs('os')"><i class="ti ti-download"></i>Baixar</button>
+            <button class="btn btn-danger btn-sm" id="btn-os-deletar" style="display:none" onclick="deletarEpiOs('os')"><i class="ti ti-trash"></i></button>
+          </div>
+        </div>
+      </div>
+    </div>
+    <!-- Tabela resumo de todos os cargos -->
+    <div id="epi-os-tabela" style="margin-top:16px"></div>
+  </div>
+
+</div>
+
+<!-- ── CADASTRO DE EPI ── -->
+<div class="panel" id="panel-cadastro-epi">
+  <div class="page-header">
+    <div><div class="page-title">Cadastro de EPI</div><div class="page-sub">Gerencie o catálogo de EPIs e os kits por cargo</div></div>
+    <button class="btn btn-primary btn-sm" onclick="abrirModalNovoEpi()"><i class="ti ti-plus"></i>Novo EPI</button>
+  </div>
+
+  <div class="grid2">
+    <!-- Catálogo -->
+    <div class="card">
+      <div class="card-title"><i class="ti ti-list"></i>Catálogo de EPIs</div>
+      <div id="catalogo-epi-lista"></div>
+    </div>
+    <!-- EPIs por cargo -->
+    <div class="card">
+      <div class="card-title"><i class="ti ti-users"></i>EPIs por Cargo</div>
+      <div class="field">
+        <label>Selecione o cargo</label>
+        <select id="sel-cargo-cat" onchange="carregarEpisDoCargo()">
+          <option value="">-- Selecione --</option>
+        </select>
+      </div>
+      <div id="epis-cargo-lista"></div>
+      <div id="epis-cargo-salvar" style="display:none;margin-top:12px">
+        <button class="btn btn-primary" onclick="salvarEpisCargo()"><i class="ti ti-device-floppy"></i>Salvar EPIs do cargo</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ── ENVIO FICHA EPI ── -->
+<div class="panel" id="panel-envio-epi">
+  <div class="page-header">
+    <div><div class="page-title">Envio Ficha de EPI</div><div class="page-sub">Envie a ficha de EPI para assinatura via Autentique</div></div>
+  </div>
+
+  <!-- Abas -->
+  <div style="display:flex;gap:8px;margin-bottom:16px">
+    <button class="btn btn-primary btn-sm" id="tab-epi-ind" onclick="trocarAbaEpi('individual')"><i class="ti ti-user"></i>Individual</button>
+    <button class="btn btn-outline btn-sm" id="tab-epi-lote" onclick="trocarAbaEpi('lote')"><i class="ti ti-users"></i>Em Lote</button>
+  </div>
+
+  <!-- Individual -->
+  <div id="epi-aba-individual">
+    <div class="card">
+      <div class="card-title"><i class="ti ti-search"></i>Buscar funcionário</div>
+      <input type="text" id="busca-epi-func" placeholder="Nome ou cargo..."
+        style="width:100%;padding:8px 12px;border:1px solid var(--borda);border-radius:8px;font-size:13px;margin-bottom:10px"
+        oninput="buscarFuncEpi()">
+      <div id="lista-epi-func" class="lista-scroll"></div>
+    </div>
+    <div id="epi-func-selecionado" style="display:none">
+      <div class="card" style="border-left:4px solid var(--verde)">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+          <div class="card-title" style="margin-bottom:0"><i class="ti ti-user-check"></i>Funcionário selecionado</div>
+          <button class="btn btn-outline btn-sm" onclick="limparSelEpiFunc()"><i class="ti ti-x"></i></button>
+        </div>
+        <div id="epi-func-info"></div>
+
+        <!-- EPIs do catálogo com checkbox -->
+        <div style="margin-top:16px;font-size:12px;font-weight:600;color:var(--texto2);text-transform:uppercase;margin-bottom:8px">
+          Selecione os EPIs para esta ficha:
+        </div>
+        <div id="epi-checklist" style="max-height:280px;overflow-y:auto;border:1px solid var(--borda);border-radius:8px;padding:8px"></div>
+
+        <!-- EPI avulso -->
+        <div style="margin-top:12px;font-size:12px;font-weight:600;color:var(--texto2);text-transform:uppercase;margin-bottom:8px">
+          Adicionar EPI avulso:
+        </div>
+        <div class="grid2" style="gap:8px">
+          <div class="field" style="margin-bottom:0">
+            <label>Descrição</label>
+            <input type="text" id="epi-avulso-desc" placeholder="Ex: ÓCULOS SOLAR">
+          </div>
+          <div class="field" style="margin-bottom:0">
+            <label>CA</label>
+            <input type="text" id="epi-avulso-ca" placeholder="Ex: 12345">
+          </div>
+        </div>
+        <div class="grid2" style="gap:8px;margin-top:6px">
+          <div class="field" style="margin-bottom:0">
+            <label>Quantidade</label>
+            <input type="number" id="epi-avulso-qtd" value="1" min="1">
+          </div>
+          <div style="display:flex;align-items:flex-end">
+            <button class="btn btn-outline" style="width:100%;justify-content:center" onclick="adicionarEpiAvulso()">
+              <i class="ti ti-plus"></i>Adicionar
+            </button>
+          </div>
+        </div>
+        <div id="epis-avulsos-lista" style="margin-top:8px"></div>
+
+        <!-- Celular e envio -->
+        <div class="field" style="margin-top:12px">
+          <label>Celular / WhatsApp</label>
+          <input type="text" id="epi-cel-ind" placeholder="(11) 99999-9999">
+        </div>
+        <button class="btn btn-primary" style="width:100%;justify-content:center;height:42px" onclick="enviarEpiIndividual()">
+          <i class="ti ti-send"></i>Enviar Ficha de EPI
+        </button>
+      </div>
+      <div id="epi-ind-resultado"></div>
+    </div>
+  </div>
+
+  <!-- Lote -->
+  <div id="epi-aba-lote" style="display:none">
+    <div class="grid2">
+      <div class="card">
+        <div class="card-title"><i class="ti ti-search"></i>Selecionar funcionários</div>
+        <input type="text" id="busca-epi-lote" placeholder="Nome ou cargo..."
+          style="width:100%;padding:8px 12px;border:1px solid var(--borda);border-radius:8px;font-size:13px;margin-bottom:10px"
+          oninput="filtrarEpiLote()">
+        <div class="lista-scroll" id="lista-epi-lote"></div>
+      </div>
+      <div class="card">
+        <div class="card-title"><i class="ti ti-package"></i>Selecionados (<span id="epi-lote-count">0</span>)</div>
+        <div id="lista-epi-sel"></div>
+        <div style="margin-top:16px">
+          <button class="btn btn-primary" style="width:100%;justify-content:center" onclick="enviarEpiLote()">
+            <i class="ti ti-rocket"></i>Enviar Fichas de EPI
+          </button>
+        </div>
+      </div>
+    </div>
+    <div id="epi-lote-resultado" style="margin-top:12px"></div>
+  </div>
 </div>
 
 <!-- ── MONTAR LOTE ── -->
@@ -343,6 +522,99 @@ tr:hover td { background:#F9FAFB; }
       <button class="btn btn-outline" onclick="novoLote()"><i class="ti ti-plus"></i>Novo lote</button>
       <button class="btn btn-primary" onclick="irPara('historico')"><i class="ti ti-clock"></i>Ver histórico</button>
     </div>
+  </div>
+</div>
+
+<!-- ── ORDEM DE SERVIÇO ── -->
+<div class="panel" id="panel-ordem-servico">
+  <div class="page-header">
+    <div>
+      <div class="page-title">Ordens de Serviço</div>
+      <div class="page-sub">Configure o CBO por cargo e envie a OS para assinatura</div>
+    </div>
+  </div>
+
+  <!-- Tabs -->
+  <div style="display:flex;gap:8px;margin-bottom:20px;border-bottom:2px solid var(--borda);padding-bottom:0">
+    <button class="os-tab-btn active" onclick="osAba('config')" id="os-tab-config" style="padding:8px 18px;border:none;background:none;cursor:pointer;font-size:13px;font-weight:600;color:var(--verde);border-bottom:2px solid var(--verde);margin-bottom:-2px">
+      <i class="ti ti-settings"></i> Configurar por Cargo
+    </button>
+    <button class="os-tab-btn" onclick="osAba('envio')" id="os-tab-envio" style="padding:8px 18px;border:none;background:none;cursor:pointer;font-size:13px;font-weight:500;color:var(--texto2);border-bottom:2px solid transparent;margin-bottom:-2px">
+      <i class="ti ti-send"></i> Enviar OS
+    </button>
+  </div>
+
+  <!-- Aba: Configurar por Cargo -->
+  <div id="os-aba-config">
+    <div class="grid2" style="align-items:start;gap:20px">
+      <!-- Lista de cargos -->
+      <div class="card" style="margin-bottom:0">
+        <div class="card-title"><i class="ti ti-list"></i>Cargos cadastrados</div>
+        <div id="os-lista-cargos" style="font-size:13px;color:var(--texto2)">Carregando...</div>
+      </div>
+
+      <!-- Formulário CBO -->
+      <div class="card" style="margin-bottom:0" id="os-form-card">
+        <div class="card-title"><i class="ti ti-search"></i>Configurar OS — <span id="os-cargo-nome" style="color:var(--verde)">Selecione um cargo</span></div>
+
+        <div class="field">
+          <label>Código CBO</label>
+          <div style="display:flex;gap:8px">
+            <input type="text" id="os-cbo-codigo" placeholder="Ex: 7152-10" style="flex:1" oninput="osCBOChange()">
+            <a href="http://www.mtecbo.gov.br" target="_blank" class="btn btn-outline btn-sm" title="Consultar CBO">
+              <i class="ti ti-external-link"></i>
+            </a>
+          </div>
+        </div>
+
+        <div class="field">
+          <label>Título / Ocupação CBO</label>
+          <input type="text" id="os-cbo-titulo" placeholder="Ex: Pedreiro">
+        </div>
+
+        <div class="field">
+          <label>Descrição das Atividades <small style="color:var(--texto2)">(cola do site mtecbo.gov.br)</small></label>
+          <textarea id="os-cbo-descricao" rows="8" placeholder="Cole aqui a descrição sumária das atividades do CBO..."></textarea>
+        </div>
+
+        <div class="card" style="background:var(--verde-light);border-color:var(--verde);margin-bottom:12px">
+          <div style="font-size:12px;font-weight:600;color:var(--verde-dark);margin-bottom:8px">
+            <i class="ti ti-shield"></i> EPIs do cargo (preenchimento automático)
+          </div>
+          <div id="os-epis-preview" style="font-size:12px;color:var(--texto2)">—</div>
+        </div>
+
+        <button class="btn btn-primary" onclick="salvarOSConfig()" id="os-btn-salvar" disabled>
+          <i class="ti ti-device-floppy"></i> Salvar e Gerar OS
+        </button>
+        <span id="os-salvar-status" style="font-size:12px;color:var(--verde);margin-left:10px;display:none"></span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Aba: Enviar OS -->
+  <div id="os-aba-envio" style="display:none">
+    <div class="card">
+      <div class="card-title"><i class="ti ti-users"></i>Selecionar Funcionários</div>
+      <div class="field">
+        <label>Buscar</label>
+        <input type="text" id="os-busca-func" placeholder="Nome, cargo..." oninput="filtrarOSFuncs()">
+      </div>
+      <div id="os-lista-funcs" style="max-height:360px;overflow-y:auto">
+        <p style="font-size:13px;color:var(--texto2)">Carregando...</p>
+      </div>
+    </div>
+
+    <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+      <button class="btn btn-primary" onclick="enviarOSSelecionados()" id="os-btn-enviar">
+        <i class="ti ti-send"></i> Enviar OS Selecionados
+      </button>
+      <label style="font-size:13px;display:flex;align-items:center;gap:6px">
+        <input type="checkbox" id="os-sandbox"> Modo Teste (sandbox)
+      </label>
+    </div>
+
+    <div id="os-resultado-envio" style="margin-top:16px"></div>
   </div>
 </div>
 
@@ -427,6 +699,67 @@ tr:hover td { background:#F9FAFB; }
   </div>
 </div>
 
+<!-- ── MODAL NOVO EPI ── -->
+<div class="modal-bg" id="modal-novo-epi">
+  <div class="modal">
+    <div class="modal-title">
+      <span id="modal-epi-titulo">Novo EPI</span>
+      <button class="modal-close" onclick="fecharModal('modal-novo-epi')">×</button>
+    </div>
+    <input type="hidden" id="epi-edit-id">
+    <div class="field"><label>Descrição *</label><input type="text" id="epi-desc" placeholder="Ex: BOTINA DE SEGURANÇA"></div>
+    <div class="grid2">
+      <div class="field"><label>CA</label><input type="text" id="epi-ca" placeholder="Ex: 48413"></div>
+      <div class="field"><label>Qtd padrão</label><input type="number" id="epi-qtd" value="1" min="1"></div>
+    </div>
+    <button class="btn btn-primary" style="width:100%;justify-content:center" onclick="salvarNovoEpi()">
+      <i class="ti ti-device-floppy"></i>Salvar
+    </button>
+    <div id="novo-epi-result" style="margin-top:8px"></div>
+  </div>
+</div>
+
+<!-- ── MODAL UPLOAD EPI / OS ── -->
+<div class="modal-bg" id="modal-epi-upload">
+  <div class="modal">
+    <div class="modal-title">
+      <span id="modal-epi-upload-titulo">Upload</span>
+      <button class="modal-close" onclick="fecharModal('modal-epi-upload')">×</button>
+    </div>
+    <input type="hidden" id="epi-upload-tipo">
+    <div class="upload-zone" onclick="document.getElementById('inp-epi-os').click()">
+      <i class="ti ti-file-word"></i>
+      <p>Clique para selecionar o arquivo <strong>.docx</strong></p>
+    </div>
+    <input type="file" id="inp-epi-os" accept=".docx" style="display:none" onchange="confirmarUploadEpiOs(this)">
+    <div id="epi-upload-result" style="margin-top:12px"></div>
+  </div>
+</div>
+
+<!-- ── MODAL EDITOR TEXTO ── -->
+<div class="modal-bg" id="modal-editor-texto">
+  <div class="modal" style="max-width:700px">
+    <div class="modal-title">
+      <span id="editor-titulo">Editar documento</span>
+      <button class="modal-close" onclick="fecharModal('modal-editor-texto')">×</button>
+    </div>
+    <div class="alert al-warn" style="font-size:12px;margin-bottom:12px">
+      <i class="ti ti-alert-triangle"></i>
+      <div>O editor de texto simplifica a formatação. Para edições complexas com tabelas e logos, use <strong>Download → Word → Upload</strong>.</div>
+    </div>
+    <input type="hidden" id="editor-tipo">
+    <div class="field">
+      <label>Conteúdo do documento</label>
+      <textarea id="editor-conteudo" style="min-height:400px;font-family:monospace;font-size:12px;line-height:1.5"></textarea>
+    </div>
+    <div style="display:flex;gap:8px;justify-content:flex-end">
+      <button class="btn btn-outline" onclick="fecharModal('modal-editor-texto')">Cancelar</button>
+      <button class="btn btn-primary" onclick="salvarTextoEditor()"><i class="ti ti-device-floppy"></i>Salvar</button>
+    </div>
+    <div id="editor-result" style="margin-top:8px"></div>
+  </div>
+</div>
+
 <script>
 // ══════════════════════════════════════════════════════
 //  ESTADO GLOBAL
@@ -446,10 +779,13 @@ function irPara(aba) {
   document.querySelectorAll('.nav-item').forEach(b => {
     if (b.getAttribute('onclick')?.includes("'"+aba+"'")) b.classList.add('active');
   });
-  if (aba==='funcionarios') carregarFuncionarios();
-  if (aba==='modelos')      carregarModelos();
-  if (aba==='lote')         { filtrarLote(); renderLoteSel(); }
-  if (aba==='historico')    carregarHistorico();
+  if (aba==='funcionarios')  carregarFuncionarios();
+  if (aba==='modelos')       { carregarModelos(); carregarTabelaEpiOs(); }
+  if (aba==='cadastro-epi')  carregarPainelCadEpi();
+  if (aba==='envio-epi')     { buscarFuncEpi(); filtrarEpiLote(); }
+  if (aba==='lote')          { filtrarLote(); renderLoteSel(); }
+  if (aba==='ordem-servico') carregarOSCargos();
+  if (aba==='historico')     carregarHistorico();
   // Fecha sidebar mobile
   document.getElementById('sidebar').classList.remove('open');
 }
@@ -628,6 +964,11 @@ async function carregarModelos() {
   const sel = document.getElementById('sel-cargo');
   sel.innerHTML = '<option value="">-- Selecione --</option>';
   cargos.forEach(c => sel.innerHTML += `<option value="${c}">${c}</option>`);
+
+  // Cargos no select de EPI/OS
+  const selEpi = document.getElementById('sel-cargo-epi');
+  selEpi.innerHTML = '<option value="">-- Selecione --</option>';
+  cargos.forEach(c => selEpi.innerHTML += `<option value="${c}">${c}</option>`);
 }
 
 function toggleEpiCargos(btn) {
@@ -704,6 +1045,469 @@ async function uploadModelo(inp) {
     fecharModal('modal-modelo');
     carregarModelos();
   }
+}
+
+// ══════════════════════════════════════════════════════
+//  CADASTRO DE EPI
+// ══════════════════════════════════════════════════════
+async function carregarPainelCadEpi() {
+  const cargos = await fetch('/api/cargos').then(r=>r.json());
+  const sel = document.getElementById('sel-cargo-cat');
+  sel.innerHTML = '<option value="">-- Selecione --</option>';
+  cargos.forEach(c => sel.innerHTML += `<option value="${c}">${c}</option>`);
+  carregarCatalogoEpi();
+}
+
+async function carregarCatalogoEpi() {
+  const res  = await fetch('/api/epis/catalogo');
+  const lista = await res.json();
+  const div  = document.getElementById('catalogo-epi-lista');
+  div.innerHTML = '';
+  if (!lista.length) {
+    div.innerHTML = '<p style="font-size:12px;color:var(--texto2);text-align:center;padding:16px">Nenhum EPI cadastrado.</p>';
+    return;
+  }
+  lista.forEach(e => {
+    div.innerHTML += `<div style="display:flex;align-items:center;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--borda)">
+      <div>
+        <div style="font-size:13px;font-weight:500">${e.descricao}</div>
+        <div style="font-size:11px;color:var(--texto2)">CA: ${e.ca||'—'} · Qtd: ${e.quantidade_padrao}</div>
+      </div>
+      <div style="display:flex;gap:4px">
+        <button class="btn btn-outline btn-sm" onclick='abrirEditarEpi(${JSON.stringify(e)})'><i class="ti ti-edit"></i></button>
+        <button class="btn btn-danger btn-sm" onclick="deletarEpiCat(${e.id})"><i class="ti ti-trash"></i></button>
+      </div>
+    </div>`;
+  });
+}
+
+function abrirModalNovoEpi() {
+  document.getElementById('epi-edit-id').value = '';
+  document.getElementById('epi-desc').value = '';
+  document.getElementById('epi-ca').value = '';
+  document.getElementById('epi-qtd').value = '1';
+  document.getElementById('modal-epi-titulo').textContent = 'Novo EPI';
+  document.getElementById('novo-epi-result').innerHTML = '';
+  abrirModal('modal-novo-epi');
+}
+
+function abrirEditarEpi(e) {
+  document.getElementById('epi-edit-id').value = e.id;
+  document.getElementById('epi-desc').value = e.descricao;
+  document.getElementById('epi-ca').value = e.ca || '';
+  document.getElementById('epi-qtd').value = e.quantidade_padrao || 1;
+  document.getElementById('modal-epi-titulo').textContent = 'Editar EPI';
+  document.getElementById('novo-epi-result').innerHTML = '';
+  abrirModal('modal-novo-epi');
+}
+
+async function salvarNovoEpi() {
+  const desc = document.getElementById('epi-desc').value.trim();
+  if (!desc) { alert('Descrição obrigatória.'); return; }
+  const payload = {
+    descricao: desc.toUpperCase(),
+    ca: document.getElementById('epi-ca').value.trim(),
+    quantidade_padrao: parseInt(document.getElementById('epi-qtd').value) || 1
+  };
+  const res  = await fetch('/api/epis/catalogo', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(payload) });
+  const data = await res.json();
+  if (data.ok) { fecharModal('modal-novo-epi'); carregarCatalogoEpi(); }
+}
+
+async function deletarEpiCat(id) {
+  if (!confirm('Remover este EPI do catálogo?')) return;
+  await fetch(`/api/epis/catalogo/${id}`, { method:'DELETE' });
+  carregarCatalogoEpi();
+}
+
+async function carregarEpisDoCargo() {
+  const cargo = document.getElementById('sel-cargo-cat').value;
+  const div   = document.getElementById('epis-cargo-lista');
+  document.getElementById('epis-cargo-salvar').style.display = cargo ? 'block' : 'none';
+  if (!cargo) { div.innerHTML = ''; return; }
+
+  const [resCat, resCargo] = await Promise.all([
+    fetch('/api/epis/catalogo').then(r=>r.json()),
+    fetch(`/api/epis/cargo/${encodeURIComponent(cargo)}`).then(r=>r.json())
+  ]);
+  const idsNosCargo = new Set(resCargo.map(e => e.epi_id));
+  div.innerHTML = '<div style="font-size:11px;color:var(--texto2);margin-bottom:8px">Marque os EPIs deste cargo:</div>';
+  resCat.forEach(e => {
+    const chk = idsNosCargo.has(e.id) ? 'checked' : '';
+    const qtd = resCargo.find(x=>x.epi_id===e.id)?.quantidade || e.quantidade_padrao || 1;
+    div.innerHTML += `<div style="display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid var(--borda)">
+      <input type="checkbox" id="cep-${e.id}" value="${e.id}" ${chk} style="accent-color:var(--verde);width:15px;height:15px">
+      <label for="cep-${e.id}" style="flex:1;font-size:12px;cursor:pointer">${e.descricao} <span style="color:var(--texto2)">CA:${e.ca||'—'}</span></label>
+      <input type="number" id="cepq-${e.id}" value="${qtd}" min="1" style="width:50px;padding:3px 6px;border:1px solid var(--borda);border-radius:6px;font-size:12px">
+    </div>`;
+  });
+}
+
+async function salvarEpisCargo() {
+  const cargo = document.getElementById('sel-cargo-cat').value;
+  const epis  = [...document.querySelectorAll('#epis-cargo-lista input[type=checkbox]:checked')]
+    .map(i => ({ epi_id: parseInt(i.value), quantidade: parseInt(document.getElementById('cepq-'+i.value).value)||1 }));
+  await fetch(`/api/epis/cargo/${encodeURIComponent(cargo)}`, {
+    method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({"epis": epis})
+  });
+  alert(`EPIs do cargo "${cargo}" salvos!`);
+}
+
+// ══════════════════════════════════════════════════════
+//  ENVIO FICHA DE EPI
+// ══════════════════════════════════════════════════════
+let epiFuncSel = null;
+let epiLoteIds = new Set();
+
+function trocarAbaEpi(aba) {
+  document.getElementById('epi-aba-individual').style.display = aba==='individual' ? 'block' : 'none';
+  document.getElementById('epi-aba-lote').style.display       = aba==='lote'       ? 'block' : 'none';
+  document.getElementById('tab-epi-ind').className  = 'btn btn-sm ' + (aba==='individual' ? 'btn-primary' : 'btn-outline');
+  document.getElementById('tab-epi-lote').className = 'btn btn-sm ' + (aba==='lote'       ? 'btn-primary' : 'btn-outline');
+}
+
+async function buscarFuncEpi() {
+  const q    = document.getElementById('busca-epi-func').value;
+  const res  = await fetch(`/api/funcionarios?busca=${encodeURIComponent(q)}`);
+  const list = await res.json();
+  const div  = document.getElementById('lista-epi-func');
+  div.innerHTML = '';
+  list.forEach(f => {
+    const ini = f.nome.split(' ').map(w=>w[0]).slice(0,2).join('').toUpperCase();
+    div.innerHTML += `<div class="func-item" style="cursor:pointer" onclick='selecionarFuncEpi(${JSON.stringify(f)})'>
+      <div style="display:flex;align-items:center;gap:8px">
+        <div class="func-avatar">${ini}</div>
+        <div>
+          <div style="font-size:13px;font-weight:500">${f.nome}</div>
+          <div style="font-size:11px;color:var(--texto2)">${f.cargo}</div>
+        </div>
+      </div>
+      <i class="ti ti-chevron-right" style="color:var(--texto2)"></i>
+    </div>`;
+  });
+}
+
+let episAvulsos = [];
+
+async function selecionarFuncEpi(f) {
+  epiFuncSel = f;
+  episAvulsos = [];
+  document.getElementById('lista-epi-func').innerHTML = '';
+  document.getElementById('busca-epi-func').value = '';
+  document.getElementById('epi-cel-ind').value = f.celular || '';
+  document.getElementById('epi-avulso-desc').value = '';
+  document.getElementById('epi-avulso-ca').value = '';
+  document.getElementById('epi-avulso-qtd').value = '1';
+  document.getElementById('epi-ind-resultado').innerHTML = '';
+  document.getElementById('epis-avulsos-lista').innerHTML = '';
+
+  document.getElementById('epi-func-info').innerHTML = `
+    <div style="font-size:14px;font-weight:600">${f.nome}</div>
+    <div style="font-size:12px;color:var(--texto2)">${f.cargo} · ${f.lotacao||''}</div>`;
+
+  // Carrega catálogo completo e EPIs do cargo
+  const [resCat, resCargo] = await Promise.all([
+    fetch('/api/epis/catalogo').then(r=>r.json()),
+    fetch(`/api/epis/cargo/${encodeURIComponent(f.cargo)}`).then(r=>r.json())
+  ]);
+  const idsNoCargo = new Set(resCargo.map(e => e.epi_id));
+  const div = document.getElementById('epi-checklist');
+  div.innerHTML = '';
+  resCat.forEach(e => {
+    const chk = idsNoCargo.has(e.id) ? 'checked' : '';
+    const qtd = resCargo.find(x=>x.epi_id===e.id)?.quantidade || e.quantidade_padrao || 1;
+    div.innerHTML += `<div style="display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid var(--borda)">
+      <input type="checkbox" id="epiind-${e.id}" value="${e.id}" ${chk} style="accent-color:var(--verde);width:15px;height:15px;flex-shrink:0">
+      <label for="epiind-${e.id}" style="flex:1;font-size:12px;cursor:pointer">${e.descricao}${e.ca ? ' <span style="color:var(--texto2)">CA:'+e.ca+'</span>' : ''}</label>
+      <input type="number" id="epiindq-${e.id}" value="${qtd}" min="1" style="width:48px;padding:3px 6px;border:1px solid var(--borda);border-radius:6px;font-size:12px">
+    </div>`;
+  });
+
+  document.getElementById('epi-func-selecionado').style.display = 'block';
+}
+
+function adicionarEpiAvulso() {
+  const desc = document.getElementById('epi-avulso-desc').value.trim().toUpperCase();
+  const ca   = document.getElementById('epi-avulso-ca').value.trim();
+  const qtd  = parseInt(document.getElementById('epi-avulso-qtd').value) || 1;
+  if (!desc) { alert('Informe a descrição do EPI avulso.'); return; }
+  episAvulsos.push({descricao: desc, ca, quantidade: qtd});
+  document.getElementById('epi-avulso-desc').value = '';
+  document.getElementById('epi-avulso-ca').value = '';
+  document.getElementById('epi-avulso-qtd').value = '1';
+  renderEpisAvulsos();
+}
+
+function renderEpisAvulsos() {
+  const div = document.getElementById('epis-avulsos-lista');
+  div.innerHTML = '';
+  episAvulsos.forEach((e, i) => {
+    div.innerHTML += `<div style="display:flex;align-items:center;justify-content:space-between;padding:4px 8px;background:var(--verde-light);border-radius:6px;margin-bottom:4px;font-size:12px">
+      <span>${e.descricao} ${e.ca ? '(CA '+e.ca+')' : ''} × ${e.quantidade}</span>
+      <button class="btn btn-danger btn-sm" style="padding:2px 6px" onclick="removerAvulso(${i})"><i class="ti ti-x"></i></button>
+    </div>`;
+  });
+}
+
+function removerAvulso(i) { episAvulsos.splice(i,1); renderEpisAvulsos(); }
+
+function limparSelEpiFunc() {
+  epiFuncSel = null;
+  document.getElementById('epi-func-selecionado').style.display = 'none';
+  document.getElementById('epi-ind-resultado').innerHTML = '';
+}
+
+async function enviarEpiIndividual() {
+  if (!epiFuncSel) { alert('Selecione um funcionário.'); return; }
+  const cel = document.getElementById('epi-cel-ind').value.trim();
+  if (cel) epiFuncSel = {...epiFuncSel, celular: cel};
+
+  // Coleta EPIs selecionados do checklist
+  const resCat = await fetch('/api/epis/catalogo').then(r=>r.json());
+  const episSel = resCat
+    .filter(e => document.getElementById('epiind-'+e.id)?.checked)
+    .map(e => ({
+      descricao: e.descricao,
+      ca: e.ca,
+      quantidade: parseInt(document.getElementById('epiindq-'+e.id)?.value) || 1
+    }));
+
+  const todosEpis = [...episSel, ...episAvulsos];
+  if (!todosEpis.length) { alert('Selecione ao menos um EPI.'); return; }
+
+  document.getElementById('epi-ind-resultado').innerHTML =
+    '<div class="alert al-info"><i class="ti ti-loader-2"></i>Gerando ficha e enviando para Autentique...</div>';
+
+  const res  = await fetch('/api/epi/enviar-custom', {
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({ func_id: epiFuncSel.id, epis: todosEpis })
+  });
+  const data = await res.json();
+
+  if (data.ok) {
+    document.getElementById('epi-ind-resultado').innerHTML = `
+      <div class="card" style="margin-top:8px;border-left:4px solid var(--verde)">
+        <div style="font-size:13px;font-weight:600;margin-bottom:8px">Enviado com sucesso!</div>
+        <div style="font-size:12px;color:var(--texto2);margin-bottom:8px">Link para <strong>${data.nome}</strong>:</div>
+        <div class="link-box">
+          <input type="text" value="${data.link}" readonly>
+          <button class="btn btn-primary btn-sm" onclick="copiar('${data.link}',this)"><i class="ti ti-copy"></i>Copiar</button>
+        </div>
+      </div>`;
+  } else {
+    document.getElementById('epi-ind-resultado').innerHTML =
+      `<div class="alert al-error"><i class="ti ti-x"></i>${data.erro || 'Erro ao enviar'}</div>`;
+  }
+}
+
+// Envio em lote EPI
+async function filtrarEpiLote() {
+  const q    = document.getElementById('busca-epi-lote').value;
+  const res  = await fetch(`/api/funcionarios?busca=${encodeURIComponent(q)}`);
+  const list = await res.json();
+  const div  = document.getElementById('lista-epi-lote');
+  div.innerHTML = '';
+  list.forEach(f => {
+    const sel = epiLoteIds.has(f.id);
+    const ini = f.nome.split(' ').map(w=>w[0]).slice(0,2).join('').toUpperCase();
+    div.innerHTML += `<div class="func-item ${sel?'sel':''}">
+      <div style="display:flex;align-items:center;gap:8px">
+        <div class="func-avatar">${ini}</div>
+        <div>
+          <div style="font-size:13px;font-weight:500">${f.nome}</div>
+          <div style="font-size:11px;color:var(--texto2)">${f.cargo}</div>
+        </div>
+      </div>
+      <button class="btn ${sel?'btn-danger':'btn-primary'} btn-sm" onclick="toggleEpiLote(${f.id})">
+        ${sel?'<i class="ti ti-x"></i>':'<i class="ti ti-plus"></i>'}
+      </button>
+    </div>`;
+  });
+  renderEpiLoteSel();
+}
+
+function toggleEpiLote(id) {
+  if (epiLoteIds.has(id)) epiLoteIds.delete(id); else epiLoteIds.add(id);
+  filtrarEpiLote();
+}
+
+async function renderEpiLoteSel() {
+  document.getElementById('epi-lote-count').textContent = epiLoteIds.size;
+  const div  = document.getElementById('lista-epi-sel');
+  div.innerHTML = '';
+  if (!epiLoteIds.size) { div.innerHTML = '<p style="font-size:12px;color:var(--texto2);text-align:center;padding:12px">Nenhum selecionado</p>'; return; }
+  const todos = await fetch('/api/funcionarios').then(r=>r.json());
+  [...epiLoteIds].forEach(id => {
+    const f = todos.find(x=>x.id===id);
+    if (!f) return;
+    div.innerHTML += `<div style="display:flex;align-items:center;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--borda)">
+      <div>
+        <div style="font-size:12px;font-weight:500">${f.nome}</div>
+        <div style="font-size:11px;color:var(--texto2)">${f.cargo}</div>
+      </div>
+      <button class="btn btn-danger btn-sm" onclick="toggleEpiLote(${id})"><i class="ti ti-x"></i></button>
+    </div>`;
+  });
+}
+
+async function enviarEpiLote() {
+  if (!epiLoteIds.size) { alert('Selecione ao menos um funcionário.'); return; }
+  if (!confirm(`Enviar Ficha de EPI para ${epiLoteIds.size} funcionário(s)?`)) return;
+
+  document.getElementById('epi-lote-resultado').innerHTML =
+    '<div class="alert al-info"><i class="ti ti-loader-2"></i>Enviando...</div>';
+
+  const res  = await fetch('/api/epi/enviar', {
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({ func_ids: [...epiLoteIds] })
+  });
+  const data = await res.json();
+
+  let html = '';
+  if (data.resultados?.length) {
+    html += `<div class="alert al-success"><i class="ti ti-check"></i>${data.enviados} ficha(s) enviada(s) com sucesso!</div>`;
+    data.resultados.forEach(r => {
+      html += `<div class="card" style="margin-bottom:8px">
+        <div style="font-size:13px;font-weight:600;margin-bottom:4px">${r.nome} <span style="font-size:11px;color:var(--texto2)">${r.cargo}</span></div>
+        <div class="link-box">
+          <input type="text" value="${r.link}" readonly>
+          <button class="btn btn-primary btn-sm" onclick="copiar('${r.link}',this)"><i class="ti ti-copy"></i>Copiar</button>
+        </div>
+      </div>`;
+    });
+  }
+  if (data.erros?.length) {
+    html += `<div class="alert al-error"><i class="ti ti-alert-triangle"></i><div>${data.erros.join('<br>')}</div></div>`;
+  }
+  document.getElementById('epi-lote-resultado').innerHTML = html;
+}
+
+// ══════════════════════════════════════════════════════
+//  EPI & OS POR CARGO
+// ══════════════════════════════════════════════════════
+let epiOsStatus = {};  // { cargo: {tem_epi, tem_os} }
+
+async function carregarEpiOs() {
+  const cargo = document.getElementById('sel-cargo-epi').value;
+  const painel = document.getElementById('epi-os-painel');
+  if (!cargo) { painel.style.display='none'; return; }
+  painel.style.display='block';
+
+  const res = await fetch('/api/epi');
+  const lista = await res.json();
+  const info = lista.find(x => x.cargo === cargo) || {tem_epi: false, tem_os: false};
+  epiOsStatus[cargo] = info;
+
+  renderEpiOsStatus('epi', info.tem_epi);
+  renderEpiOsStatus('os',  info.tem_os);
+}
+
+function renderEpiOsStatus(tipo, tem) {
+  const div = document.getElementById(`${tipo}-status`);
+  const cor  = tem ? '#10B981' : '#EF4444';
+  const txt  = tem ? '&#10003; Configurado' : '&#10007; Não configurado';
+  div.innerHTML = `<span style="padding:3px 10px;border-radius:20px;font-size:12px;font-weight:600;color:#fff;background:${cor}">${txt}</span>`;
+
+  document.getElementById(`btn-${tipo}-editar`).style.display   = tem ? 'inline-flex' : 'none';
+  document.getElementById(`btn-${tipo}-download`).style.display = tem ? 'inline-flex' : 'none';
+  document.getElementById(`btn-${tipo}-deletar`).style.display  = tem ? 'inline-flex' : 'none';
+}
+
+function uploadEpiOs(tipo) {
+  const cargo = document.getElementById('sel-cargo-epi').value;
+  if (!cargo) { alert('Selecione um cargo primeiro.'); return; }
+  document.getElementById('epi-upload-tipo').value = tipo;
+  document.getElementById('modal-epi-upload-titulo').textContent = tipo === 'epi'
+    ? `Upload Ficha de EPI — ${cargo}`
+    : `Upload Ordem de Serviço — ${cargo}`;
+  document.getElementById('epi-upload-result').innerHTML = '';
+  document.getElementById('inp-epi-os').value = '';
+  abrirModal('modal-epi-upload');
+}
+
+async function confirmarUploadEpiOs(inp) {
+  if (!inp.files[0]) return;
+  const tipo  = document.getElementById('epi-upload-tipo').value;
+  const cargo = document.getElementById('sel-cargo-epi').value;
+  const fd = new FormData();
+  fd.append('file', inp.files[0]);
+  const url = `/api/${tipo}/upload/${encodeURIComponent(cargo)}`;
+  const res  = await fetch(url, {method:'POST', body:fd});
+  const data = await res.json();
+  document.getElementById('epi-upload-result').innerHTML = data.ok
+    ? `<div class="alert al-success"><i class="ti ti-check"></i>Arquivo salvo com sucesso!</div>`
+    : `<div class="alert al-error"><i class="ti ti-x"></i>Erro no upload</div>`;
+  if (data.ok) {
+    setTimeout(() => {
+      fecharModal('modal-epi-upload');
+      carregarEpiOs();
+      carregarTabelaEpiOs();
+    }, 800);
+  }
+}
+
+function downloadEpiOs(tipo) {
+  const cargo = document.getElementById('sel-cargo-epi').value;
+  window.location.href = `/api/${tipo}/${encodeURIComponent(cargo)}/download`;
+}
+
+async function deletarEpiOs(tipo) {
+  const cargo = document.getElementById('sel-cargo-epi').value;
+  const label = tipo === 'epi' ? 'Ficha de EPI' : 'Ordem de Serviço';
+  if (!confirm(`Remover ${label} do cargo "${cargo}"?`)) return;
+  await fetch(`/api/${tipo}/${encodeURIComponent(cargo)}`, {method:'DELETE'});
+  carregarEpiOs();
+  carregarTabelaEpiOs();
+}
+
+async function editarTexto(tipo) {
+  const cargo = document.getElementById('sel-cargo-epi').value;
+  const label = tipo === 'epi' ? `EPI — ${cargo}` : `OS — ${cargo}`;
+  document.getElementById('editor-titulo').textContent = `Editar ${label}`;
+  document.getElementById('editor-tipo').value = tipo;
+  document.getElementById('editor-result').innerHTML = '';
+  document.getElementById('editor-conteudo').value = 'Carregando...';
+  abrirModal('modal-editor-texto');
+  const res  = await fetch(`/api/${tipo}/${encodeURIComponent(cargo)}/texto`);
+  const data = await res.json();
+  document.getElementById('editor-conteudo').value = data.texto || '';
+}
+
+async function salvarTextoEditor() {
+  const tipo  = document.getElementById('editor-tipo').value;
+  const cargo = document.getElementById('sel-cargo-epi').value;
+  const texto = document.getElementById('editor-conteudo').value;
+  document.getElementById('editor-result').innerHTML = '<div class="alert al-info"><i class="ti ti-loader-2"></i>Salvando...</div>';
+  const res  = await fetch(`/api/${tipo}/${encodeURIComponent(cargo)}/texto`, {
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({texto})
+  });
+  const data = await res.json();
+  document.getElementById('editor-result').innerHTML = data.ok
+    ? `<div class="alert al-success"><i class="ti ti-check"></i>Salvo com sucesso!</div>`
+    : `<div class="alert al-error"><i class="ti ti-x"></i>Erro ao salvar</div>`;
+  if (data.ok) setTimeout(() => fecharModal('modal-editor-texto'), 1000);
+}
+
+async function carregarTabelaEpiOs() {
+  const res  = await fetch('/api/epi');
+  const lista = await res.json();
+  const div  = document.getElementById('epi-os-tabela');
+  if (!lista.length) { div.innerHTML = ''; return; }
+  let html = `<div style="font-size:12px;font-weight:600;color:var(--texto2);margin-bottom:8px;text-transform:uppercase;letter-spacing:.5px">Resumo por cargo</div>
+  <div class="table-wrap"><table>
+    <thead><tr><th>Cargo</th><th>EPI</th><th>OS</th></tr></thead><tbody>`;
+  lista.forEach(x => {
+    const epi = x.tem_epi
+      ? `<span class="badge b-green">&#10003; Configurado</span>`
+      : `<span class="badge b-red">&#10007; Faltando</span>`;
+    const os = x.tem_os
+      ? `<span class="badge b-green">&#10003; Configurado</span>`
+      : `<span class="badge b-red">&#10007; Faltando</span>`;
+    html += `<tr><td style="font-size:12px;font-weight:500">${x.cargo}</td><td>${epi}</td><td>${os}</td></tr>`;
+  });
+  html += `</tbody></table></div>`;
+  div.innerHTML = html;
 }
 
 // ══════════════════════════════════════════════════════
@@ -972,6 +1776,182 @@ async function carregarEmpresa() {
     const data = await fetch('/api/config').then(r => r.json());
     document.getElementById('sb-empresa').textContent = data.empresa || '';
   } catch(e) {}
+}
+
+// ── ORDENS DE SERVIÇO ────────────────────────────────────
+
+let osCargoAtual = null;
+let osTodosFuncs = [];
+
+function osAba(aba) {
+  document.getElementById('os-aba-config').style.display = aba==='config' ? '' : 'none';
+  document.getElementById('os-aba-envio').style.display  = aba==='envio'  ? '' : 'none';
+  document.querySelectorAll('.os-tab-btn').forEach(b => {
+    const isAtivo = b.id === 'os-tab-'+aba;
+    b.style.color = isAtivo ? 'var(--verde)' : 'var(--texto2)';
+    b.style.fontWeight = isAtivo ? '600' : '500';
+    b.style.borderBottom = isAtivo ? '2px solid var(--verde)' : '2px solid transparent';
+  });
+  if (aba === 'envio') carregarOSFuncs();
+}
+
+async function carregarOSCargos() {
+  try {
+    const [configList, epis] = await Promise.all([
+      fetch('/api/os/config').then(r=>r.json()),
+      fetch('/api/epis/catalogo').then(r=>r.json())
+    ]);
+    const el = document.getElementById('os-lista-cargos');
+    if (!configList.length) { el.innerHTML='<p>Nenhum cargo cadastrado.</p>'; return; }
+    el.innerHTML = configList.map(c => `
+      <div onclick="selecionarOSCargo('${c.cargo}')" style="display:flex;align-items:center;justify-content:space-between;padding:10px 12px;border-radius:8px;cursor:pointer;margin-bottom:4px;background:${osCargoAtual===c.cargo?'var(--verde-light)':'#F9FAFB'};border:1px solid ${osCargoAtual===c.cargo?'var(--verde)':'var(--borda)'}">
+        <div>
+          <div style="font-weight:500;font-size:13px">${c.cargo}</div>
+          <div style="font-size:11px;color:var(--texto2)">${c.cbo_codigo ? 'CBO: '+c.cbo_codigo+' — '+c.cbo_titulo : 'CBO não configurado'}</div>
+        </div>
+        <span class="badge ${c.cbo_descricao?'b-green':'b-amber'}">${c.cbo_descricao?'✓ OK':'Pendente'}</span>
+      </div>
+    `).join('');
+  } catch(e) { console.error(e); }
+}
+
+async function selecionarOSCargo(cargo) {
+  osCargoAtual = cargo;
+  document.getElementById('os-cargo-nome').textContent = cargo;
+  document.getElementById('os-btn-salvar').disabled = false;
+  document.getElementById('os-salvar-status').style.display = 'none';
+
+  try {
+    const data = await fetch(`/api/os/config/${encodeURIComponent(cargo)}`).then(r=>r.json());
+    document.getElementById('os-cbo-codigo').value    = data.cbo?.cbo_codigo || '';
+    document.getElementById('os-cbo-titulo').value    = data.cbo?.cbo_titulo || '';
+    document.getElementById('os-cbo-descricao').value = data.cbo?.cbo_descricao || '';
+
+    // Preview EPIs
+    const epis = data.epis || [];
+    document.getElementById('os-epis-preview').innerHTML = epis.length
+      ? epis.map(e=>`<div>• ${e.descricao}${e.ca?' (C.A: '+e.ca+')':''} — Qtd: ${e.quantidade}</div>`).join('')
+      : '<em>Nenhum EPI configurado para este cargo</em>';
+  } catch(e) {}
+
+  // Refresh lista para destacar cargo selecionado
+  carregarOSCargos();
+}
+
+function osCBOChange() {
+  // placeholder — futuramente pode buscar automaticamente
+}
+
+async function salvarOSConfig() {
+  if (!osCargoAtual) { alert('Selecione um cargo primeiro'); return; }
+  const btn = document.getElementById('os-btn-salvar');
+  const status = document.getElementById('os-salvar-status');
+  btn.disabled = true;
+  btn.innerHTML = '<i class="ti ti-loader ti-spin"></i> Salvando...';
+
+  try {
+    const payload = {
+      cbo_codigo:    document.getElementById('os-cbo-codigo').value.trim(),
+      cbo_titulo:    document.getElementById('os-cbo-titulo').value.trim(),
+      cbo_descricao: document.getElementById('os-cbo-descricao').value.trim(),
+    };
+    const r = await fetch(`/api/os/config/${encodeURIComponent(osCargoAtual)}`, {
+      method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload)
+    });
+    const data = await r.json();
+    if (data.ok) {
+      status.textContent = `✓ OS gerada com ${data.epis_count} EPIs`;
+      status.style.display = '';
+      carregarOSCargos();
+    } else {
+      alert('Erro: '+(data.detail||JSON.stringify(data)));
+    }
+  } catch(e) { alert('Erro: '+e); }
+  finally {
+    btn.disabled = false;
+    btn.innerHTML = '<i class="ti ti-device-floppy"></i> Salvar e Gerar OS';
+  }
+}
+
+async function carregarOSFuncs() {
+  try {
+    const [funcs, configs] = await Promise.all([
+      fetch('/api/funcionarios').then(r=>r.json()),
+      fetch('/api/os/config').then(r=>r.json())
+    ]);
+    // Só mostra funcs com OS configurada para o cargo
+    const cargosComOS = new Set(configs.filter(c=>c.cbo_descricao).map(c=>c.cargo));
+    osTodosFuncs = funcs.filter(f => cargosComOS.has(f.cargo));
+    renderOSFuncs(osTodosFuncs);
+  } catch(e) {}
+}
+
+function filtrarOSFuncs() {
+  const t = document.getElementById('os-busca-func').value.toLowerCase();
+  renderOSFuncs(osTodosFuncs.filter(f =>
+    f.nome.toLowerCase().includes(t) || f.cargo.toLowerCase().includes(t)
+  ));
+}
+
+function renderOSFuncs(lista) {
+  const el = document.getElementById('os-lista-funcs');
+  if (!lista.length) { el.innerHTML='<p style="font-size:13px;color:var(--texto2);padding:12px">Nenhum funcionário com OS configurada.</p>'; return; }
+  el.innerHTML = `
+    <table>
+      <thead><tr>
+        <th><input type="checkbox" onchange="toggleOSTodos(this)"></th>
+        <th>Funcionário</th><th>Cargo</th>
+      </tr></thead>
+      <tbody>
+        ${lista.map(f=>`
+          <tr>
+            <td><input type="checkbox" class="os-func-cb" value="${f.id}"></td>
+            <td><div class="fn">${f.nome}</div><div class="fc">${f.lotacao||''}</div></td>
+            <td><span class="badge b-blue">${f.cargo}</span></td>
+          </tr>
+        `).join('')}
+      </tbody>
+    </table>`;
+}
+
+function toggleOSTodos(cb) {
+  document.querySelectorAll('.os-func-cb').forEach(c => c.checked = cb.checked);
+}
+
+async function enviarOSSelecionados() {
+  const ids = [...document.querySelectorAll('.os-func-cb:checked')].map(c=>parseInt(c.value));
+  if (!ids.length) { alert('Selecione ao menos um funcionário'); return; }
+  const sandbox = document.getElementById('os-sandbox').checked;
+  const btn = document.getElementById('os-btn-enviar');
+  btn.disabled = true;
+  btn.innerHTML = '<i class="ti ti-loader ti-spin"></i> Enviando...';
+  const res = document.getElementById('os-resultado-envio');
+  res.innerHTML = '<p style="color:var(--texto2);font-size:13px">Processando...</p>';
+
+  try {
+    const r = await fetch('/api/os/enviar', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({func_ids:ids, sandbox})
+    });
+    const data = await r.json();
+    let html = `<div class="card"><div class="card-title"><i class="ti ti-check"></i>Resultado</div>
+      <p style="font-size:13px;margin-bottom:12px">Enviados: <strong>${data.enviados}</strong> | Erros: <strong>${data.erros?.length||0}</strong></p>`;
+    if (data.resultados?.length) {
+      html += '<table><thead><tr><th>Funcionário</th><th>Cargo</th><th>Link</th></tr></thead><tbody>';
+      for (const r of data.resultados) {
+        html += `<tr><td>${r.nome}</td><td>${r.cargo}</td><td>${r.link?`<a href="${r.link}" target="_blank" class="btn btn-outline btn-sm">Assinar</a>`:'—'}</td></tr>`;
+      }
+      html += '</tbody></table>';
+    }
+    if (data.erros?.length) {
+      html += `<div style="margin-top:12px;padding:10px;background:#FEF2F2;border-radius:8px;font-size:12px;color:var(--danger)">
+        ${data.erros.map(e=>'⚠ '+e).join('<br>')}
+      </div>`;
+    }
+    html += '</div>';
+    res.innerHTML = html;
+  } catch(e) { res.innerHTML=`<p style="color:var(--danger)">${e}</p>`; }
+  finally { btn.disabled=false; btn.innerHTML='<i class="ti ti-send"></i> Enviar OS Selecionados'; }
 }
 
 // Inicia

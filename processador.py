@@ -319,6 +319,248 @@ def gerar_kit_funcionario(funcionario: dict, doc_ids: list[str], lote_pasta: str
     return resultados
 
 
+def preencher_ficha_epi_dinamica(funcionario: dict, epis: list, modelo_bytes: bytes) -> bytes:
+    """
+    Preenche a ficha de EPI base com os EPIs selecionados dinamicamente.
+    epis = lista de dicts com {descricao, ca, quantidade}
+    Retorna bytes do .docx preenchido.
+    """
+    import io
+    from datetime import date
+
+    doc = Document(io.BytesIO(modelo_bytes))
+
+    variaveis = {
+        "NOME":          funcionario.get("nome", ""),
+        "CPF":           funcionario.get("cpf", ""),
+        "MATRICULA":     funcionario.get("matricula", funcionario.get("cpf", "")),
+        "CARGO":         funcionario.get("cargo", ""),
+        "LOTACAO":       funcionario.get("lotacao", ""),
+        "DATA_ADMISSAO": funcionario.get("admissao", ""),
+        "DATA_HOJE":     date.today().strftime("%d/%m/%Y"),
+        "CELULAR":       funcionario.get("celular", ""),
+        "EMAIL":         funcionario.get("email", ""),
+        "EMPRESA":       EMPRESA,
+        "RESP_SST":      RESP_SST,
+        "CNPJ":          CNPJ,
+        "CTPS":          funcionario.get("ctps", ""),
+        "RG":            funcionario.get("rg", ""),
+    }
+
+    # Preenche variáveis nos parágrafos e cabeçalho/rodapé
+    for para in doc.paragraphs:
+        _processar_paragrafo(para, variaveis)
+    for section in doc.sections:
+        for para in section.header.paragraphs:
+            _processar_paragrafo(para, variaveis)
+        for para in section.footer.paragraphs:
+            _processar_paragrafo(para, variaveis)
+
+    # Encontra a tabela principal e preenche as linhas de EPI
+    data_hoje = date.today().strftime("%d/%m/%Y")
+    for table in doc.tables:
+        # Identifica a linha de cabeçalho dos itens (ENTREGA / DESCRIÇÃO / C.A / QUANTIDADE)
+        header_row = None
+        for ri, row in enumerate(table.rows):
+            celulas = [c.text.strip() for c in row.cells]
+            if any("ENTREGA" in c or "DESCRI" in c for c in celulas):
+                header_row = ri
+                break
+
+        if header_row is None:
+            continue
+
+        # Linhas de dados começam depois do cabeçalho
+        epi_rows = []
+        for ri in range(header_row + 1, len(table.rows)):
+            row = table.rows[ri]
+            celulas = [c.text.strip() for c in row.cells]
+            # Para quando chega na seção de assinatura
+            if any("Assinatura" in c or "Declaro" in c or "___" in c for c in celulas):
+                break
+            epi_rows.append(ri)
+
+        # Preenche as linhas disponíveis com os EPIs
+        for i, ri in enumerate(epi_rows):
+            row = table.rows[ri]
+            # Limpa todas as células primeiro
+            for cell in row.cells:
+                for para in cell.paragraphs:
+                    for run in para.runs:
+                        run.text = ""
+                    if para.runs:
+                        para.runs[0].text = ""
+
+            if i < len(epis):
+                epi = epis[i]
+                celulas_unicas = []
+                seen_ids = set()
+                for cell in row.cells:
+                    if id(cell._tc) not in seen_ids:
+                        seen_ids.add(id(cell._tc))
+                        celulas_unicas.append(cell)
+
+                if len(celulas_unicas) >= 4:
+                    # ENTREGA
+                    p = celulas_unicas[0].paragraphs[0]
+                    if p.runs: p.runs[0].text = data_hoje
+                    else: p.add_run(data_hoje)
+                    # DESCRIÇÃO
+                    p = celulas_unicas[1].paragraphs[0]
+                    desc = epi.get("descricao", "")
+                    if p.runs: p.runs[0].text = desc
+                    else: p.add_run(desc)
+                    # CA
+                    p = celulas_unicas[2].paragraphs[0]
+                    ca = str(epi.get("ca", ""))
+                    if p.runs: p.runs[0].text = ca
+                    else: p.add_run(ca)
+                    # QUANTIDADE
+                    p = celulas_unicas[3].paragraphs[0]
+                    qtd = str(epi.get("quantidade", 1))
+                    if p.runs: p.runs[0].text = qtd
+                    else: p.add_run(qtd)
+
+        # Preenche variáveis restantes na tabela (NOME, EMPRESA etc.)
+        for row in table.rows:
+            for cell in row.cells:
+                for para in cell.paragraphs:
+                    _processar_paragrafo(para, variaveis)
+
+        break  # Processa só a primeira tabela principal
+
+    buf = io.BytesIO()
+    doc.save(buf)
+    return buf.getvalue()
+
+
+def preencher_os_dinamica(funcionario: dict, descricao_atividades: str,
+                          epis_texto: str, modelo_bytes: bytes) -> bytes:
+    """
+    Preenche a OS modelo com dados do funcionário + CBO + EPIs.
+    - descricao_atividades: texto da descrição sumária do CBO
+    - epis_texto: lista de EPIs formatada (ex: "- BOTINA DE SEGURANÇA (CA: 48413)\n- ...")
+    - modelo_bytes: bytes do modelo 03_os_base.docx
+    Retorna bytes do .docx preenchido.
+    """
+    import io
+    from datetime import date
+
+    doc = Document(io.BytesIO(modelo_bytes))
+
+    variaveis = {
+        "NOME":          funcionario.get("nome", ""),
+        "CPF":           funcionario.get("cpf", ""),
+        "MATRICULA":     funcionario.get("matricula", funcionario.get("cpf", "")),
+        "CARGO":         funcionario.get("cargo", ""),
+        "LOTACAO":       funcionario.get("lotacao", ""),
+        "DATA_ADMISSAO": funcionario.get("admissao", ""),
+        "DATA_HOJE":     date.today().strftime("%d/%m/%Y"),
+        "CELULAR":       funcionario.get("celular", ""),
+        "EMAIL":         funcionario.get("email", ""),
+        "EMPRESA":       EMPRESA,
+        "RESP_SST":      RESP_SST,
+        "CNPJ":          CNPJ,
+        "CTPS":          funcionario.get("ctps", ""),
+        "RG":            funcionario.get("rg", ""),
+    }
+
+    for table in doc.tables:
+        # Primeira passagem: identifica índices das linhas-alvo (cabeçalhos)
+        idx_cbo   = None  # linha após "DESCRIÇÃO DAS ATIVIDADES"
+        idx_epis  = None  # linha após "EQUIPAMENTO DE PROTEÇÃO INDIVIDUAL"
+
+        for ri, row in enumerate(table.rows):
+            # Pega apenas a primeira célula única para não duplicar
+            cells_unicas = []
+            seen = set()
+            for c in row.cells:
+                if id(c._tc) not in seen:
+                    seen.add(id(c._tc))
+                    cells_unicas.append(c)
+            texto_linha = " ".join(c.text.strip() for c in cells_unicas).upper()
+
+            # Cabeçalho EXATO: "DESCRIÇÃO DAS ATIVIDADES" — linha curta, sem conteúdo longo
+            if ("DESCRI" in texto_linha and "ATIVIDADE" in texto_linha
+                    and len(texto_linha) < 50 and idx_cbo is None):
+                idx_cbo = ri + 1
+
+            # Cabeçalho EXATO: "EQUIPAMENTO DE PROTEÇÃO INDIVIDUAL (EPI)"
+            # Deve ser uma linha de cabeçalho, não parte do texto de obrigações
+            if ("EQUIPAMENTO" in texto_linha and "EPI" in texto_linha
+                    and "UNIFORME" in texto_linha and idx_epis is None
+                    and len(texto_linha) < 80):
+                idx_epis = ri + 1
+
+        def _preencher_celula(table, ri, conteudo):
+            """Preenche a primeira célula da linha ri com o conteúdo."""
+            if ri >= len(table.rows):
+                return
+            row = table.rows[ri]
+            seen = set()
+            for c in row.cells:
+                if id(c._tc) not in seen:
+                    seen.add(id(c._tc))
+                    # Limpa runs de todos os parágrafos
+                    for para in c.paragraphs:
+                        for run in para.runs:
+                            run.text = ""
+                    # Coloca conteúdo no primeiro parágrafo
+                    if c.paragraphs:
+                        para = c.paragraphs[0]
+                        if para.runs:
+                            para.runs[0].text = conteudo
+                        else:
+                            para.add_run(conteudo)
+                    break  # Apenas primeira célula
+
+        if idx_cbo is not None:
+            _preencher_celula(table, idx_cbo, descricao_atividades)
+        if idx_epis is not None:
+            _preencher_celula(table, idx_epis, epis_texto)
+
+        # Segunda passagem: substitui variáveis {{...}} em TODAS as células
+        for row in table.rows:
+            for cell in row.cells:
+                for para in cell.paragraphs:
+                    _processar_paragrafo(para, variaveis)
+
+        break  # Processa só a tabela principal
+
+    buf = io.BytesIO()
+    doc.save(buf)
+    return buf.getvalue()
+
+
+def extrair_texto_docx(conteudo_bytes: bytes) -> str:
+    """Extrai todo o texto de um .docx em formato editável."""
+    import io
+    doc = Document(io.BytesIO(conteudo_bytes))
+    linhas = []
+    # Parágrafos do corpo
+    for para in doc.paragraphs:
+        linhas.append(para.text)
+    # Tabelas
+    for tabela in doc.tables:
+        linhas.append("")
+        for linha in tabela.rows:
+            celulas = "\t".join(cel.text.strip() for cel in linha.cells)
+            linhas.append(celulas)
+    return "\n".join(linhas)
+
+
+def texto_para_docx(texto: str) -> bytes:
+    """Cria um .docx simples a partir de texto (para salvar edições)."""
+    import io
+    doc = Document()
+    for linha in texto.split("\n"):
+        # Linha com tabs vira parágrafos separados por espaço (simplificado)
+        doc.add_paragraph(linha.replace("\t", "   "))
+    buf = io.BytesIO()
+    doc.save(buf)
+    return buf.getvalue()
+
+
 def pasta_lote() -> str:
     """Cria e retorna pasta para o lote do dia."""
     from datetime import datetime

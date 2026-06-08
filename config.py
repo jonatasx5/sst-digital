@@ -45,6 +45,7 @@ DOCUMENTOS = [
     {"id": "01_treinamento_admissional",          "nome": "01 - Treinamento Admissional",                                    "obrig": True,  "kit_padrao": True},
     {"id": "02_politica_de_seguranca",            "nome": "02 - Política de Segurança",                                      "obrig": True,  "kit_padrao": True},
     {"id": "03_os_ajudante",                      "nome": "03 - OS Ajudante",                                                "obrig": False, "kit_padrao": False},
+    {"id": "03_os",                               "nome": "03 - Ordem de Serviço",                                            "obrig": False, "kit_padrao": False},
     {"id": "04_treinamento_nr06",                 "nome": "04 - Treinamento NR 06",                                          "obrig": True,  "kit_padrao": True},
     {"id": "05_treinamento_nr18",                 "nome": "05 - Treinamento NR 18",                                          "obrig": False, "kit_padrao": True},
     {"id": "06_treinamento_nr21",                 "nome": "06 - Treinamento NR 21",                                          "obrig": False, "kit_padrao": False},

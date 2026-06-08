@@ -559,9 +559,9 @@ tr:hover td { background:#F9FAFB; }
 
         <!-- Busca CBO automática -->
         <div class="field">
-          <label>Buscar no CBO pelo nome da função</label>
+          <label>Buscar no CBO — nome da função ou código</label>
           <div style="display:flex;gap:8px">
-            <input type="text" id="os-busca-cbo" placeholder="Ex: Servente de obras, Motorista, Soldador..." style="flex:1"
+            <input type="text" id="os-busca-cbo" placeholder="Ex: Servente de obras  ou  7170  ou  7170-20" style="flex:1"
               onkeydown="if(event.key==='Enter') buscarCBOAuto()">
             <button class="btn btn-primary btn-sm" onclick="buscarCBOAuto()" id="os-btn-busca-cbo">
               <i class="ti ti-search"></i> Buscar
@@ -1853,7 +1853,7 @@ async function selecionarOSCargo(cargo) {
 
 async function buscarCBOAuto() {
   const termo = document.getElementById('os-busca-cbo').value.trim();
-  if (!termo) { alert('Digite o nome da função para buscar'); return; }
+  if (!termo) { alert('Digite o nome ou código CBO'); return; }
 
   const btn = document.getElementById('os-btn-busca-cbo');
   btn.disabled = true;
@@ -1864,9 +1864,39 @@ async function buscarCBOAuto() {
   div.style.display = '';
   lista.innerHTML = '<p style="font-size:12px;color:var(--texto2);padding:8px">Consultando mtecbo.gov.br...</p>';
 
+  // Detecta se é código (só números e hífen) ou nome
+  const ehCodigo = /^\d{4}(-\d{2})?$/.test(termo);
+
   try {
+    let url, data;
+    if (ehCodigo) {
+      // Busca direto pela descrição do código
+      url = `/api/cbo/buscar?codigo=${encodeURIComponent(termo.split('-')[0])}`;
+      const r = await fetch(url);
+      data = await r.json();
+      if (data.ok && data.descricao_sumaria) {
+        // Preenche direto sem mostrar lista
+        const familia = termo.split('-')[0];
+        const titulo = data.titulos?.find(t => t.codigo === termo)?.titulo || data.nome_familia || termo;
+        document.getElementById('os-cbo-codigo').value = termo;
+        document.getElementById('os-cbo-titulo').value = titulo;
+        document.getElementById('os-cbo-descricao').value = data.descricao_sumaria;
+        div.style.display = 'none';
+        document.getElementById('os-busca-cbo').value = '';
+        btn.disabled = false;
+        btn.innerHTML = '<i class="ti ti-search"></i> Buscar';
+        return;
+      }
+      // Se não achou pela descrição, trata como não encontrado
+      lista.innerHTML = `<p style="font-size:12px;color:var(--danger);padding:8px">Código ${termo} não encontrado.</p>`;
+      btn.disabled = false;
+      btn.innerHTML = '<i class="ti ti-search"></i> Buscar';
+      return;
+    }
+
+    // Busca por nome/título
     const r = await fetch(`/api/cbo/buscar?titulo=${encodeURIComponent(termo)}`);
-    const data = await r.json();
+    data = await r.json();
 
     if (!data.ok || !data.resultados?.length) {
       lista.innerHTML = `<p style="font-size:12px;color:var(--danger);padding:8px">

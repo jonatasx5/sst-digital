@@ -11,8 +11,12 @@ try:
 except ImportError:
     pass
 
-# ─── AUTENTIQUE ───────────────────────────────────────────
-# Configure a variável de ambiente AUTENTIQUE_TOKEN no Railway (ou .env local)
+# ─── ZAPSIGN ──────────────────────────────────────────────
+# Configure a variável de ambiente ZAPSIGN_TOKEN no Railway (ou .env local)
+ZAPSIGN_TOKEN = os.environ.get("ZAPSIGN_TOKEN", "")
+ZAPSIGN_URL   = "https://api.zapsign.com.br/api/v1"
+
+# ─── AUTENTIQUE (legado — não utilizado) ──────────────────
 AUTENTIQUE_TOKEN = os.environ.get("AUTENTIQUE_TOKEN", "")
 AUTENTIQUE_URL   = "https://api.autentique.com.br/v2/graphql"
 

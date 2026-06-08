@@ -18,7 +18,7 @@ from datetime import datetime
 
 import banco
 import processador
-import autentique
+import zapsign
 from config import DOCUMENTOS, APP_PASSWORD, EMPRESA
 
 app = FastAPI(title="SST Digital")
@@ -669,7 +669,7 @@ async def enviar_os(dados: dict, _=Depends(verificar_acesso)):
         except: pass
 
         nome_doc = f"Ordem de Serviço — {f['nome']}"
-        ret = autentique.enviar_documento(nome_documento=nome_doc, caminho_pdf=caminho_pdf,
+        ret = zapsign.enviar_documento(nome_documento=nome_doc, caminho_pdf=caminho_pdf,
                                           funcionario=f, sandbox=sandbox)
         if ret["sucesso"]:
             resultados.append({"id": f["id"], "nome": f["nome"],
@@ -772,7 +772,7 @@ async def enviar_lote(dados: dict, _=Depends(verificar_acesso)):
 
         # Envia PDF único para o Autentique
         nome_kit = f"Kit SST — {f['nome']}"
-        ret = autentique.enviar_documento(
+        ret = zapsign.enviar_documento(
             nome_documento=nome_kit,
             caminho_pdf=pdf_final,
             funcionario=f,
@@ -856,7 +856,7 @@ async def enviar_ficha_epi_custom(dados: dict, _=Depends(verificar_acesso)):
     except: pass
 
     nome_doc = f"Ficha de EPI — {f['nome']}"
-    ret = autentique.enviar_documento(nome_documento=nome_doc, caminho_pdf=caminho_pdf,
+    ret = zapsign.enviar_documento(nome_documento=nome_doc, caminho_pdf=caminho_pdf,
                                       funcionario=f, sandbox=sandbox)
     if ret["sucesso"]:
         return {"ok": True, "nome": f["nome"], "cargo": f["cargo"], "link": ret.get("link","")}
@@ -896,7 +896,7 @@ async def enviar_ficha_epi(dados: dict, _=Depends(verificar_acesso)):
             pass
 
         nome_doc = f"Ficha de EPI — {f['nome']}"
-        ret = autentique.enviar_documento(
+        ret = zapsign.enviar_documento(
             nome_documento=nome_doc,
             caminho_pdf=caminho_pdf,
             funcionario=f,
@@ -923,9 +923,15 @@ async def enviar_ficha_epi(dados: dict, _=Depends(verificar_acesso)):
 async def get_config(_=Depends(verificar_acesso)):
     return {"empresa": EMPRESA}
 
+@app.get("/api/zapsign/verificar")
+async def verificar_zapsign(_=Depends(verificar_acesso)):
+    ok, msg = zapsign.verificar_token()
+    return {"ok": ok, "mensagem": msg}
+
+# alias legado para não quebrar chamadas antigas
 @app.get("/api/autentique/verificar")
-async def verificar_autentique(_=Depends(verificar_acesso)):
-    ok, msg = autentique.verificar_token()
+async def verificar_autentique_legado(_=Depends(verificar_acesso)):
+    ok, msg = zapsign.verificar_token()
     return {"ok": ok, "mensagem": msg}
 
 # ══════════════════════════════════════════════════════════

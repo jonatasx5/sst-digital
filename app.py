@@ -348,44 +348,191 @@ async def save_os_texto(cargo: str, dados: dict, _=Depends(verificar_acesso)):
 #  CBO — BUSCA E CONFIGURAÇÃO POR CARGO
 # ══════════════════════════════════════════════════════════
 
-@app.get("/api/cbo/buscar")
-async def buscar_cbo(codigo: str = "", titulo: str = "", _=Depends(verificar_acesso)):
-    """Busca no site do MTE CBO por código ou título de ocupação."""
+def _cbo_buscar_por_titulo(titulo: str) -> list:
+    """
+    Busca ocupações no site mtecbo.gov.br pelo título.
+    Retorna lista de dicts {codigo, titulo, tipo}
+    """
+    import requests as _req
+    from bs4 import BeautifulSoup
+    import urllib3
+    urllib3.disable_warnings()
+
+    headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"}
+    sess = _req.Session()
+
+    # GET para pegar campos do form
+    url_busca = "http://www.mtecbo.gov.br/cbosite/pages/pesquisas/BuscaPorTitulo.jsf"
+    r = sess.get(url_busca, headers=headers, verify=False, timeout=10)
+    soup = BeautifulSoup(r.content, "html.parser")
+
+    campos = {}
+    for inp in soup.find_all("input"):
+        n = inp.get("name", "")
+        if n:
+            campos[n] = inp.get("value", "")
+
+    campos["formBuscaPorTitulo:j_idt80"] = titulo
+    campos["formBuscaPorTitulo:btConsultar"] = "Consultar"
+    campos["formBuscaPorTitulo:radio"] = "3"
+    campos["formBuscaPorTitulo:checkboxFamilias"] = "on"
+    campos["formBuscaPorTitulo:checkboxOcupacoes"] = "on"
+    campos["formBuscaPorTitulo:checkboxSinonimos"] = "on"
+
+    form = soup.find("form", id="formBuscaPorTitulo")
+    if not form:
+        return []
+    url_action = "http://www.mtecbo.gov.br" + form.get("action", "")
+
+    # POST busca — resultado vem como PDF com lista de títulos e códigos
+    r2 = sess.post(url_action, data=campos, headers=headers, verify=False, timeout=10)
+
+    ct = r2.headers.get("Content-Type", "")
+    resultados = []
+
+    if "html" in ct.lower():
+        r2.encoding = "iso-8859-1"
+        soup2 = BeautifulSoup(r2.text, "html.parser")
+        tabela = soup2.find("table")
+        if tabela:
+            for tr in tabela.find_all("tr"):
+                tds = tr.find_all("td")
+                if len(tds) >= 3:
+                    titulo_td = tds[1].get_text(strip=True)
+                    codigo_td = tds[2].get_text(strip=True)
+                    tipo_td = tds[3].get_text(strip=True) if len(tds) > 3 else ""
+                    import re as _re
+                    if titulo_td and _re.match(r"\d{4}", codigo_td):
+                        resultados.append({"titulo": titulo_td, "codigo": codigo_td, "tipo": tipo_td})
+
+    elif "pdf" in ct.lower():
+        # Fallback: extrai do PDF quando há muitos resultados
+        try:
+            from pypdf import PdfReader
+            import io as _io, re as _re
+            reader = PdfReader(_io.BytesIO(r2.content))
+            for page in reader.pages:
+                txt = page.extract_text() or ""
+                for m in _re.finditer(r"(.+?)\s+(\d{4}-\d{2}|\d{4})\s+(Sin[oô]nimo|Ocupa[cç][aã]o|Fam[ií]lia)", txt):
+                    resultados.append({
+                        "titulo": m.group(1).strip(),
+                        "codigo": m.group(2).strip(),
+                        "tipo": m.group(3).strip(),
+                    })
+        except Exception:
+            pass
+
+    return resultados
+
+
+def _cbo_buscar_descricao(codigo_familia: str) -> dict:
+    """
+    Dada a família CBO (ex: '7170'), retorna:
+    {titulos: [...], descricao_sumaria: "..."}
+    """
+    import requests as _req
+    from bs4 import BeautifulSoup
+    import urllib3
+    urllib3.disable_warnings()
+
+    headers = {"User-Agent": "Mozilla/5.0"}
+    sess = _req.Session()
+
+    url_cod = "http://www.mtecbo.gov.br/cbosite/pages/pesquisas/BuscaPorCodigo.jsf"
+    r = sess.get(url_cod, headers=headers, verify=False, timeout=10)
+    soup = BeautifulSoup(r.content, "html.parser")
+
+    campos = {}
+    for inp in soup.find_all("input"):
+        n = inp.get("name", "")
+        if n:
+            campos[n] = inp.get("value", "")
+
+    # Usa apenas os 4 primeiros dígitos (família)
+    familia = codigo_familia.split("-")[0].strip()
+    campos["formBuscaPorCodigo:j_idt79"] = familia
+    campos["formBuscaPorCodigo:btConsultar"] = "Consultar"
+
+    form = soup.find("form", id="formBuscaPorCodigo")
+    if not form:
+        return {}
+    url_action = "http://www.mtecbo.gov.br" + form.get("action", "")
+
+    # POST busca
+    r2 = sess.post(url_action, data=campos, headers=headers, verify=False, timeout=10)
+    r2.encoding = "iso-8859-1"
+    soup2 = BeautifulSoup(r2.text, "html.parser")
+
+    campos2 = {}
+    for inp in soup2.find_all("input"):
+        n = inp.get("name", "")
+        if n:
+            campos2[n] = inp.get("value", "")
+
+    # Clica na família (índice 0) para obter a descrição sumária
+    campos2[f"formBuscaPorCodigo:objetos2:0:j_idt110"] = f"formBuscaPorCodigo:objetos2:0:j_idt110"
+    form2 = soup2.find("form", id="formBuscaPorCodigo")
+    if not form2:
+        return {}
+    url_action2 = "http://www.mtecbo.gov.br" + form2.get("action", "")
+
+    r3 = sess.post(url_action2, data=campos2, headers=headers, verify=False, timeout=10)
+    r3.encoding = "iso-8859-1"
+    soup3 = BeautifulSoup(r3.text, "html.parser")
+
+    texto = soup3.get_text(separator="\n")
+
+    # Extrai "Descrição Sumária"
     import re as _re
+    m = _re.search(r"Descri[çc][ãa]o\s+Sum[aá]ria\s*(.*?)(?=Todos os direitos|$)", texto, _re.DOTALL)
+    descricao = m.group(1).strip() if m else ""
+
+    # Remove linhas de rodapé
+    descricao = _re.sub(r"\n{3,}", "\n\n", descricao).strip()
+
+    # Extrai títulos (ocupações da família)
+    titulos = []
+    for m2 in _re.finditer(r"(\d{4}-\d{2})\s*-\s*([^\n]+)", texto):
+        titulos.append({"codigo": m2.group(1).strip(), "titulo": m2.group(2).strip()})
+
+    # Extrai nome da família
+    m_familia = _re.search(r"\d{4}\s+([A-ZÁÉÍÓÚÃÂÊÎÔÛÀÇ][^\n]{5,80})\n", texto)
+    nome_familia = m_familia.group(1).strip() if m_familia else ""
+
+    return {
+        "familia": familia,
+        "nome_familia": nome_familia,
+        "titulos": titulos,
+        "descricao_sumaria": descricao,
+    }
+
+
+@app.get("/api/cbo/buscar")
+async def buscar_cbo(titulo: str = "", codigo: str = "", _=Depends(verificar_acesso)):
+    """
+    Busca automática no site mtecbo.gov.br.
+    - ?titulo=AJUDANTE → busca por nome, retorna lista de resultados
+    - ?codigo=7170     → busca descrição da família, retorna descricao_sumaria
+    """
     try:
-        import requests as _req
-        headers = {"User-Agent": "Mozilla/5.0"}
-
         if codigo:
-            # Busca por código CBO
-            url = f"https://www.ocupacoes.com.br/cbosite/busca?texto={codigo}"
-            r = _req.get(url, headers=headers, timeout=8)
-            if r.status_code == 200 and "ocupacoes.com.br" in url:
-                pass
-        # Tenta via mtecbo.gov.br
-        if titulo or codigo:
-            termo = titulo or codigo
-            url = f"http://www.mtecbo.gov.br/cbosite/pages/pesquisas/BuscaPorTituloResultado.jsf"
-            data = {"javax.faces.partial.ajax": "true",
-                    "javax.faces.partial.execute": "pesquisa_titulo",
-                    "titulo": termo}
-            r = _req.post(url, data=data, headers=headers, timeout=8)
-            # tenta parsear JSON ou HTML
-            try:
-                resultado = r.json()
-                return {"ok": True, "resultados": resultado}
-            except Exception:
-                pass
+            data = _cbo_buscar_descricao(codigo)
+            if data:
+                return {"ok": True, **data}
+            return {"ok": False, "erro": "Código não encontrado no CBO"}
 
-        # Fallback: pesquisa via API alternativa pública
-        termo = titulo or codigo
-        url = f"https://servicodados.ibge.gov.br/api/v2/cnae/subclasses?texto={termo}"
-        # CBO não é CNAE - retornamos erro orientando entrada manual
-        return {"ok": False, "erro": "Busca automática não disponível. Digite o código CBO e a descrição manualmente.",
-                "sugestao": "Acesse www.mtecbo.gov.br para consultar o CBO"}
+        if titulo:
+            resultados = _cbo_buscar_por_titulo(titulo)
+            if resultados:
+                return {"ok": True, "resultados": resultados}
+            return {"ok": False, "erro": "Nenhum resultado encontrado para o termo informado"}
+
+        return {"ok": False, "erro": "Informe titulo ou codigo"}
+
     except Exception as e:
-        return {"ok": False, "erro": f"Não foi possível consultar o CBO: {str(e)}. "
-                "Digite o código e descrição manualmente."}
+        import traceback
+        traceback.print_exc()
+        return {"ok": False, "erro": f"Erro ao consultar CBO: {str(e)}"}
 
 
 @app.get("/api/os/config")

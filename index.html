@@ -557,24 +557,37 @@ tr:hover td { background:#F9FAFB; }
       <div class="card" style="margin-bottom:0" id="os-form-card">
         <div class="card-title"><i class="ti ti-search"></i>Configurar OS — <span id="os-cargo-nome" style="color:var(--verde)">Selecione um cargo</span></div>
 
+        <!-- Busca CBO automática -->
         <div class="field">
-          <label>Código CBO</label>
+          <label>Buscar no CBO pelo nome da função</label>
           <div style="display:flex;gap:8px">
-            <input type="text" id="os-cbo-codigo" placeholder="Ex: 7152-10" style="flex:1" oninput="osCBOChange()">
-            <a href="http://www.mtecbo.gov.br" target="_blank" class="btn btn-outline btn-sm" title="Consultar CBO">
-              <i class="ti ti-external-link"></i>
-            </a>
+            <input type="text" id="os-busca-cbo" placeholder="Ex: Servente de obras, Motorista, Soldador..." style="flex:1"
+              onkeydown="if(event.key==='Enter') buscarCBOAuto()">
+            <button class="btn btn-primary btn-sm" onclick="buscarCBOAuto()" id="os-btn-busca-cbo">
+              <i class="ti ti-search"></i> Buscar
+            </button>
           </div>
+        </div>
+
+        <!-- Resultados da busca CBO -->
+        <div id="os-cbo-resultados" style="display:none;margin-bottom:12px">
+          <div style="font-size:12px;font-weight:600;color:var(--texto2);margin-bottom:6px">Selecione o CBO correspondente:</div>
+          <div id="os-cbo-lista" style="max-height:160px;overflow-y:auto;border:1px solid var(--borda);border-radius:8px;padding:4px"></div>
+        </div>
+
+        <div class="field">
+          <label>Código CBO selecionado</label>
+          <input type="text" id="os-cbo-codigo" placeholder="Ex: 7170-20" readonly style="background:#F9FAFB">
         </div>
 
         <div class="field">
           <label>Título / Ocupação CBO</label>
-          <input type="text" id="os-cbo-titulo" placeholder="Ex: Pedreiro">
+          <input type="text" id="os-cbo-titulo" placeholder="Preenchido automaticamente após busca">
         </div>
 
         <div class="field">
-          <label>Descrição das Atividades <small style="color:var(--texto2)">(cola do site mtecbo.gov.br)</small></label>
-          <textarea id="os-cbo-descricao" rows="8" placeholder="Cole aqui a descrição sumária das atividades do CBO..."></textarea>
+          <label>Descrição das Atividades</label>
+          <textarea id="os-cbo-descricao" rows="8" placeholder="Preenchido automaticamente após selecionar o CBO..."></textarea>
         </div>
 
         <div class="card" style="background:var(--verde-light);border-color:var(--verde);margin-bottom:12px">
@@ -1838,8 +1851,79 @@ async function selecionarOSCargo(cargo) {
   carregarOSCargos();
 }
 
-function osCBOChange() {
-  // placeholder — futuramente pode buscar automaticamente
+async function buscarCBOAuto() {
+  const termo = document.getElementById('os-busca-cbo').value.trim();
+  if (!termo) { alert('Digite o nome da função para buscar'); return; }
+
+  const btn = document.getElementById('os-btn-busca-cbo');
+  btn.disabled = true;
+  btn.innerHTML = '<i class="ti ti-loader ti-spin"></i>';
+
+  const div = document.getElementById('os-cbo-resultados');
+  const lista = document.getElementById('os-cbo-lista');
+  div.style.display = '';
+  lista.innerHTML = '<p style="font-size:12px;color:var(--texto2);padding:8px">Consultando mtecbo.gov.br...</p>';
+
+  try {
+    const r = await fetch(`/api/cbo/buscar?titulo=${encodeURIComponent(termo)}`);
+    const data = await r.json();
+
+    if (!data.ok || !data.resultados?.length) {
+      lista.innerHTML = `<p style="font-size:12px;color:var(--danger);padding:8px">
+        Nenhum resultado encontrado. Tente outro termo.<br>
+        <a href="http://www.mtecbo.gov.br" target="_blank" style="color:var(--verde)">Consultar manualmente no mtecbo.gov.br</a>
+      </p>`;
+      return;
+    }
+
+    lista.innerHTML = data.resultados.map(r => `
+      <div onclick="selecionarCBOResultado('${r.codigo}', '${r.titulo.replace(/'/g,"\\'")}', '${r.tipo}')"
+        style="padding:8px 12px;cursor:pointer;border-bottom:1px solid var(--borda);font-size:12px"
+        onmouseover="this.style.background='var(--verde-light)'" onmouseout="this.style.background=''">
+        <span style="font-weight:600;color:var(--verde)">${r.codigo}</span>
+        — ${r.titulo}
+        <span style="color:var(--texto2);font-size:11px">(${r.tipo})</span>
+      </div>
+    `).join('');
+  } catch(e) {
+    lista.innerHTML = `<p style="font-size:12px;color:var(--danger);padding:8px">Erro ao consultar CBO: ${e}</p>`;
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = '<i class="ti ti-search"></i> Buscar';
+  }
+}
+
+async function selecionarCBOResultado(codigo, titulo, tipo) {
+  document.getElementById('os-cbo-codigo').value = codigo;
+  document.getElementById('os-cbo-titulo').value = titulo;
+
+  // Busca descrição pela família (4 dígitos)
+  const familia = codigo.split('-')[0];
+  const lista = document.getElementById('os-cbo-lista');
+  lista.innerHTML = `<p style="font-size:12px;color:var(--texto2);padding:8px">Carregando descrição do CBO ${familia}...</p>`;
+
+  try {
+    const r = await fetch(`/api/cbo/buscar?codigo=${familia}`);
+    const data = await r.json();
+
+    if (data.ok && data.descricao_sumaria) {
+      document.getElementById('os-cbo-descricao').value = data.descricao_sumaria;
+      // Se a família tem o nome, preenche o título
+      if (data.nome_familia && !document.getElementById('os-cbo-titulo').value) {
+        document.getElementById('os-cbo-titulo').value = data.nome_familia;
+      }
+      // Fecha lista e mostra confirmação
+      document.getElementById('os-cbo-resultados').style.display = 'none';
+      document.getElementById('os-busca-cbo').value = '';
+    } else {
+      lista.innerHTML = `<p style="font-size:12px;color:var(--danger);padding:8px">
+        Código selecionado: <strong>${codigo}</strong> — ${titulo}<br>
+        Descrição não encontrada automaticamente. Preencha manualmente abaixo.
+      </p>`;
+    }
+  } catch(e) {
+    lista.innerHTML = `<p style="font-size:12px;color:var(--danger);padding:8px">Erro: ${e}</p>`;
+  }
 }
 
 async function salvarOSConfig() {

@@ -1827,24 +1827,50 @@ async function carregarEnvios() {
   }
 
   tbody.innerHTML = data.map(e => {
-    const badge = _badgeStatus(e.status);
+    const badge      = _badgeStatus(e.status);
     const enviadoEm  = _fmtDt(e.enviado_em);
     const assinadoEm = e.assinado_em ? _fmtDt(e.assinado_em) : '—';
-    const link = e.link_assinatura
-      ? `<a href="${e.link_assinatura}" target="_blank" style="color:#3b82f6;text-decoration:none;" title="Abrir link de assinatura"><i class="ti ti-external-link"></i></a>`
-      : '—';
+    const assinado   = e.status === 'signed';
+
+    // Botão: abrir no ZapSign
+    const btnAbrir = e.link_assinatura
+      ? `<a href="${e.link_assinatura}" target="_blank"
+           style="display:inline-flex;align-items:center;gap:4px;padding:4px 10px;border-radius:6px;
+                  background:#eff6ff;color:#3b82f6;border:1px solid #bfdbfe;font-size:12px;
+                  text-decoration:none;white-space:nowrap;" title="Abrir documento no ZapSign">
+           <i class="ti ti-external-link" style="font-size:13px;"></i> Abrir
+         </a>`
+      : '';
+
+    // Botão: baixar PDF assinado (só aparece quando status = signed)
+    const btnBaixar = assinado
+      ? `<a href="/api/envios/${e.id}/download" target="_blank"
+           style="display:inline-flex;align-items:center;gap:4px;padding:4px 10px;border-radius:6px;
+                  background:#f0fdf4;color:#16a34a;border:1px solid #bbf7d0;font-size:12px;
+                  text-decoration:none;white-space:nowrap;" title="Baixar PDF assinado">
+           <i class="ti ti-download" style="font-size:13px;"></i> Baixar
+         </a>`
+      : '';
+
+    // Botão: atualizar status individualmente
+    const btnAtual = `<button onclick="atualizarStatusEnvio(${e.id}, this)"
+        style="display:inline-flex;align-items:center;padding:4px 8px;border-radius:6px;
+               background:#f8fafc;color:#64748b;border:1px solid #e2e8f0;cursor:pointer;font-size:12px;"
+        title="Atualizar status agora">
+        <i class="ti ti-refresh" style="font-size:13px;"></i>
+      </button>`;
+
     return `<tr style="border-bottom:1px solid #f1f5f9;">
-      <td style="padding:10px 12px;">${e.funcionario || '—'}</td>
-      <td style="padding:10px 12px;color:#64748b;">${e.cargo || '—'}</td>
+      <td style="padding:10px 12px;font-weight:500;">${e.funcionario || '—'}</td>
+      <td style="padding:10px 12px;color:#64748b;font-size:12px;">${e.cargo || '—'}</td>
       <td style="padding:10px 12px;">${e.doc_nome || e.doc_id}</td>
-      <td style="padding:10px 12px;color:#64748b;">${enviadoEm}</td>
-      <td style="padding:10px 12px;color:#64748b;">${assinadoEm}</td>
+      <td style="padding:10px 12px;color:#64748b;font-size:12px;">${enviadoEm}</td>
+      <td style="padding:10px 12px;color:#64748b;font-size:12px;">${assinadoEm}</td>
       <td style="padding:10px 12px;text-align:center;">${badge}</td>
-      <td style="padding:10px 12px;text-align:center;display:flex;gap:8px;justify-content:center;">
-        ${link}
-        <button onclick="atualizarStatusEnvio(${e.id}, this)" style="background:none;border:none;cursor:pointer;color:#64748b;" title="Atualizar status">
-          <i class="ti ti-refresh" style="font-size:15px;"></i>
-        </button>
+      <td style="padding:10px 12px;">
+        <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;">
+          ${btnAbrir}${btnBaixar}${btnAtual}
+        </div>
       </td>
     </tr>`;
   }).join('');

@@ -174,10 +174,14 @@ def consultar_status(doc_token: str) -> dict:
                 "assinado_em": s_assinado,
             })
 
+        # URL do PDF assinado (disponível após assinatura completa)
+        signed_file = data.get("signed_file") or None
+
         return {
             "status":      doc_status,
             "status_pt":   status_pt,
             "assinado_em": assinado_em,
+            "signed_file": signed_file,
             "signatarios": signatarios,
             "erro":        None,
         }
@@ -190,12 +194,53 @@ def consultar_status(doc_token: str) -> dict:
                 "signatarios": [], "erro": str(e)}
 
 
+def baixar_pdf_assinado(doc_token: str) -> tuple[bytes | None, str | None]:
+    """
+    Baixa o PDF assinado de um documento ZapSign.
+    Retorna (bytes_do_pdf, None) em caso de sucesso ou (None, mensagem_de_erro).
+    """
+    try:
+        # Primeiro busca os detalhes para pegar a URL do arquivo assinado
+        r = requests.get(
+            f"{ZAPSIGN_URL}/docs/{doc_token}/",
+            headers=_headers(),
+            timeout=20
+        )
+        if r.status_code != 200:
+            return None, f"Documento não encontrado (HTTP {r.status_code})"
+
+        data = r.json()
+        signed_file = data.get("signed_file")
+
+        if not signed_file:
+            doc_status = data.get("status", "pending")
+            if doc_status != "signed":
+                return None, "Documento ainda não foi assinado — aguardando assinatura"
+            return None, "URL do arquivo assinado não disponível ainda"
+
+        # Baixa o arquivo da URL retornada pelo ZapSign
+        r2 = requests.get(signed_file, timeout=30)
+        if r2.status_code != 200:
+            return None, f"Erro ao baixar o arquivo (HTTP {r2.status_code})"
+
+        return r2.content, None
+
+    except requests.exceptions.Timeout:
+        return None, "Timeout ao baixar o arquivo"
+    except Exception as e:
+        return None, str(e)
+
+
 def verificar_token() -> tuple[bool, str]:
     """Verifica se o token do ZapSign está válido."""
+    token = os.environ.get("ZAPSIGN_TOKEN", ZAPSIGN_TOKEN)
+    if not token:
+        return False, "ZAPSIGN_TOKEN não configurado"
     try:
+        # Usa o endpoint de listagem com page_size=1 só para testar autenticação
         r = requests.get(
-            f"{ZAPSIGN_URL}/docs/",
-            headers=_headers(),
+            f"{ZAPSIGN_URL}/docs/?page_size=1",
+            headers={"Authorization": f"Bearer {token}", "Content-Type": "application/json"},
             timeout=15
         )
         if r.status_code == 200:

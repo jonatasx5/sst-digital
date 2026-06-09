@@ -4,7 +4,7 @@ Backend FastAPI para geração e envio de kits SST via Autentique
 """
 
 from fastapi import FastAPI, UploadFile, File, Form, HTTPException, Request, Depends
-from fastapi.responses import HTMLResponse, JSONResponse
+from fastapi.responses import HTMLResponse, JSONResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import HTTPBasic, HTTPBasicCredentials
@@ -1009,6 +1009,35 @@ async def atualizar_todos_pendentes(_=Depends(verificar_acesso)):
         atualizados += 1
 
     return {"atualizados": atualizados, "erros": erros, "total_pendentes": len(pendentes)}
+
+
+@app.get("/api/envios/{envio_id}/download")
+async def download_pdf_assinado(envio_id: int, _=Depends(verificar_acesso)):
+    """Baixa o PDF assinado direto do ZapSign."""
+    envio = banco.buscar_envio_por_id(envio_id)
+    if not envio:
+        raise HTTPException(404, "Envio não encontrado")
+
+    doc_token = envio.get("autentique_id")
+    if not doc_token:
+        raise HTTPException(400, "Envio não possui token ZapSign")
+
+    pdf_bytes, erro = zapsign.baixar_pdf_assinado(doc_token)
+    if erro:
+        raise HTTPException(400, erro)
+
+    nome_arquivo = (envio.get("doc_nome") or "documento").replace("/", "-").replace(" ", "_")
+    funcionario  = (envio.get("funcionario_nome") or "")
+    if funcionario:
+        nome_arquivo = f"{nome_arquivo}_{funcionario.replace(' ', '_')}"
+    nome_arquivo += "_assinado.pdf"
+
+    import io
+    return StreamingResponse(
+        io.BytesIO(pdf_bytes),
+        media_type="application/pdf",
+        headers={"Content-Disposition": f'attachment; filename="{nome_arquivo}"'}
+    )
 
 
 if __name__ == "__main__":

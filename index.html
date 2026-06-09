@@ -187,7 +187,6 @@ tr:hover td { background:#F9FAFB; }
     <button class="nav-item" onclick="irPara('lote')"><i class="ti ti-package"></i>Montar Lote</button>
     <button class="nav-item" onclick="irPara('envio')"><i class="ti ti-send"></i>Enviar</button>
     <button class="nav-item" onclick="irPara('ordem-servico')"><i class="ti ti-clipboard-list"></i>Ordem de Serviço</button>
-    <button class="nav-item" onclick="irPara('assinaturas')"><i class="ti ti-writing"></i>Assinaturas</button>
     <button class="nav-item" onclick="irPara('historico')"><i class="ti ti-clock"></i>Histórico</button>
     <button class="nav-item" onclick="irPara('diario-obra')"><i class="ti ti-camera"></i>Diário de Obra</button>
   </nav>
@@ -634,55 +633,65 @@ tr:hover td { background:#F9FAFB; }
   </div>
 </div>
 
-<!-- ── ASSINATURAS ── -->
-<div class="panel" id="panel-assinaturas">
+<!-- ── HISTÓRICO ── -->
+<div class="panel" id="panel-historico">
   <div class="page-header">
     <div>
-      <div class="page-title">Histórico de Assinaturas</div>
-      <div class="page-sub">Acompanhe o status de todos os documentos enviados para o ZapSign</div>
+      <div class="page-title">Histórico de Documentos</div>
+      <div class="page-sub">Todos os documentos enviados para assinatura</div>
     </div>
-    <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
-      <select id="filtro-status-assin" onchange="carregarEnvios()" style="padding:6px 10px;border-radius:8px;border:1px solid #e2e8f0;font-size:13px;">
-        <option value="">Todos</option>
+    <button class="btn btn-secondary" onclick="histAtualizarTodos()" id="hist-btn-atualizar" style="display:flex;align-items:center;gap:6px;">
+      <i class="ti ti-refresh"></i>Atualizar Status
+    </button>
+  </div>
+
+  <!-- Barra de busca e filtros -->
+  <div class="card" style="padding:14px;margin-bottom:16px;">
+    <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;">
+      <div style="flex:1;min-width:200px;position:relative;">
+        <i class="ti ti-search" style="position:absolute;left:10px;top:50%;transform:translateY(-50%);color:var(--texto2);font-size:15px;"></i>
+        <input type="text" id="hist-busca" placeholder="Buscar por funcionário ou documento..."
+               oninput="histFiltrar()"
+               style="width:100%;padding:9px 9px 9px 34px;border:1.5px solid var(--borda);border-radius:8px;font-size:13px;">
+      </div>
+      <select id="hist-filtro-status" onchange="histFiltrar()"
+              style="padding:9px 12px;border:1.5px solid var(--borda);border-radius:8px;font-size:13px;background:var(--card);">
+        <option value="">Todos os status</option>
         <option value="enviado">Aguardando</option>
         <option value="signed">Assinado</option>
         <option value="refused">Recusado</option>
       </select>
-      <button class="btn btn-secondary" onclick="atualizarTodosPendentes()" id="btn-atualizar-todos">
-        <i class="ti ti-refresh"></i> Atualizar Status
-      </button>
+      <select id="hist-filtro-tipo" onchange="histFiltrar()"
+              style="padding:9px 12px;border:1.5px solid var(--borda);border-radius:8px;font-size:13px;background:var(--card);">
+        <option value="">Todos os tipos</option>
+        <option value="kit">Kit SST</option>
+        <option value="epi">Ficha EPI</option>
+        <option value="os">Ordem de Serviço</option>
+      </select>
     </div>
   </div>
 
-  <div id="assin-status-msg"></div>
+  <div id="hist-status-msg"></div>
 
-  <div style="overflow-x:auto;margin-top:16px;">
-    <table style="width:100%;border-collapse:collapse;font-size:13px;" id="tabela-envios">
-      <thead>
-        <tr style="background:#f8fafc;border-bottom:2px solid #e2e8f0;">
-          <th style="padding:10px 12px;text-align:left;color:#64748b;font-weight:600;">Funcionário</th>
-          <th style="padding:10px 12px;text-align:left;color:#64748b;font-weight:600;">Cargo</th>
-          <th style="padding:10px 12px;text-align:left;color:#64748b;font-weight:600;">Documento</th>
-          <th style="padding:10px 12px;text-align:left;color:#64748b;font-weight:600;">Enviado em</th>
-          <th style="padding:10px 12px;text-align:left;color:#64748b;font-weight:600;">Assinado em</th>
-          <th style="padding:10px 12px;text-align:center;color:#64748b;font-weight:600;">Status</th>
-          <th style="padding:10px 12px;text-align:center;color:#64748b;font-weight:600;">Ações</th>
-        </tr>
-      </thead>
-      <tbody id="envios-tbody">
-        <tr><td colspan="7" style="text-align:center;padding:32px;color:#94a3b8;">Carregando...</td></tr>
-      </tbody>
-    </table>
-  </div>
-</div>
-
-<!-- ── HISTÓRICO ── -->
-<div class="panel" id="panel-historico">
-  <div class="page-header">
-    <div><div class="page-title">Histórico de Lotes</div></div>
-  </div>
-  <div class="card" style="padding:0">
-    <div id="historico-lista" style="padding:8px"></div>
+  <!-- Tabela -->
+  <div class="card" style="padding:0;overflow:hidden;">
+    <div style="overflow-x:auto;">
+      <table style="width:100%;border-collapse:collapse;font-size:13px;">
+        <thead>
+          <tr style="background:var(--fundo);border-bottom:2px solid var(--borda);">
+            <th style="padding:11px 14px;text-align:left;color:var(--texto2);font-weight:600;">Funcionário</th>
+            <th style="padding:11px 14px;text-align:left;color:var(--texto2);font-weight:600;">Documento</th>
+            <th style="padding:11px 14px;text-align:left;color:var(--texto2);font-weight:600;">Enviado em</th>
+            <th style="padding:11px 14px;text-align:left;color:var(--texto2);font-weight:600;">Assinado em</th>
+            <th style="padding:11px 14px;text-align:center;color:var(--texto2);font-weight:600;">Status</th>
+            <th style="padding:11px 14px;text-align:center;color:var(--texto2);font-weight:600;">Ações</th>
+          </tr>
+        </thead>
+        <tbody id="hist-tbody">
+          <tr><td colspan="6" style="text-align:center;padding:40px;color:var(--texto2);">Carregando...</td></tr>
+        </tbody>
+      </table>
+    </div>
   </div>
 </div>
 
@@ -941,7 +950,6 @@ function irPara(aba) {
   if (aba==='envio-epi')     { buscarFuncEpi(); filtrarEpiLote(); }
   if (aba==='lote')          { filtrarLote(); renderLoteSel(); }
   if (aba==='ordem-servico') carregarOSCargos();
-  if (aba==='assinaturas')   carregarEnvios();
   if (aba==='historico')     carregarHistorico();
   if (aba==='diario-obra')   doInit();
   // Fecha sidebar mobile
@@ -1874,119 +1882,155 @@ function novoLote() {
 }
 
 // ══════════════════════════════════════════════════════
-//  HISTÓRICO
+//  HISTÓRICO UNIFICADO
 // ══════════════════════════════════════════════════════
+let _histDados = [];
+
 async function carregarHistorico() {
-  const res = await fetch('/api/historico');
-  const lotes = await res.json();
-  const div = document.getElementById('historico-lista');
-  if (!lotes.length) {
-    div.innerHTML = '<p style="text-align:center;color:var(--texto2);padding:32px">Nenhum lote enviado ainda.</p>';
-    return;
+  const tbody = document.getElementById('hist-tbody');
+  tbody.innerHTML = `<tr><td colspan="6" style="text-align:center;padding:40px;color:var(--texto2);">Carregando...</td></tr>`;
+  try {
+    const res  = await fetch('/api/envios?limite=500');
+    _histDados = await res.json();
+    histFiltrar();
+  } catch(e) {
+    tbody.innerHTML = `<tr><td colspan="6" style="text-align:center;padding:40px;color:var(--danger);">Erro ao carregar: ${e.message}</td></tr>`;
   }
-  div.innerHTML = '';
-  lotes.forEach(l => {
-    const pct = l.total_func ? Math.round((l.enviados||0)/l.total_func*100) : 0;
-    const cor = pct===100?'b-green':pct>0?'b-amber':'b-gray';
-    div.innerHTML += `<div style="display:flex;align-items:center;justify-content:space-between;padding:12px 8px;border-bottom:1px solid var(--borda)">
-      <div>
-        <div style="font-size:13px;font-weight:500">${l.descricao||'Lote #'+l.id}</div>
-        <div style="font-size:11px;color:var(--texto2)">${l.total_func||0} func · ${(l.criado_em||'').substring(0,16)}</div>
-        <div class="prog-bar" style="width:150px;margin-top:6px"><div class="prog-fill" style="width:${pct}%"></div></div>
-      </div>
-      <span class="badge ${cor}">${pct}% assinado</span>
-    </div>`;
-  });
 }
 
-// ══════════════════════════════════════════════════════
-//  MODAIS
-// ══════════════════════════════════════════════════════
-function abrirModal(id) { document.getElementById(id).classList.add('open'); }
-function fecharModal(id) { document.getElementById(id).classList.remove('open'); }
+function histFiltrar() {
+  const busca  = (document.getElementById('hist-busca')?.value || '').toLowerCase();
+  const status = document.getElementById('hist-filtro-status')?.value || '';
+  const tipo   = document.getElementById('hist-filtro-tipo')?.value || '';
 
-// Fecha modal clicando fora
-document.querySelectorAll('.modal-bg').forEach(m => {
-  m.addEventListener('click', e => { if(e.target===m) m.classList.remove('open'); });
-});
+  let dados = _histDados;
 
-// ══════════════════════════════════════════════════════
-//  ASSINATURAS — histórico ZapSign
-// ══════════════════════════════════════════════════════
-async function carregarEnvios() {
-  const filtro  = document.getElementById('filtro-status-assin')?.value || '';
-  const tbody   = document.getElementById('envios-tbody');
-  tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:24px;color:#94a3b8;">Carregando...</td></tr>';
+  if (busca)  dados = dados.filter(e =>
+    (e.funcionario||'').toLowerCase().includes(busca) ||
+    (e.doc_nome||'').toLowerCase().includes(busca) ||
+    (e.cargo||'').toLowerCase().includes(busca));
 
-  const params = filtro ? `?status=${encodeURIComponent(filtro)}` : '';
-  const res  = await fetch('/api/envios' + params);
-  const data = await res.json();
+  if (status) dados = dados.filter(e => e.status === status);
 
-  if (!data.length) {
-    tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:32px;color:#94a3b8;">Nenhum documento encontrado.</td></tr>';
+  if (tipo === 'kit')  dados = dados.filter(e => (e.doc_nome||'').toLowerCase().includes('kit'));
+  if (tipo === 'epi')  dados = dados.filter(e => (e.doc_nome||'').toLowerCase().includes('epi') || (e.doc_id||'').includes('10_'));
+  if (tipo === 'os')   dados = dados.filter(e => (e.doc_nome||'').toLowerCase().includes('ordem') || (e.doc_id||'').includes('03_os'));
+
+  histRenderTabela(dados);
+}
+
+function histTipoLabel(e) {
+  const nome = (e.doc_nome||e.doc_id||'').toLowerCase();
+  if (nome.includes('kit'))    return `<span style="background:#ede9fe;color:#7c3aed;border-radius:20px;padding:2px 8px;font-size:11px;font-weight:600;">Kit SST</span>`;
+  if (nome.includes('epi') || (e.doc_id||'').includes('10_'))
+                               return `<span style="background:#fef3c7;color:#b45309;border-radius:20px;padding:2px 8px;font-size:11px;font-weight:600;">Ficha EPI</span>`;
+  if (nome.includes('ordem') || (e.doc_id||'').includes('03_os'))
+                               return `<span style="background:#dbeafe;color:#1d4ed8;border-radius:20px;padding:2px 8px;font-size:11px;font-weight:600;">Ordem de Serviço</span>`;
+  return `<span style="background:var(--fundo);color:var(--texto2);border-radius:20px;padding:2px 8px;font-size:11px;">${e.doc_nome||e.doc_id||'—'}</span>`;
+}
+
+function histRenderTabela(dados) {
+  const tbody = document.getElementById('hist-tbody');
+  if (!dados.length) {
+    tbody.innerHTML = `<tr><td colspan="6" style="text-align:center;padding:40px;color:var(--texto2);">Nenhum documento encontrado.</td></tr>`;
     return;
   }
-
-  tbody.innerHTML = data.map(e => {
+  tbody.innerHTML = dados.map(e => {
     const badge      = _badgeStatus(e.status);
+    const tipoLabel  = histTipoLabel(e);
     const enviadoEm  = _fmtDt(e.enviado_em);
     const assinadoEm = e.assinado_em ? _fmtDt(e.assinado_em) : '—';
     const assinado   = e.status === 'signed';
 
-    // Botão: abrir no ZapSign
-    const btnAbrir = e.link_assinatura
-      ? `<a href="${e.link_assinatura}" target="_blank"
+    const btnCopiar = e.link_assinatura
+      ? `<button onclick="histCopiarLink('${e.link_assinatura}', this)"
            style="display:inline-flex;align-items:center;gap:4px;padding:4px 10px;border-radius:6px;
-                  background:#eff6ff;color:#3b82f6;border:1px solid #bfdbfe;font-size:12px;
-                  text-decoration:none;white-space:nowrap;" title="Abrir documento no ZapSign">
-           <i class="ti ti-external-link" style="font-size:13px;"></i> Abrir
-         </a>`
-      : '';
+                  background:var(--verde-light);color:var(--verde);border:1px solid var(--verde);
+                  cursor:pointer;font-size:12px;font-weight:600;white-space:nowrap;" title="Copiar link para enviar pelo WhatsApp">
+           <i class="ti ti-copy" style="font-size:13px;"></i> Copiar link
+         </button>` : '';
 
-    // Botão: baixar PDF assinado (só aparece quando status = signed)
     const btnBaixar = assinado
       ? `<a href="/api/envios/${e.id}/download" target="_blank"
            style="display:inline-flex;align-items:center;gap:4px;padding:4px 10px;border-radius:6px;
-                  background:#f0fdf4;color:#16a34a;border:1px solid #bbf7d0;font-size:12px;
-                  text-decoration:none;white-space:nowrap;" title="Baixar PDF assinado">
+                  background:#f0fdf4;color:#16a34a;border:1px solid #bbf7d0;
+                  font-size:12px;text-decoration:none;white-space:nowrap;" title="Baixar PDF assinado">
            <i class="ti ti-download" style="font-size:13px;"></i> Baixar
-         </a>`
-      : '';
+         </a>` : '';
 
-    // Botão: atualizar status individualmente
-    const btnAtual = `<button onclick="atualizarStatusEnvio(${e.id}, this)"
-        style="display:inline-flex;align-items:center;padding:4px 8px;border-radius:6px;
-               background:#f8fafc;color:#64748b;border:1px solid #e2e8f0;cursor:pointer;font-size:12px;"
-        title="Atualizar status agora">
+    const btnAtualizar = `<button onclick="histAtualizarUm(${e.id}, this)"
+        style="display:inline-flex;align-items:center;padding:5px 7px;border-radius:6px;
+               background:var(--fundo);color:var(--texto2);border:1px solid var(--borda);cursor:pointer;"
+        title="Atualizar status">
         <i class="ti ti-refresh" style="font-size:13px;"></i>
       </button>`;
 
-    return `<tr style="border-bottom:1px solid #f1f5f9;">
-      <td style="padding:10px 12px;font-weight:500;">${e.funcionario || '—'}</td>
-      <td style="padding:10px 12px;color:#64748b;font-size:12px;">${e.cargo || '—'}</td>
-      <td style="padding:10px 12px;">${e.doc_nome || e.doc_id}</td>
-      <td style="padding:10px 12px;color:#64748b;font-size:12px;">${enviadoEm}</td>
-      <td style="padding:10px 12px;color:#64748b;font-size:12px;">${assinadoEm}</td>
-      <td style="padding:10px 12px;text-align:center;">${badge}</td>
-      <td style="padding:10px 12px;">
+    return `<tr style="border-bottom:1px solid var(--borda);">
+      <td style="padding:10px 14px;">
+        <div style="font-weight:600;font-size:13px;">${e.funcionario||'—'}</div>
+        <div style="font-size:11px;color:var(--texto2);">${e.cargo||''}</div>
+      </td>
+      <td style="padding:10px 14px;">${tipoLabel}</td>
+      <td style="padding:10px 14px;color:var(--texto2);font-size:12px;">${enviadoEm}</td>
+      <td style="padding:10px 14px;color:var(--texto2);font-size:12px;">${assinadoEm}</td>
+      <td style="padding:10px 14px;text-align:center;">${badge}</td>
+      <td style="padding:10px 14px;">
         <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;">
-          ${btnAbrir}${btnBaixar}${btnAtual}
+          ${btnCopiar}${btnBaixar}${btnAtualizar}
         </div>
       </td>
     </tr>`;
   }).join('');
 }
 
+function histCopiarLink(link, btn) {
+  navigator.clipboard.writeText(link);
+  btn.innerHTML = '<i class="ti ti-check" style="font-size:13px;"></i> Copiado!';
+  setTimeout(() => { btn.innerHTML = '<i class="ti ti-copy" style="font-size:13px;"></i> Copiar link'; }, 2500);
+}
+
+async function histAtualizarUm(envioId, btn) {
+  btn.disabled = true;
+  btn.innerHTML = '<i class="ti ti-loader-2" style="font-size:13px;animation:spin 1s linear infinite;"></i>';
+  try {
+    const res = await fetch(`/api/envios/${envioId}/atualizar-status`, {method:'POST'});
+    if (!res.ok) throw new Error((await res.json()).detail || 'Erro');
+    await carregarHistorico();
+  } catch(e) {
+    alert('Erro: ' + e.message);
+    btn.disabled = false;
+    btn.innerHTML = '<i class="ti ti-refresh" style="font-size:13px;"></i>';
+  }
+}
+
+async function histAtualizarTodos() {
+  const btn = document.getElementById('hist-btn-atualizar');
+  const msg = document.getElementById('hist-status-msg');
+  btn.disabled = true;
+  btn.innerHTML = '<i class="ti ti-loader-2"></i> Atualizando...';
+  try {
+    const res  = await fetch('/api/envios/atualizar-todos', {method:'POST'});
+    const data = await res.json();
+    msg.innerHTML = `<div class="alert al-success" style="margin-bottom:12px;"><i class="ti ti-check"></i>${data.atualizados} atualizado(s). ${data.erros>0?data.erros+' erro(s).':''}</div>`;
+    await carregarHistorico();
+    setTimeout(() => { msg.innerHTML=''; }, 4000);
+  } catch(e) {
+    msg.innerHTML = `<div class="alert al-error" style="margin-bottom:12px;"><i class="ti ti-alert-circle"></i>Erro: ${e.message}</div>`;
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = '<i class="ti ti-refresh"></i> Atualizar Status';
+  }
+}
+
 function _badgeStatus(status) {
   const map = {
-    enviado:  ['#f59e0b', '#fffbeb', 'Aguardando'],
-    pending:  ['#f59e0b', '#fffbeb', 'Aguardando'],
-    signed:   ['#10b981', '#ecfdf5', 'Assinado'],
-    refused:  ['#ef4444', '#fef2f2', 'Recusado'],
-    canceled: ['#94a3b8', '#f8fafc', 'Cancelado'],
-    erro:     ['#ef4444', '#fef2f2', 'Erro'],
+    enviado:  ['var(--warning)','#fffbeb','Aguardando'],
+    pending:  ['var(--warning)','#fffbeb','Aguardando'],
+    signed:   ['#16a34a','#f0fdf4','Assinado'],
+    refused:  ['var(--danger)','#fef2f2','Recusado'],
+    canceled: ['var(--texto2)','var(--fundo)','Cancelado'],
   };
-  const [cor, bg, label] = map[status] || ['#94a3b8', '#f8fafc', status];
+  const [cor, bg, label] = map[status] || ['var(--texto2)','var(--fundo)', status||'—'];
   return `<span style="background:${bg};color:${cor};border:1px solid ${cor}33;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:600;">${label}</span>`;
 }
 
@@ -1997,39 +2041,15 @@ function _fmtDt(val) {
   return d.toLocaleDateString('pt-BR') + ' ' + d.toLocaleTimeString('pt-BR', {hour:'2-digit',minute:'2-digit'});
 }
 
-async function atualizarStatusEnvio(envioId, btn) {
-  btn.disabled = true;
-  btn.innerHTML = '<i class="ti ti-loader-2" style="font-size:15px;animation:spin 1s linear infinite;"></i>';
-  try {
-    const res  = await fetch(`/api/envios/${envioId}/atualizar-status`, {method:'POST'});
-    const data = await res.json();
-    if (!res.ok) throw new Error(data.detail || 'Erro');
-    carregarEnvios();
-  } catch(e) {
-    alert('Erro ao atualizar: ' + e.message);
-    btn.disabled = false;
-    btn.innerHTML = '<i class="ti ti-refresh" style="font-size:15px;"></i>';
-  }
-}
+// ══════════════════════════════════════════════════════
+//  MODAIS
+// ══════════════════════════════════════════════════════
+function abrirModal(id) { document.getElementById(id).classList.add('open'); }
+function fecharModal(id) { document.getElementById(id).classList.remove('open'); }
 
-async function atualizarTodosPendentes() {
-  const btn = document.getElementById('btn-atualizar-todos');
-  btn.disabled = true;
-  btn.innerHTML = '<i class="ti ti-loader-2"></i> Atualizando...';
-  const msg = document.getElementById('assin-status-msg');
-  try {
-    const res  = await fetch('/api/envios/atualizar-todos', {method:'POST'});
-    const data = await res.json();
-    msg.innerHTML = `<div class="alert al-success"><i class="ti ti-check"></i>${data.atualizados} documento(s) atualizado(s). ${data.erros > 0 ? data.erros + ' erro(s).' : ''}</div>`;
-    carregarEnvios();
-  } catch(e) {
-    msg.innerHTML = `<div class="alert al-error"><i class="ti ti-alert-circle"></i>Erro: ${e.message}</div>`;
-  } finally {
-    btn.disabled = false;
-    btn.innerHTML = '<i class="ti ti-refresh"></i> Atualizar Status';
-    setTimeout(() => { msg.innerHTML = ''; }, 5000);
-  }
-}
+document.querySelectorAll('.modal-bg').forEach(m => {
+  m.addEventListener('click', e => { if(e.target===m) m.classList.remove('open'); });
+});
 
 
 // ══════════════════════════════════════════════════════

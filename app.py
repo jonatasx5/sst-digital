@@ -942,6 +942,75 @@ async def verificar_autentique_legado(_=Depends(verificar_acesso)):
 async def historico(_=Depends(verificar_acesso)):
     return banco.listar_lotes()
 
+
+# ── Histórico de Envios (ZapSign) ─────────────────────────
+@app.get("/api/envios")
+async def listar_envios(
+    funcionario_id: int = None,
+    status: str = None,
+    limite: int = 100,
+    _=Depends(verificar_acesso)
+):
+    """Lista todos os documentos enviados para assinatura."""
+    return banco.listar_envios(funcionario_id=funcionario_id, status=status, limite=limite)
+
+
+@app.post("/api/envios/{envio_id}/atualizar-status")
+async def atualizar_status_envio(envio_id: int, _=Depends(verificar_acesso)):
+    """Consulta o ZapSign e atualiza o status do envio no banco."""
+    envio = banco.buscar_envio_por_id(envio_id)
+    if not envio:
+        raise HTTPException(404, "Envio não encontrado")
+
+    doc_token = envio.get("autentique_id")  # campo guarda o token ZapSign
+    if not doc_token:
+        raise HTTPException(400, "Envio não possui token ZapSign")
+
+    resultado = zapsign.consultar_status(doc_token)
+
+    if resultado["erro"]:
+        raise HTTPException(500, resultado["erro"])
+
+    # Atualiza no banco
+    banco.atualizar_status_envio(
+        envio_id=envio_id,
+        status=resultado["status"],
+        assinado_em=resultado.get("assinado_em")
+    )
+
+    return {
+        "envio_id":    envio_id,
+        "status":      resultado["status"],
+        "status_pt":   resultado["status_pt"],
+        "assinado_em": resultado.get("assinado_em"),
+        "signatarios": resultado.get("signatarios", []),
+    }
+
+
+@app.post("/api/envios/atualizar-todos")
+async def atualizar_todos_pendentes(_=Depends(verificar_acesso)):
+    """Atualiza o status de todos os envios pendentes consultando o ZapSign."""
+    pendentes = banco.listar_envios(status="enviado", limite=200)
+    atualizados = 0
+    erros = 0
+    for envio in pendentes:
+        doc_token = envio.get("autentique_id")
+        if not doc_token:
+            continue
+        resultado = zapsign.consultar_status(doc_token)
+        if resultado["erro"]:
+            erros += 1
+            continue
+        banco.atualizar_status_envio(
+            envio_id=envio["id"],
+            status=resultado["status"],
+            assinado_em=resultado.get("assinado_em")
+        )
+        atualizados += 1
+
+    return {"atualizados": atualizados, "erros": erros, "total_pendentes": len(pendentes)}
+
+
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 8000))
     uvicorn.run("app:app", host="0.0.0.0", port=port, reload=False)

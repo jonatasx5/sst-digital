@@ -186,6 +186,7 @@ tr:hover td { background:#F9FAFB; }
     <button class="nav-item" onclick="irPara('lote')"><i class="ti ti-package"></i>Montar Lote</button>
     <button class="nav-item" onclick="irPara('envio')"><i class="ti ti-send"></i>Enviar</button>
     <button class="nav-item" onclick="irPara('ordem-servico')"><i class="ti ti-clipboard-list"></i>Ordem de Serviço</button>
+    <button class="nav-item" onclick="irPara('assinaturas')"><i class="ti ti-writing"></i>Assinaturas</button>
     <button class="nav-item" onclick="irPara('historico')"><i class="ti ti-clock"></i>Histórico</button>
   </nav>
   <div class="sb-bottom">
@@ -631,6 +632,48 @@ tr:hover td { background:#F9FAFB; }
   </div>
 </div>
 
+<!-- ── ASSINATURAS ── -->
+<div class="panel" id="panel-assinaturas">
+  <div class="page-header">
+    <div>
+      <div class="page-title">Histórico de Assinaturas</div>
+      <div class="page-sub">Acompanhe o status de todos os documentos enviados para o ZapSign</div>
+    </div>
+    <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+      <select id="filtro-status-assin" onchange="carregarEnvios()" style="padding:6px 10px;border-radius:8px;border:1px solid #e2e8f0;font-size:13px;">
+        <option value="">Todos</option>
+        <option value="enviado">Aguardando</option>
+        <option value="signed">Assinado</option>
+        <option value="refused">Recusado</option>
+      </select>
+      <button class="btn btn-secondary" onclick="atualizarTodosPendentes()" id="btn-atualizar-todos">
+        <i class="ti ti-refresh"></i> Atualizar Status
+      </button>
+    </div>
+  </div>
+
+  <div id="assin-status-msg"></div>
+
+  <div style="overflow-x:auto;margin-top:16px;">
+    <table style="width:100%;border-collapse:collapse;font-size:13px;" id="tabela-envios">
+      <thead>
+        <tr style="background:#f8fafc;border-bottom:2px solid #e2e8f0;">
+          <th style="padding:10px 12px;text-align:left;color:#64748b;font-weight:600;">Funcionário</th>
+          <th style="padding:10px 12px;text-align:left;color:#64748b;font-weight:600;">Cargo</th>
+          <th style="padding:10px 12px;text-align:left;color:#64748b;font-weight:600;">Documento</th>
+          <th style="padding:10px 12px;text-align:left;color:#64748b;font-weight:600;">Enviado em</th>
+          <th style="padding:10px 12px;text-align:left;color:#64748b;font-weight:600;">Assinado em</th>
+          <th style="padding:10px 12px;text-align:center;color:#64748b;font-weight:600;">Status</th>
+          <th style="padding:10px 12px;text-align:center;color:#64748b;font-weight:600;">Ações</th>
+        </tr>
+      </thead>
+      <tbody id="envios-tbody">
+        <tr><td colspan="7" style="text-align:center;padding:32px;color:#94a3b8;">Carregando...</td></tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
 <!-- ── HISTÓRICO ── -->
 <div class="panel" id="panel-historico">
   <div class="page-header">
@@ -798,6 +841,7 @@ function irPara(aba) {
   if (aba==='envio-epi')     { buscarFuncEpi(); filtrarEpiLote(); }
   if (aba==='lote')          { filtrarLote(); renderLoteSel(); }
   if (aba==='ordem-servico') carregarOSCargos();
+  if (aba==='assinaturas')   carregarEnvios();
   if (aba==='historico')     carregarHistorico();
   // Fecha sidebar mobile
   document.getElementById('sidebar').classList.remove('open');
@@ -1764,6 +1808,102 @@ function fecharModal(id) { document.getElementById(id).classList.remove('open');
 document.querySelectorAll('.modal-bg').forEach(m => {
   m.addEventListener('click', e => { if(e.target===m) m.classList.remove('open'); });
 });
+
+// ══════════════════════════════════════════════════════
+//  ASSINATURAS — histórico ZapSign
+// ══════════════════════════════════════════════════════
+async function carregarEnvios() {
+  const filtro  = document.getElementById('filtro-status-assin')?.value || '';
+  const tbody   = document.getElementById('envios-tbody');
+  tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:24px;color:#94a3b8;">Carregando...</td></tr>';
+
+  const params = filtro ? `?status=${encodeURIComponent(filtro)}` : '';
+  const res  = await fetch('/api/envios' + params);
+  const data = await res.json();
+
+  if (!data.length) {
+    tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:32px;color:#94a3b8;">Nenhum documento encontrado.</td></tr>';
+    return;
+  }
+
+  tbody.innerHTML = data.map(e => {
+    const badge = _badgeStatus(e.status);
+    const enviadoEm  = _fmtDt(e.enviado_em);
+    const assinadoEm = e.assinado_em ? _fmtDt(e.assinado_em) : '—';
+    const link = e.link_assinatura
+      ? `<a href="${e.link_assinatura}" target="_blank" style="color:#3b82f6;text-decoration:none;" title="Abrir link de assinatura"><i class="ti ti-external-link"></i></a>`
+      : '—';
+    return `<tr style="border-bottom:1px solid #f1f5f9;">
+      <td style="padding:10px 12px;">${e.funcionario || '—'}</td>
+      <td style="padding:10px 12px;color:#64748b;">${e.cargo || '—'}</td>
+      <td style="padding:10px 12px;">${e.doc_nome || e.doc_id}</td>
+      <td style="padding:10px 12px;color:#64748b;">${enviadoEm}</td>
+      <td style="padding:10px 12px;color:#64748b;">${assinadoEm}</td>
+      <td style="padding:10px 12px;text-align:center;">${badge}</td>
+      <td style="padding:10px 12px;text-align:center;display:flex;gap:8px;justify-content:center;">
+        ${link}
+        <button onclick="atualizarStatusEnvio(${e.id}, this)" style="background:none;border:none;cursor:pointer;color:#64748b;" title="Atualizar status">
+          <i class="ti ti-refresh" style="font-size:15px;"></i>
+        </button>
+      </td>
+    </tr>`;
+  }).join('');
+}
+
+function _badgeStatus(status) {
+  const map = {
+    enviado:  ['#f59e0b', '#fffbeb', 'Aguardando'],
+    pending:  ['#f59e0b', '#fffbeb', 'Aguardando'],
+    signed:   ['#10b981', '#ecfdf5', 'Assinado'],
+    refused:  ['#ef4444', '#fef2f2', 'Recusado'],
+    canceled: ['#94a3b8', '#f8fafc', 'Cancelado'],
+    erro:     ['#ef4444', '#fef2f2', 'Erro'],
+  };
+  const [cor, bg, label] = map[status] || ['#94a3b8', '#f8fafc', status];
+  return `<span style="background:${bg};color:${cor};border:1px solid ${cor}33;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:600;">${label}</span>`;
+}
+
+function _fmtDt(val) {
+  if (!val) return '—';
+  const d = new Date(val);
+  if (isNaN(d)) return val;
+  return d.toLocaleDateString('pt-BR') + ' ' + d.toLocaleTimeString('pt-BR', {hour:'2-digit',minute:'2-digit'});
+}
+
+async function atualizarStatusEnvio(envioId, btn) {
+  btn.disabled = true;
+  btn.innerHTML = '<i class="ti ti-loader-2" style="font-size:15px;animation:spin 1s linear infinite;"></i>';
+  try {
+    const res  = await fetch(`/api/envios/${envioId}/atualizar-status`, {method:'POST'});
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.detail || 'Erro');
+    carregarEnvios();
+  } catch(e) {
+    alert('Erro ao atualizar: ' + e.message);
+    btn.disabled = false;
+    btn.innerHTML = '<i class="ti ti-refresh" style="font-size:15px;"></i>';
+  }
+}
+
+async function atualizarTodosPendentes() {
+  const btn = document.getElementById('btn-atualizar-todos');
+  btn.disabled = true;
+  btn.innerHTML = '<i class="ti ti-loader-2"></i> Atualizando...';
+  const msg = document.getElementById('assin-status-msg');
+  try {
+    const res  = await fetch('/api/envios/atualizar-todos', {method:'POST'});
+    const data = await res.json();
+    msg.innerHTML = `<div class="alert al-success"><i class="ti ti-check"></i>${data.atualizados} documento(s) atualizado(s). ${data.erros > 0 ? data.erros + ' erro(s).' : ''}</div>`;
+    carregarEnvios();
+  } catch(e) {
+    msg.innerHTML = `<div class="alert al-error"><i class="ti ti-alert-circle"></i>Erro: ${e.message}</div>`;
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = '<i class="ti ti-refresh"></i> Atualizar Status';
+    setTimeout(() => { msg.innerHTML = ''; }, 5000);
+  }
+}
+
 
 // ══════════════════════════════════════════════════════
 //  INICIALIZAÇÃO

@@ -645,6 +645,101 @@ def registrar_envio(dados):
         conn.close()
 
 
+def listar_envios(funcionario_id: int = None, status: str = None, limite: int = 100):
+    """Lista o histórico de documentos enviados para assinatura."""
+    conn = conectar()
+    try:
+        if USE_POSTGRES:
+            cur = conn.cursor(cursor_factory=_psycopg2_extras.RealDictCursor)
+            filtros = []
+            params  = []
+            if funcionario_id:
+                filtros.append("e.funcionario_id = %s")
+                params.append(funcionario_id)
+            if status:
+                filtros.append("e.status = %s")
+                params.append(status)
+            where = ("WHERE " + " AND ".join(filtros)) if filtros else ""
+            params.append(limite)
+            cur.execute(f"""
+                SELECT e.id, e.doc_id, e.doc_nome,
+                       f.nome AS funcionario, f.cargo,
+                       e.status, e.link_assinatura,
+                       e.autentique_id AS zapsign_token,
+                       e.enviado_em, e.assinado_em
+                FROM envios e
+                LEFT JOIN funcionarios f ON f.id = e.funcionario_id
+                {where}
+                ORDER BY e.enviado_em DESC
+                LIMIT %s
+            """, params)
+        else:
+            cur = conn.cursor()
+            filtros = []
+            params  = []
+            if funcionario_id:
+                filtros.append("e.funcionario_id = ?")
+                params.append(funcionario_id)
+            if status:
+                filtros.append("e.status = ?")
+                params.append(status)
+            where = ("WHERE " + " AND ".join(filtros)) if filtros else ""
+            params.append(limite)
+            cur.execute(f"""
+                SELECT e.id, e.doc_id, e.doc_nome,
+                       f.nome AS funcionario, f.cargo,
+                       e.status, e.link_assinatura,
+                       e.autentique_id AS zapsign_token,
+                       e.enviado_em, e.assinado_em
+                FROM envios e
+                LEFT JOIN funcionarios f ON f.id = e.funcionario_id
+                {where}
+                ORDER BY e.enviado_em DESC
+                LIMIT ?
+            """, params)
+        rows = cur.fetchall()
+        return [dict(r) for r in rows]
+    finally:
+        conn.close()
+
+
+def buscar_envio_por_id(envio_id: int):
+    conn = conectar()
+    try:
+        if USE_POSTGRES:
+            cur = conn.cursor(cursor_factory=_psycopg2_extras.RealDictCursor)
+            cur.execute("SELECT * FROM envios WHERE id=%s", (envio_id,))
+        else:
+            cur = conn.cursor()
+            cur.execute("SELECT * FROM envios WHERE id=?", (envio_id,))
+        row = cur.fetchone()
+        return dict(row) if row else None
+    finally:
+        conn.close()
+
+
+def atualizar_status_envio(envio_id: int, status: str, assinado_em=None):
+    conn = conectar()
+    try:
+        if USE_POSTGRES:
+            cur = conn.cursor()
+            if assinado_em and status == "signed":
+                cur.execute("UPDATE envios SET status=%s, assinado_em=%s WHERE id=%s",
+                            (status, assinado_em, envio_id))
+            else:
+                cur.execute("UPDATE envios SET status=%s WHERE id=%s", (status, envio_id))
+        else:
+            cur = conn.cursor()
+            if assinado_em and status == "signed":
+                cur.execute("UPDATE envios SET status=?, assinado_em=? WHERE id=?",
+                            (status, assinado_em, envio_id))
+            else:
+                cur.execute("UPDATE envios SET status=? WHERE id=?", (status, envio_id))
+        conn.commit()
+    finally:
+        conn.close()
+
+
 def listar_lotes():
     conn = conectar()
     try:

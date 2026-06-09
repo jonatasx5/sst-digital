@@ -121,6 +121,75 @@ def enviar_documento(
         return {"sucesso": False, "autentique_id": None, "link": None, "erro": str(e)}
 
 
+def consultar_status(doc_token: str) -> dict:
+    """
+    Consulta o status atual de um documento no ZapSign.
+
+    Retorna dict com:
+        status        : str  ('pending' | 'signed' | 'refused' | 'error')
+        status_pt     : str  ('Aguardando' | 'Assinado' | 'Recusado' | 'Erro')
+        assinado_em   : str | None  (ISO datetime)
+        signatarios   : list de {nome, status, assinado_em}
+        erro          : str | None
+    """
+    try:
+        r = requests.get(
+            f"{ZAPSIGN_URL}/docs/{doc_token}/",
+            headers=_headers(),
+            timeout=20
+        )
+        if r.status_code == 404:
+            return {"status": "error", "status_pt": "Não encontrado",
+                    "assinado_em": None, "signatarios": [], "erro": "Documento não encontrado no ZapSign"}
+        if r.status_code != 200:
+            return {"status": "error", "status_pt": "Erro",
+                    "assinado_em": None, "signatarios": [],
+                    "erro": f"HTTP {r.status_code}: {r.text[:200]}"}
+
+        data = r.json()
+
+        # Status do documento
+        doc_status = data.get("status", "pending")  # 'pending' | 'signed' | 'refused'
+        status_map = {
+            "pending":  "Aguardando",
+            "signed":   "Assinado",
+            "refused":  "Recusado",
+            "canceled": "Cancelado",
+        }
+        status_pt = status_map.get(doc_status, doc_status.capitalize())
+
+        # Signatários
+        signers_raw = data.get("signers", [])
+        signatarios = []
+        assinado_em = None
+        for s in signers_raw:
+            s_status = s.get("status", "pending")
+            s_assinado = s.get("signed_at") or s.get("last_remind_date")
+            if s_status == "signed" and s_assinado:
+                assinado_em = s_assinado
+            signatarios.append({
+                "nome":       s.get("name", ""),
+                "status":     s_status,
+                "status_pt":  status_map.get(s_status, s_status.capitalize()),
+                "assinado_em": s_assinado,
+            })
+
+        return {
+            "status":      doc_status,
+            "status_pt":   status_pt,
+            "assinado_em": assinado_em,
+            "signatarios": signatarios,
+            "erro":        None,
+        }
+
+    except requests.exceptions.Timeout:
+        return {"status": "error", "status_pt": "Timeout", "assinado_em": None,
+                "signatarios": [], "erro": "Timeout ao consultar ZapSign"}
+    except Exception as e:
+        return {"status": "error", "status_pt": "Erro", "assinado_em": None,
+                "signatarios": [], "erro": str(e)}
+
+
 def verificar_token() -> tuple[bool, str]:
     """Verifica se o token do ZapSign está válido."""
     try:

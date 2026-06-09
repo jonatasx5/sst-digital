@@ -663,7 +663,7 @@ def listar_envios(funcionario_id: int = None, status: str = None, limite: int = 
             params.append(limite)
             cur.execute(f"""
                 SELECT e.id, e.doc_id, e.doc_nome,
-                       f.nome AS funcionario, f.cargo,
+                       f.nome AS funcionario, f.cargo, f.celular,
                        e.status, e.link_assinatura,
                        e.autentique_id AS zapsign_token,
                        e.enviado_em, e.assinado_em
@@ -687,7 +687,7 @@ def listar_envios(funcionario_id: int = None, status: str = None, limite: int = 
             params.append(limite)
             cur.execute(f"""
                 SELECT e.id, e.doc_id, e.doc_nome,
-                       f.nome AS funcionario, f.cargo,
+                       f.nome AS funcionario, f.cargo, f.celular,
                        e.status, e.link_assinatura,
                        e.autentique_id AS zapsign_token,
                        e.enviado_em, e.assinado_em

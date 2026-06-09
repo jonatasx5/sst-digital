@@ -698,6 +698,44 @@ tr:hover td { background:#F9FAFB; }
 </main>
 </div>
 
+<!-- ── MODAL WHATSAPP ── -->
+<div class="modal-bg" id="modal-whatsapp">
+  <div class="modal" style="max-width:460px;">
+    <div class="modal-title">
+      <span><i class="ti ti-brand-whatsapp" style="color:#25D366;margin-right:6px;"></i>Enviar pelo WhatsApp</span>
+      <button class="modal-close" onclick="fecharModal('modal-whatsapp')">×</button>
+    </div>
+    <div style="margin-bottom:12px;">
+      <label style="font-size:12px;color:var(--texto2);font-weight:600;display:block;margin-bottom:6px;">
+        Número do WhatsApp
+        <span style="font-weight:400;color:var(--texto2);"> — confirme ou corrija antes de enviar</span>
+      </label>
+      <div style="display:flex;gap:8px;align-items:center;">
+        <span style="padding:10px 12px;background:var(--fundo);border:1.5px solid var(--borda);border-radius:8px;font-size:13px;color:var(--texto2);white-space:nowrap;">+55</span>
+        <input type="tel" id="wpp-numero" placeholder="62995462653"
+               style="flex:1;padding:10px;border:1.5px solid var(--borda);border-radius:8px;font-size:14px;">
+      </div>
+      <div style="font-size:11px;color:var(--texto2);margin-top:5px;">Somente números, com DDD. Ex: 62995462653</div>
+    </div>
+    <div style="margin-bottom:16px;">
+      <label style="font-size:12px;color:var(--texto2);font-weight:600;display:block;margin-bottom:6px;">Mensagem</label>
+      <textarea id="wpp-mensagem" rows="4"
+                style="width:100%;padding:10px;border:1.5px solid var(--borda);border-radius:8px;font-size:13px;resize:vertical;font-family:inherit;"></textarea>
+    </div>
+    <div style="display:flex;gap:10px;">
+      <a id="wpp-btn-abrir" href="#" target="_blank" onclick="fecharModal('modal-whatsapp')"
+         class="btn btn-primary" style="flex:1;display:flex;align-items:center;justify-content:center;gap:8px;text-decoration:none;">
+        <i class="ti ti-brand-whatsapp"></i>Abrir WhatsApp
+      </a>
+      <button onclick="histCopiarLink(document.getElementById('wpp-link-hidden').value, this)"
+              class="btn btn-secondary" style="display:flex;align-items:center;gap:6px;">
+        <i class="ti ti-copy"></i>Copiar link
+      </button>
+    </div>
+    <input type="hidden" id="wpp-link-hidden">
+  </div>
+</div>
+
 <!-- ── MODAL FUNCIONÁRIO ── -->
 <div class="modal-bg" id="modal-func">
   <div class="modal">
@@ -1942,12 +1980,21 @@ function histRenderTabela(dados) {
     const assinadoEm = e.assinado_em ? _fmtDt(e.assinado_em) : '—';
     const assinado   = e.status === 'signed';
 
+    const celular = (e.celular||'').replace(/\D/g,'');
+    const btnWhatsApp = e.link_assinatura
+      ? `<button onclick="histAbrirWhatsApp(${e.id}, '${(e.link_assinatura||'').replace(/'/g,"\\'")}', '${celular}', '${(e.funcionario||'').replace(/'/g,"\\'")}', '${(e.doc_nome||'').replace(/'/g,"\\'")}', this)"
+           style="display:inline-flex;align-items:center;gap:4px;padding:4px 10px;border-radius:6px;
+                  background:#f0fdf4;color:#16a34a;border:1px solid #86efac;
+                  cursor:pointer;font-size:12px;font-weight:600;white-space:nowrap;" title="Enviar pelo WhatsApp">
+           <i class="ti ti-brand-whatsapp" style="font-size:14px;"></i> WhatsApp
+         </button>` : '';
+
     const btnCopiar = e.link_assinatura
       ? `<button onclick="histCopiarLink('${e.link_assinatura}', this)"
            style="display:inline-flex;align-items:center;gap:4px;padding:4px 10px;border-radius:6px;
                   background:var(--verde-light);color:var(--verde);border:1px solid var(--verde);
-                  cursor:pointer;font-size:12px;font-weight:600;white-space:nowrap;" title="Copiar link para enviar pelo WhatsApp">
-           <i class="ti ti-copy" style="font-size:13px;"></i> Copiar link
+                  cursor:pointer;font-size:12px;font-weight:600;white-space:nowrap;" title="Copiar link">
+           <i class="ti ti-copy" style="font-size:13px;"></i> Link
          </button>` : '';
 
     const btnBaixar = assinado
@@ -1976,7 +2023,7 @@ function histRenderTabela(dados) {
       <td style="padding:10px 14px;text-align:center;">${badge}</td>
       <td style="padding:10px 14px;">
         <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;">
-          ${btnCopiar}${btnBaixar}${btnAtualizar}
+          ${btnWhatsApp}${btnCopiar}${btnBaixar}${btnAtualizar}
         </div>
       </td>
     </tr>`;
@@ -1985,8 +2032,33 @@ function histRenderTabela(dados) {
 
 function histCopiarLink(link, btn) {
   navigator.clipboard.writeText(link);
+  const orig = btn.innerHTML;
   btn.innerHTML = '<i class="ti ti-check" style="font-size:13px;"></i> Copiado!';
-  setTimeout(() => { btn.innerHTML = '<i class="ti ti-copy" style="font-size:13px;"></i> Copiar link'; }, 2500);
+  setTimeout(() => { btn.innerHTML = orig; }, 2500);
+}
+
+function histAbrirWhatsApp(envioId, link, celular, nomeFuncionario, nomeDoc, btn) {
+  // Preenche número (remove non-digits, sem DDI)
+  const num = celular.replace(/\D/g,'').replace(/^55/,'');
+  document.getElementById('wpp-numero').value = num;
+  document.getElementById('wpp-link-hidden').value = link;
+
+  // Mensagem padrão
+  const primeiroNome = nomeFuncionario.split(' ')[0];
+  document.getElementById('wpp-mensagem').value =
+    `Olá ${primeiroNome}, segue o link para assinar o documento "${nomeDoc}":\n\n${link}\n\nQualquer dúvida estamos à disposição.`;
+
+  // Atualiza o botão "Abrir WhatsApp" dinamicamente conforme digita o número
+  const atualizarLink = () => {
+    const n = document.getElementById('wpp-numero').value.replace(/\D/g,'');
+    const msg = encodeURIComponent(document.getElementById('wpp-mensagem').value);
+    document.getElementById('wpp-btn-abrir').href = `https://wa.me/55${n}?text=${msg}`;
+  };
+  document.getElementById('wpp-numero').oninput   = atualizarLink;
+  document.getElementById('wpp-mensagem').oninput = atualizarLink;
+  atualizarLink();
+
+  abrirModal('modal-whatsapp');
 }
 
 async function histAtualizarUm(envioId, btn) {

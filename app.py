@@ -674,6 +674,18 @@ async def enviar_os(dados: dict, _=Depends(verificar_acesso)):
         if ret["sucesso"]:
             resultados.append({"id": f["id"], "nome": f["nome"],
                                 "cargo": f["cargo"], "link": ret.get("link", "")})
+            try:
+                banco.registrar_envio({
+                    "funcionario_id": f["id"],
+                    "doc_id":         "03_os",
+                    "doc_nome":       nome_doc,
+                    "pdf_path":       caminho_pdf,
+                    "autentique_id":  ret.get("autentique_id", ""),
+                    "link_assinatura": ret.get("link", ""),
+                    "status":         "enviado",
+                })
+            except Exception as e:
+                print(f"WARN registrar_envio OS: {e}")
         else:
             erros.append(f"{f['nome']}: {ret['erro']}")
 
@@ -859,6 +871,18 @@ async def enviar_ficha_epi_custom(dados: dict, _=Depends(verificar_acesso)):
     ret = zapsign.enviar_documento(nome_documento=nome_doc, caminho_pdf=caminho_pdf,
                                       funcionario=f, sandbox=sandbox)
     if ret["sucesso"]:
+        try:
+            banco.registrar_envio({
+                "funcionario_id":  f["id"],
+                "doc_id":          "10_ficha_epi",
+                "doc_nome":        nome_doc,
+                "pdf_path":        caminho_pdf,
+                "autentique_id":   ret.get("autentique_id", ""),
+                "link_assinatura": ret.get("link", ""),
+                "status":          "enviado",
+            })
+        except Exception as e:
+            print(f"WARN registrar_envio EPI individual: {e}")
         return {"ok": True, "nome": f["nome"], "cargo": f["cargo"], "link": ret.get("link","")}
     return {"ok": False, "erro": ret["erro"]}
 
@@ -910,6 +934,18 @@ async def enviar_ficha_epi(dados: dict, _=Depends(verificar_acesso)):
                 "cargo": f["cargo"],
                 "link":  ret.get("link", ""),
             })
+            try:
+                banco.registrar_envio({
+                    "funcionario_id":  f["id"],
+                    "doc_id":          "10_ficha_epi",
+                    "doc_nome":        nome_doc,
+                    "pdf_path":        caminho_pdf,
+                    "autentique_id":   ret.get("autentique_id", ""),
+                    "link_assinatura": ret.get("link", ""),
+                    "status":          "enviado",
+                })
+            except Exception as e:
+                print(f"WARN registrar_envio EPI: {e}")
         else:
             erros.append(f"{f['nome']}: {ret['erro']}")
 

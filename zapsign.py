@@ -104,7 +104,7 @@ def enviar_documento(
         for s in signers:
             token_signer = s.get("token")
             if token_signer:
-                link = f"https://app.zapsign.com.br/verificar/{token_signer}"
+                link = f"https://app.zapsign.co/verificar/{token_signer}"
                 break
 
         return {

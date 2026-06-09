@@ -928,6 +928,21 @@ async def verificar_zapsign(_=Depends(verificar_acesso)):
     ok, msg = zapsign.verificar_token()
     return {"ok": ok, "mensagem": msg}
 
+@app.get("/api/zapsign/conta")
+async def info_conta_zapsign(_=Depends(verificar_acesso)):
+    """Retorna informações da conta ZapSign: plano, limites, uso."""
+    import requests as _req
+    token = os.environ.get("ZAPSIGN_TOKEN", "")
+    headers = {"Authorization": f"Bearer {token}", "Content-Type": "application/json"}
+    resultados = {}
+    for path in ["/api/v1/account/", "/api/v1/user/", "/api/v1/organization/", "/api/v1/plan/"]:
+        try:
+            r = _req.get(f"https://api.zapsign.com.br{path}", headers=headers, timeout=10)
+            resultados[path] = {"status": r.status_code, "body": r.json() if r.headers.get("content-type","").startswith("application/json") else r.text[:300]}
+        except Exception as e:
+            resultados[path] = {"status": "erro", "body": str(e)}
+    return resultados
+
 # alias legado para não quebrar chamadas antigas
 @app.get("/api/autentique/verificar")
 async def verificar_autentique_legado(_=Depends(verificar_acesso)):

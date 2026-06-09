@@ -188,6 +188,7 @@ tr:hover td { background:#F9FAFB; }
     <button class="nav-item" onclick="irPara('ordem-servico')"><i class="ti ti-clipboard-list"></i>Ordem de Serviço</button>
     <button class="nav-item" onclick="irPara('assinaturas')"><i class="ti ti-writing"></i>Assinaturas</button>
     <button class="nav-item" onclick="irPara('historico')"><i class="ti ti-clock"></i>Histórico</button>
+    <button class="nav-item" onclick="irPara('relatorio-fotografico')"><i class="ti ti-camera"></i>Rel. Fotográfico</button>
   </nav>
   <div class="sb-bottom">
     <div class="sb-status">
@@ -683,6 +684,344 @@ tr:hover td { background:#F9FAFB; }
     <div id="historico-lista" style="padding:8px"></div>
   </div>
 </div>
+
+<!-- ══════════════════════════════════════════════════════ -->
+<!--  PAINEL: RELATÓRIO FOTOGRÁFICO                        -->
+<!-- ══════════════════════════════════════════════════════ -->
+<div class="panel" id="panel-relatorio-fotografico">
+  <div class="page-header">
+    <div>
+      <div class="page-title">📷 Relatório Fotográfico</div>
+      <div class="page-sub">Registro de fotos com GPS para obras — padrão AGETOP</div>
+    </div>
+  </div>
+
+  <!-- STEPS NAV -->
+  <div style="display:flex;background:#1565C0;border-radius:10px 10px 0 0;overflow:hidden;margin-bottom:0">
+    <div class="rf-step rf-step-active" onclick="rfGoStep(0)" id="rfStepTab0" style="flex:1;text-align:center;padding:10px 4px;font-size:12px;color:rgba(255,255,255,.5);border-bottom:3px solid transparent;cursor:pointer;font-weight:700;color:#fff;border-bottom-color:#FFD600">1. Obra</div>
+    <div class="rf-step" onclick="rfGoStep(1)" id="rfStepTab1" style="flex:1;text-align:center;padding:10px 4px;font-size:12px;color:rgba(255,255,255,.5);border-bottom:3px solid transparent;cursor:pointer">2. Fotos</div>
+    <div class="rf-step" onclick="rfGoStep(2)" id="rfStepTab2" style="flex:1;text-align:center;padding:10px 4px;font-size:12px;color:rgba(255,255,255,.5);border-bottom:3px solid transparent;cursor:pointer">3. Exportar</div>
+  </div>
+
+  <!-- STEP 0: DADOS DA OBRA -->
+  <div class="card rf-section rf-active" id="rf-step0" style="border-radius:0 0 12px 12px;margin-bottom:16px">
+    <div class="card-title"><i class="ti ti-clipboard-list"></i>Dados da Obra</div>
+    <div class="grid2">
+      <div class="field"><label>Nome da Obra *</label><input type="text" id="rf-obra" placeholder="Ex: Pavimentação BR-153"></div>
+      <div class="field"><label>Executora *</label><input type="text" id="rf-executora" placeholder="Empresa executora"></div>
+    </div>
+    <div class="grid2">
+      <div class="field"><label>Supervisora</label><input type="text" id="rf-supervisora" placeholder="Empresa supervisora"></div>
+      <div class="field"><label>Contrato de Execução</label><input type="text" id="rf-contrato" placeholder="Nº do contrato"></div>
+    </div>
+    <div class="grid3">
+      <div class="field"><label>Número da Medição</label><input type="number" id="rf-medicao" placeholder="Ex: 5" min="1"></div>
+      <div class="field"><label>Mês de Referência *</label>
+        <select id="rf-mes">
+          <option value="">Selecione</option>
+          <option>JAN</option><option>FEV</option><option>MAR</option><option>ABR</option>
+          <option>MAI</option><option>JUN</option><option>JUL</option><option>AGO</option>
+          <option>SET</option><option>OUT</option><option>NOV</option><option>DEZ</option>
+        </select>
+      </div>
+      <div class="field"><label>Ano</label><input type="number" id="rf-ano" value="2026" min="2020" max="2035"></div>
+    </div>
+    <button class="btn btn-primary" onclick="rfGoStep(1)" style="margin-top:8px"><i class="ti ti-arrow-right"></i>Avançar → Adicionar Fotos</button>
+  </div>
+
+  <!-- STEP 1: FOTOS -->
+  <div class="card rf-section" id="rf-step1" style="margin-bottom:16px;display:none">
+    <div class="card-title"><i class="ti ti-camera"></i>Adicionar Fotos</div>
+    <div style="background:#E3F2FD;color:#1565C0;border-left:4px solid #1565C0;padding:10px 14px;border-radius:8px;font-size:13px;margin-bottom:12px">
+      📍 As coordenadas GPS e data/hora são lidas automaticamente das fotos. Tire as fotos pelo celular para capturar a localização.
+    </div>
+    <div class="field">
+      <label>Dia do registro *</label>
+      <select id="rf-diaAtual">
+        <option value="">Selecione o dia</option>
+        <script>for(let i=1;i<=31;i++) document.write(`<option value="${i}">${i}</option>`)</script>
+      </select>
+    </div>
+    <div class="upload-zone" onclick="document.getElementById('rf-fotoInput').click()" style="margin-bottom:16px">
+      <i class="ti ti-photo-plus"></i>
+      <p>Clique para selecionar fotos</p>
+      <p><strong>Selecione uma ou várias de uma vez</strong></p>
+    </div>
+    <input type="file" id="rf-fotoInput" accept="image/*" multiple style="display:none" onchange="rfHandleFotos(this)">
+    <div id="rf-listaFotos">
+      <div id="rf-emptyFotos" style="text-align:center;padding:32px;color:#90A4AE">
+        <div style="font-size:40px">🖼️</div>
+        <div style="font-size:14px;margin-top:8px">Nenhuma foto adicionada ainda</div>
+      </div>
+    </div>
+    <div id="rf-btnAvancar" style="display:none;margin-top:8px">
+      <button class="btn btn-primary" onclick="rfGoStep(2)" style="width:100%;justify-content:center"><i class="ti ti-arrow-right"></i>Ver Resumo e Exportar</button>
+    </div>
+  </div>
+
+  <!-- STEP 2: EXPORTAR -->
+  <div class="card rf-section" id="rf-step2" style="margin-bottom:16px;display:none">
+    <div id="rf-resumoContent"></div>
+    <button class="btn btn-primary" onclick="rfExportarXLSX()" style="width:100%;justify-content:center;margin-top:8px">
+      <i class="ti ti-download"></i>Exportar Relatório XLSX
+    </button>
+    <button class="btn btn-outline" onclick="rfGoStep(1)" style="width:100%;justify-content:center;margin-top:8px">
+      <i class="ti ti-arrow-left"></i>Voltar e editar
+    </button>
+    <button class="btn btn-danger" onclick="rfNovoRelatorio()" style="width:100%;justify-content:center;margin-top:8px">
+      <i class="ti ti-refresh"></i>Novo Relatório
+    </button>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script>
+// ══════════════════════════════════════════════════════
+//  RELATÓRIO FOTOGRÁFICO — LÓGICA
+// ══════════════════════════════════════════════════════
+const RF_SERVICOS = [
+  'ADMINISTRAÇÃO LOCAL','BARREIRAS DE CONCRETO','BUEIRO','CANTEIRO DE OBRA',
+  'CONSERVAÇÃO ROTINEIRA','DRENAGEM','ESCAVAÇÃO','ESCAVAÇÃO - OAE','ESCORAMENTO',
+  'GALERIA DE ÁGUAS PLUVIAIS/DRENAGEM URBANA','INFRA - ESTRUTURA','INSTALAÇÃO DE CANTEIRO',
+  'MESO -ESTRUTURA','MOBILIZAÇÃO DE EQUIPAMENTOS','MOBILIZAÇÃO E DESMOBILIZAÇÃO',
+  'OBRAS COMPLEMENTARES','OBRAS DE ARTE CORRENTES','PAVIMENTAÇÃO','PAVIMENTAÇÃO URBANA',
+  'PROTENSÃO','REVESTIMENTO ASFALTICO','SERVIÇOS COMPLEMENTARES','SERVIÇOS DIVERSOS',
+  'SERVIÇOS PRELIMINARES OAE','SINALIZAÇÃO','SUPER-ESTRUTURA'
+];
+
+let rfFotos = [];
+let rfCurrentStep = 0;
+
+function rfGoStep(n) {
+  if (n === 2) rfBuildResumo();
+  document.querySelectorAll('.rf-section').forEach((s, i) => {
+    s.style.display = i === n ? 'block' : 'none';
+  });
+  document.querySelectorAll('[id^="rfStepTab"]').forEach((t, i) => {
+    t.style.color = i === n ? '#fff' : 'rgba(255,255,255,.5)';
+    t.style.borderBottomColor = i === n ? '#FFD600' : 'transparent';
+  });
+  rfCurrentStep = n;
+}
+
+function rfReadEXIF(file) {
+  return new Promise(resolve => {
+    const reader = new FileReader();
+    reader.onload = function(e) {
+      const view = new DataView(e.target.result);
+      const result = { lat: null, lon: null, datetime: null };
+      if (view.getUint16(0) !== 0xFFD8) { resolve(result); return; }
+      let offset = 2;
+      while (offset < view.byteLength - 2) {
+        const marker = view.getUint16(offset);
+        if (marker === 0xFFE1) {
+          const exifLen = view.getUint16(offset + 2);
+          const exifData = new DataView(e.target.result, offset + 4, exifLen - 2);
+          try { Object.assign(result, rfParseEXIF(exifData)); } catch(e) {}
+          break;
+        }
+        if (marker === 0xFFDA) break;
+        const len = view.getUint16(offset + 2);
+        offset += 2 + len;
+      }
+      resolve(result);
+    };
+    reader.readAsArrayBuffer(file.slice(0, 128 * 1024));
+  });
+}
+
+function rfParseEXIF(view) {
+  const result = { lat: null, lon: null, datetime: null };
+  if (view.byteLength < 6) return result;
+  const header = String.fromCharCode(view.getUint8(0),view.getUint8(1),view.getUint8(2),view.getUint8(3));
+  if (header !== 'Exif') return result;
+  const tiffStart = 6;
+  const endian = view.getUint16(tiffStart);
+  const le = endian === 0x4949;
+  const get16 = o => view.getUint16(tiffStart + o, le);
+  const get32 = o => view.getUint32(tiffStart + o, le);
+  if (get16(4) !== 0x002A) return result;
+  let ifdOffset = get32(6);
+  function readIFD(offset) {
+    const tags = {}; const n = get16(offset);
+    for (let i = 0; i < n; i++) {
+      const o = offset + 2 + i * 12; const tag = get16(o);
+      tags[tag] = { type: get16(o+2), count: get32(o+4), valOff: o+8 };
+    }
+    return tags;
+  }
+  function readRational(o) { const n=get32(o),d=get32(o+4); return d===0?0:n/d; }
+  function dmsToDecimal(o, ref) {
+    let dec = readRational(o) + readRational(o+8)/60 + readRational(o+16)/3600;
+    if (ref==='S'||ref==='W') dec=-dec; return dec;
+  }
+  function readAscii(o, count) {
+    let s=''; for(let i=0;i<count-1;i++) s+=String.fromCharCode(view.getUint8(tiffStart+o+i)); return s;
+  }
+  try {
+    const ifd0 = readIFD(ifdOffset);
+    if (ifd0[0x0132]) {
+      const t = ifd0[0x0132]; const offset = t.count<=4?t.valOff:get32(t.valOff);
+      result.datetime = readAscii(offset, t.count);
+    }
+    if (ifd0[0x8825]) {
+      const gpsOff = get32(ifd0[0x8825].valOff); const gps = readIFD(gpsOff);
+      let latRef='N', lonRef='E';
+      if (gps[0x0001]) { const o=gps[0x0001].count<=4?gps[0x0001].valOff:get32(gps[0x0001].valOff); latRef=String.fromCharCode(view.getUint8(tiffStart+o)); }
+      if (gps[0x0003]) { const o=gps[0x0003].count<=4?gps[0x0003].valOff:get32(gps[0x0003].valOff); lonRef=String.fromCharCode(view.getUint8(tiffStart+o)); }
+      if (gps[0x0002]) { result.lat = dmsToDecimal(get32(gps[0x0002].valOff), latRef).toFixed(6); }
+      if (gps[0x0004]) { result.lon = dmsToDecimal(get32(gps[0x0004].valOff), lonRef).toFixed(6); }
+    }
+  } catch(e) {}
+  return result;
+}
+
+async function rfHandleFotos(input) {
+  const dia = document.getElementById('rf-diaAtual').value;
+  if (!dia) { alert('Selecione o dia antes de adicionar as fotos!'); input.value=''; return; }
+  for (const file of Array.from(input.files)) {
+    const exif = await rfReadEXIF(file);
+    rfFotos.push({ id: Date.now()+Math.random(), dia: parseInt(dia), nome: file.name,
+      thumb: URL.createObjectURL(file), lat: exif.lat, lon: exif.lon,
+      datetime: exif.datetime, tipo:'', estaca:'', legenda:'', obs:'' });
+  }
+  input.value = ''; rfRenderFotos();
+}
+
+function rfRenderFotos() {
+  const container = document.getElementById('rf-listaFotos');
+  document.getElementById('rf-emptyFotos').style.display = rfFotos.length ? 'none' : 'block';
+  document.getElementById('rf-btnAvancar').style.display = rfFotos.length ? 'block' : 'none';
+  container.querySelectorAll('.rf-foto-item,.rf-dia-header').forEach(e => e.remove());
+  const dias = [...new Set(rfFotos.map(f => f.dia))].sort((a,b)=>a-b);
+  dias.forEach(dia => {
+    const h = document.createElement('div');
+    h.className = 'rf-dia-header';
+    h.style.cssText = 'font-size:13px;font-weight:700;color:#003366;padding:8px 0 4px';
+    h.innerHTML = `📅 Dia ${dia} <span style="background:#FFD600;color:#333;border-radius:20px;padding:2px 8px;font-size:11px;margin-left:6px">${rfFotos.filter(f=>f.dia===dia).length} foto(s)</span>`;
+    container.appendChild(h);
+    rfFotos.filter(f=>f.dia===dia).forEach((foto, idx) => {
+      const gpsOk = foto.lat && foto.lon;
+      const div = document.createElement('div');
+      div.className = 'rf-foto-item';
+      div.style.cssText = 'background:#F9FAFB;border:1px solid #E5E9EF;border-radius:10px;padding:12px;margin-bottom:10px';
+      div.innerHTML = `
+        <div style="display:flex;gap:10px;align-items:flex-start;margin-bottom:10px">
+          <img src="${foto.thumb}" style="width:60px;height:60px;object-fit:cover;border-radius:8px;flex-shrink:0;border:2px solid #E3F2FD">
+          <div style="flex:1">
+            <div style="display:flex;justify-content:space-between">
+              <div>
+                <span style="background:#1565C0;color:#fff;border-radius:20px;padding:2px 8px;font-size:11px;font-weight:700">Foto ${idx+1}</span>
+                <div style="font-size:12px;font-weight:700;color:#003366;margin-top:4px;word-break:break-all">${foto.nome}</div>
+              </div>
+              <button onclick="rfDeleteFoto('${foto.id}')" style="background:none;border:none;color:#EF5350;font-size:18px;cursor:pointer;padding:0 4px">✕</button>
+            </div>
+            <div style="font-size:11px;margin-top:2px;color:${gpsOk?'#4CAF50':'#F44336'}">${gpsOk?'📍 '+foto.lat+', '+foto.lon:'⚠️ GPS não encontrado'}</div>
+            ${foto.datetime?`<div style="font-size:11px;color:#78909C">🕐 ${foto.datetime}</div>`:''}
+          </div>
+        </div>
+        <div class="field"><label>Tipo de Serviço *</label>
+          <select onchange="rfUpdateFoto('${foto.id}','tipo',this.value)">
+            <option value="">-- Selecione --</option>
+            ${RF_SERVICOS.map(s=>`<option value="${s}" ${s===foto.tipo?'selected':''}>${s}</option>`).join('')}
+          </select>
+        </div>
+        <div class="grid2">
+          <div class="field"><label>Estaca</label><input type="text" value="${foto.estaca}" placeholder="Ex: 120+5" onchange="rfUpdateFoto('${foto.id}','estaca',this.value)"></div>
+          ${!gpsOk?`<div class="field"><label>Lat / Lon manual</label><input type="text" value="${foto.lat||''}" placeholder="-16.5109, -49.4198" onchange="rfSetLatLon('${foto.id}',this.value)"></div>`:'<div></div>'}
+        </div>
+        <div class="field"><label>Legenda *</label><textarea rows="2" onchange="rfUpdateFoto('${foto.id}','legenda',this.value)">${foto.legenda}</textarea></div>
+        <div class="field"><label>Observações</label><input type="text" value="${foto.obs}" placeholder="Não conformidade, alerta..." onchange="rfUpdateFoto('${foto.id}','obs',this.value)"></div>
+      `;
+      container.appendChild(div);
+    });
+  });
+}
+
+function rfUpdateFoto(id, field, value) { const f=rfFotos.find(f=>String(f.id)===String(id)); if(f) f[field]=value; }
+function rfSetLatLon(id, value) {
+  const parts = value.split(','); const f=rfFotos.find(f=>String(f.id)===String(id));
+  if(f&&parts.length>=2){f.lat=parts[0].trim();f.lon=parts[1].trim();}
+}
+function rfDeleteFoto(id) { rfFotos=rfFotos.filter(f=>String(f.id)!==String(id)); rfRenderFotos(); }
+
+function rfBuildResumo() {
+  const obra=document.getElementById('rf-obra').value||'(não informado)';
+  const mes=document.getElementById('rf-mes').value||'(não informado)';
+  const ano=document.getElementById('rf-ano').value||'';
+  const dias=[...new Set(rfFotos.map(f=>f.dia))].sort((a,b)=>a-b);
+  const semGps=rfFotos.filter(f=>!f.lat||!f.lon).length;
+  const semTipo=rfFotos.filter(f=>!f.tipo).length;
+  let html=`<div style="font-size:14px;font-weight:600;margin-bottom:12px">📊 Resumo</div>
+    <div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid #F0F4F8;font-size:13px"><span style="color:#6B7A8D">Obra</span><span style="font-weight:700">${obra}</span></div>
+    <div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid #F0F4F8;font-size:13px"><span style="color:#6B7A8D">Período</span><span style="font-weight:700">${mes}/${ano}</span></div>
+    <div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid #F0F4F8;font-size:13px"><span style="color:#6B7A8D">Total de fotos</span><span style="font-weight:700">${rfFotos.length}</span></div>
+    <div style="display:flex;justify-content:space-between;padding:8px 0;font-size:13px"><span style="color:#6B7A8D">Dias registrados</span><span style="font-weight:700">${dias.join(', ')}</span></div>`;
+  if (semGps>0||semTipo>0) {
+    html+=`<div style="background:#FFF8E1;color:#F57F17;border-left:4px solid #FFB300;padding:10px;border-radius:8px;font-size:13px;margin-top:12px">⚠️ ${semGps>0?semGps+' foto(s) sem GPS. ':''} ${semTipo>0?semTipo+' foto(s) sem tipo de serviço.':''}</div>`;
+  } else {
+    html+=`<div style="background:#E8F5E9;color:#2E7D32;border-left:4px solid #4CAF50;padding:10px;border-radius:8px;font-size:13px;margin-top:12px">✅ Todas as fotos estão completas!</div>`;
+  }
+  document.getElementById('rf-resumoContent').innerHTML=html;
+}
+
+function rfExportarXLSX() {
+  if (!rfFotos.length) { alert('Adicione fotos antes de exportar!'); return; }
+  const wb=XLSX.utils.book_new();
+  const obra=document.getElementById('rf-obra').value||'';
+  const exec=document.getElementById('rf-executora').value||'';
+  const sup=document.getElementById('rf-supervisora').value||'';
+  const cont=document.getElementById('rf-contrato').value||'';
+  const med=document.getElementById('rf-medicao').value||'';
+  const mes=document.getElementById('rf-mes').value||'';
+  const ano=document.getElementById('rf-ano').value||'';
+  const dias=[...new Set(rfFotos.map(f=>f.dia))].sort((a,b)=>a-b);
+
+  const regData=[
+    ['ESTADO DE GOIÁS — AGÊNCIA GOIANA DE INFRAESTRUTURA E TRANSPORTES'],
+    ['RELATÓRIO FOTOGRÁFICO — REGISTRO MENSAL'],[],
+    ['Obra:',obra,'','Executora:',exec],
+    ['Supervisora:',sup,'','Contrato:',cont],
+    ['Medição Nº:',med,'','Mês/Ano:',`${mes}/${ano}`],[],
+    ['DIA','Nº FOTO','TIPO DE SERVIÇO','ESTACA','LATITUDE','LONGITUDE','LEGENDA','NOME DO ARQUIVO','OBS','DATA/HORA FOTO']
+  ];
+  dias.forEach(dia => {
+    rfFotos.filter(f=>f.dia===dia).forEach((f,i) => {
+      regData.push([dia,i+1,f.tipo,f.estaca,f.lat?parseFloat(f.lat):'',f.lon?parseFloat(f.lon):'',f.legenda,f.nome,f.obs,f.datetime||'']);
+    });
+  });
+  const wsReg=XLSX.utils.aoa_to_sheet(regData);
+  wsReg['!cols']=[{wch:6},{wch:8},{wch:34},{wch:12},{wch:14},{wch:14},{wch:40},{wch:30},{wch:25},{wch:20}];
+  wsReg['!merges']=[{s:{r:0,c:0},e:{r:0,c:9}},{s:{r:1,c:0},e:{r:1,c:9}}];
+  XLSX.utils.book_append_sheet(wb,wsReg,'REGISTRO');
+
+  dias.forEach(dia => {
+    const fotosDia=rfFotos.filter(f=>f.dia===dia);
+    const sheetData=[
+      ['ESTADO DE GOIÁS — AGÊNCIA GOIANA DE INFRAESTRUTURA E TRANSPORTES'],
+      ['Obra:',obra,'','','DATA:',`${dia}-${mes}-${ano}`],
+      ['Executora:',exec,'','Contrato:',cont],
+      ['Supervisora:',sup,'','Medição Nº:',med],[],
+      ['Nº','TIPO DE SERVIÇO','ESTACA','LATITUDE','LONGITUDE','LEGENDA','ARQUIVO','OBS'],
+    ];
+    fotosDia.forEach((f,i) => sheetData.push([i+1,f.tipo,f.estaca,f.lat?parseFloat(f.lat):'',f.lon?parseFloat(f.lon):'',f.legenda,f.nome,f.obs]));
+    const ws=XLSX.utils.aoa_to_sheet(sheetData);
+    ws['!cols']=[{wch:5},{wch:34},{wch:12},{wch:14},{wch:14},{wch:40},{wch:28},{wch:25}];
+    ws['!merges']=[{s:{r:0,c:0},e:{r:0,c:7}}];
+    XLSX.utils.book_append_sheet(wb,ws,String(dia).padStart(2,'0'));
+  });
+
+  XLSX.writeFile(wb,`RelFoto_${obra.replace(/\s+/g,'_').substring(0,20)}_${mes}${ano}.xlsx`);
+}
+
+function rfNovoRelatorio() {
+  if (!confirm('Isso vai apagar todas as fotos e dados. Confirma?')) return;
+  rfFotos=[];
+  ['rf-obra','rf-executora','rf-supervisora','rf-contrato','rf-medicao'].forEach(id=>document.getElementById(id).value='');
+  document.getElementById('rf-mes').value='';
+  rfRenderFotos(); rfGoStep(0);
+}
+</script>
 
 </main>
 </div>

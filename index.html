@@ -1970,14 +1970,28 @@ async function enviarEpiIndividual() {
   const data = await res.json();
 
   if (data.ok) {
+    const cel = epiFuncSel?.celular || '';
+    const celNum = cel.replace(/\D/g,'');
+    const celIntl = celNum.startsWith('55') ? celNum : '55' + celNum;
+    const primeiroNome = (data.nome || '').split(' ')[0];
+    const msgWpp = encodeURIComponent(
+      `Olá ${primeiroNome}, segue o link para assinatura da sua Ficha de EPI:\n${data.link}`
+    );
+    const wppUrl = `https://wa.me/${celIntl}?text=${msgWpp}`;
+    const btnWpp = celNum
+      ? `<a href="${wppUrl}" target="_blank" class="btn btn-primary" style="justify-content:center;text-decoration:none;display:flex;align-items:center;gap:6px;margin-top:8px">
+           <i class="ti ti-brand-whatsapp"></i>Enviar pelo WhatsApp
+         </a>`
+      : `<div style="font-size:11px;color:var(--texto2);margin-top:8px"><i class="ti ti-alert-circle"></i> Sem celular cadastrado para enviar pelo WhatsApp.</div>`;
     document.getElementById('epi-ind-resultado').innerHTML = `
       <div class="card" style="margin-top:8px;border-left:4px solid var(--verde)">
-        <div style="font-size:13px;font-weight:600;margin-bottom:8px">Enviado com sucesso!</div>
+        <div style="font-size:13px;font-weight:600;margin-bottom:8px">Ficha gerada com sucesso!</div>
         <div style="font-size:12px;color:var(--texto2);margin-bottom:8px">Link para <strong>${data.nome}</strong>:</div>
         <div class="link-box">
           <input type="text" value="${data.link}" readonly>
           <button class="btn btn-primary btn-sm" onclick="copiar('${data.link}',this)"><i class="ti ti-copy"></i>Copiar</button>
         </div>
+        ${btnWpp}
       </div>`;
   } else {
     document.getElementById('epi-ind-resultado').innerHTML =

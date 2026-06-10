@@ -27,7 +27,7 @@ body { font-family: 'Inter', sans-serif; background: var(--fundo); color: var(--
 /* ── Layout ── */
 .layout { display: flex; min-height: 100vh; }
 .sidebar { width: var(--sidebar-w); background: #0F1923; position: fixed; top:0; left:0; height:100vh; display:flex; flex-direction:column; z-index:100; }
-.main { margin-left: var(--sidebar-w); flex:1; padding: 24px; min-height:100vh; }
+.main { margin-left: var(--sidebar-w); flex:1; padding: 24px; min-height:100vh; overflow-y:auto; height:100vh; }
 
 /* ── Sidebar ── */
 .sb-logo { padding: 20px 16px 16px; border-bottom: 1px solid #1E2D3D; }
@@ -1407,7 +1407,8 @@ function irPara(aba) {
   if (aba==='diario-obra')   doInit();
   if (aba==='admin')         carregarAdmin();
   // Scroll para o topo e fecha sidebar mobile
-  document.querySelector('main.main')?.scrollTo(0, 0);
+  const mainEl = document.querySelector('main.main');
+  if (mainEl) mainEl.scrollTop = 0;
   window.scrollTo(0, 0);
   document.getElementById('sidebar').classList.remove('open');
 }

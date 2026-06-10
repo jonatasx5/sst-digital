@@ -10,4 +10,4 @@ pypdf==4.3.1
 beautifulsoup4==4.12.3
 python-jose[cryptography]==3.3.0
 passlib==1.7.4
-bcrypt==4.0.1
+bcrypt==3.2.2

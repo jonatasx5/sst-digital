@@ -2163,14 +2163,21 @@ function histRenderTabela(dados) {
     const assinadoEm = e.assinado_em ? _fmtDt(e.assinado_em) : '—';
     const assinado   = e.status === 'signed';
 
-    const celular = (e.celular||'').replace(/\D/g,'');
+    const celular = (e.celular||'').replace(/\D/g,'').replace(/^55/,'');
     const btnWhatsApp = e.link_assinatura
-      ? `<button onclick="histAbrirWhatsApp(${e.id}, '${(e.link_assinatura||'').replace(/'/g,"\\'")}', '${celular}', '${(e.funcionario||'').replace(/'/g,"\\'")}', '${(e.doc_nome||'').replace(/'/g,"\\'")}', this)"
-           style="display:inline-flex;align-items:center;gap:4px;padding:4px 10px;border-radius:6px;
-                  background:#f0fdf4;color:#16a34a;border:1px solid #86efac;
-                  cursor:pointer;font-size:12px;font-weight:600;white-space:nowrap;" title="Enviar pelo WhatsApp">
-           <i class="ti ti-brand-whatsapp" style="font-size:14px;"></i> WhatsApp
-         </button>` : '';
+      ? `<div style="display:flex;align-items:center;gap:4px;">
+           <input id="hist-cel-${e.id}" type="tel" value="${celular}"
+             placeholder="DDD + número"
+             style="width:130px;padding:4px 8px;border:1px solid var(--borda);border-radius:6px;
+                    font-size:12px;background:var(--fundo);color:var(--texto);"
+             title="Edite o número antes de enviar">
+           <button onclick="histAbrirWhatsApp(${e.id}, '${(e.link_assinatura||'').replace(/'/g,"\\'")}', document.getElementById('hist-cel-${e.id}').value, '${(e.funcionario||'').replace(/'/g,"\\'")}', '${(e.doc_nome||'').replace(/'/g,"\\'")}', this)"
+              style="display:inline-flex;align-items:center;gap:4px;padding:4px 10px;border-radius:6px;
+                     background:#f0fdf4;color:#16a34a;border:1px solid #86efac;
+                     cursor:pointer;font-size:12px;font-weight:600;white-space:nowrap;" title="Enviar pelo WhatsApp">
+              <i class="ti ti-brand-whatsapp" style="font-size:14px;"></i> WhatsApp
+           </button>
+         </div>` : '';
 
     const btnCopiar = e.link_assinatura
       ? `<button onclick="histCopiarLink('${e.link_assinatura}', this)"

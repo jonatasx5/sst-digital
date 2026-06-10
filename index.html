@@ -1394,7 +1394,9 @@ function irPara(aba) {
   if (aba==='historico')     carregarHistorico();
   if (aba==='diario-obra')   doInit();
   if (aba==='admin')         carregarAdmin();
-  // Fecha sidebar mobile
+  // Scroll para o topo e fecha sidebar mobile
+  document.querySelector('main.main')?.scrollTo(0, 0);
+  window.scrollTo(0, 0);
   document.getElementById('sidebar').classList.remove('open');
 }
 

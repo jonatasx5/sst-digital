@@ -2745,8 +2745,7 @@ function _fmtDt(val) {
 // ══════════════════════════════════════════════════════
 //  MODAIS
 // ══════════════════════════════════════════════════════
-function abrirModal(id) { document.getElementById(id).classList.add('open'); }
-function fecharModal(id) { document.getElementById(id).classList.remove('open'); }
+// abrirModal/fecharModal definidos acima (linha ~1318)
 
 document.querySelectorAll('.modal-bg').forEach(m => {
   m.addEventListener('click', e => { if(e.target===m) m.classList.remove('open'); });

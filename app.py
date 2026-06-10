@@ -7,14 +7,16 @@ from fastapi import FastAPI, UploadFile, File, Form, HTTPException, Request, Dep
 from fastapi.responses import HTMLResponse, JSONResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.security import HTTPBasic, HTTPBasicCredentials
-import secrets
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 import uvicorn
 import os
 import json
 import shutil
 import tempfile
-from datetime import datetime
+from datetime import datetime, timedelta
+
+from jose import JWTError, jwt
+from passlib.context import CryptContext
 
 import banco
 import processador
@@ -24,6 +26,9 @@ from config import DOCUMENTOS, APP_PASSWORD, EMPRESA
 app = FastAPI(title="SST Digital")
 
 ALLOWED_ORIGINS = os.environ.get("ALLOWED_ORIGINS", "*").split(",")
+JWT_SECRET  = os.environ.get("JWT_SECRET", "sst-digital-secret-change-in-prod")
+JWT_ALGO    = "HS256"
+JWT_EXPIRY  = 8  # horas
 
 app.add_middleware(
     CORSMiddleware,
@@ -32,29 +37,144 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-security = HTTPBasic(auto_error=False)
+pwd_ctx    = CryptContext(schemes=["bcrypt"], deprecated="auto")
+bearer_sec = HTTPBearer(auto_error=False)
 
-def verificar_acesso(credentials: HTTPBasicCredentials = Depends(security)):
-    """Verifica senha de acesso se APP_PASSWORD estiver configurada."""
-    if not APP_PASSWORD:
-        return  # Sem senha configurada, acesso liberado
-    if credentials is None:
-        raise HTTPException(status_code=401, detail="Autenticação necessária",
-                            headers={"WWW-Authenticate": "Basic"})
-    senha_correta = secrets.compare_digest(credentials.password.encode(), APP_PASSWORD.encode())
-    if not senha_correta:
-        raise HTTPException(status_code=401, detail="Senha incorreta",
-                            headers={"WWW-Authenticate": "Basic"})
+
+def _criar_token(uid: int, perfil: str, permissoes: list) -> str:
+    exp = datetime.utcnow() + timedelta(hours=JWT_EXPIRY)
+    return jwt.encode({"sub": str(uid), "perfil": perfil,
+                       "permissoes": permissoes, "exp": exp}, JWT_SECRET, algorithm=JWT_ALGO)
+
+
+def verificar_acesso(creds: HTTPAuthorizationCredentials = Depends(bearer_sec)):
+    """Valida JWT. Retorna payload do token."""
+    if creds is None:
+        raise HTTPException(401, "Token não fornecido")
+    try:
+        payload = jwt.decode(creds.credentials, JWT_SECRET, algorithms=[JWT_ALGO])
+        return payload
+    except JWTError:
+        raise HTTPException(401, "Token inválido ou expirado")
+
+
+def exigir_admin(payload=Depends(verificar_acesso)):
+    if payload.get("perfil") != "admin":
+        raise HTTPException(403, "Acesso restrito a administradores")
+    return payload
+
+
+def _garantir_admin_inicial():
+    """Cria o usuário admin padrão se não existir nenhum admin."""
+    if banco.contar_admins() == 0:
+        login_padrao = os.environ.get("ADMIN_LOGIN", "admin")
+        senha_padrao = os.environ.get("ADMIN_SENHA", "admin123")
+        banco.criar_usuario(
+            nome="Administrador",
+            login=login_padrao,
+            senha_hash=pwd_ctx.hash(senha_padrao),
+            perfil="admin",
+            permissoes=["*"]
+        )
+        print(f"Admin inicial criado: login={login_padrao}")
+
 
 # Cria banco na inicialização
 banco.criar_banco()
+_garantir_admin_inicial()
+
+# ══════════════════════════════════════════════════════════
+#  AUTH
+# ══════════════════════════════════════════════════════════
+
+@app.post("/api/auth/login")
+async def login(dados: dict):
+    login_str = dados.get("login", "").strip()
+    senha     = dados.get("senha", "")
+    usuario   = banco.buscar_usuario_por_login(login_str)
+    if not usuario or not pwd_ctx.verify(senha, usuario["senha_hash"]):
+        raise HTTPException(401, "Usuário ou senha incorretos")
+    import json as _json
+    perms = usuario.get("permissoes", "[]")
+    if isinstance(perms, str):
+        perms = _json.loads(perms)
+    token = _criar_token(usuario["id"], usuario["perfil"], perms)
+    return {
+        "token":      token,
+        "id":         usuario["id"],
+        "nome":       usuario["nome"],
+        "perfil":     usuario["perfil"],
+        "permissoes": perms,
+    }
+
+
+@app.get("/api/auth/me")
+async def me(payload=Depends(verificar_acesso)):
+    return payload
+
+
+# ══════════════════════════════════════════════════════════
+#  USUÁRIOS (admin)
+# ══════════════════════════════════════════════════════════
+
+@app.get("/api/usuarios")
+async def listar_usuarios(_=Depends(exigir_admin)):
+    import json as _json
+    rows = banco.listar_usuarios()
+    for r in rows:
+        if isinstance(r.get("permissoes"), str):
+            r["permissoes"] = _json.loads(r["permissoes"])
+    return rows
+
+
+@app.post("/api/usuarios")
+async def criar_usuario(dados: dict, _=Depends(exigir_admin)):
+    if not dados.get("login") or not dados.get("senha"):
+        raise HTTPException(400, "login e senha são obrigatórios")
+    if banco.buscar_usuario_por_login(dados["login"]):
+        raise HTTPException(400, "Login já existe")
+    uid = banco.criar_usuario(
+        nome=dados.get("nome", dados["login"]),
+        login=dados["login"],
+        senha_hash=pwd_ctx.hash(dados["senha"]),
+        perfil=dados.get("perfil", "usuario"),
+        permissoes=dados.get("permissoes", [])
+    )
+    return {"ok": True, "id": uid}
+
+
+@app.put("/api/usuarios/{uid}")
+async def atualizar_usuario(uid: int, dados: dict, _=Depends(exigir_admin)):
+    usuario = banco.buscar_usuario_por_id(uid)
+    if not usuario:
+        raise HTTPException(404, "Usuário não encontrado")
+    update = {
+        "nome":       dados.get("nome", usuario["nome"]),
+        "login":      dados.get("login", usuario["login"]),
+        "perfil":     dados.get("perfil", usuario["perfil"]),
+        "permissoes": dados.get("permissoes", []),
+        "ativo":      dados.get("ativo", usuario["ativo"]),
+    }
+    if dados.get("senha"):
+        update["senha_hash"] = pwd_ctx.hash(dados["senha"])
+    banco.atualizar_usuario(uid, update)
+    return {"ok": True}
+
+
+@app.delete("/api/usuarios/{uid}")
+async def deletar_usuario(uid: int, payload=Depends(exigir_admin)):
+    if uid == int(payload["sub"]):
+        raise HTTPException(400, "Não é possível excluir seu próprio usuário")
+    banco.deletar_usuario(uid)
+    return {"ok": True}
+
 
 # ══════════════════════════════════════════════════════════
 #  ROTA PRINCIPAL — serve o HTML
 # ══════════════════════════════════════════════════════════
 
 @app.get("/", response_class=HTMLResponse)
-async def index(_=Depends(verificar_acesso)):
+async def index():
     with open(os.path.join(os.path.dirname(__file__), "index.html"), "r", encoding="utf-8") as f:
         return f.read()
 

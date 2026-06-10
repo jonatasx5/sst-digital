@@ -245,6 +245,32 @@ def criar_banco():
                 atualizado_em TEXT DEFAULT (datetime('now','localtime')))""")
         conn.commit()
 
+        # Tabela usuarios
+        if USE_POSTGRES:
+            cur.execute("""
+                CREATE TABLE IF NOT EXISTS usuarios (
+                    id SERIAL PRIMARY KEY,
+                    nome TEXT NOT NULL,
+                    login TEXT NOT NULL UNIQUE,
+                    senha_hash TEXT NOT NULL,
+                    perfil TEXT NOT NULL DEFAULT 'usuario',
+                    permissoes TEXT NOT NULL DEFAULT '[]',
+                    ativo INTEGER NOT NULL DEFAULT 1,
+                    criado_em TIMESTAMP DEFAULT NOW()
+                )
+            """)
+        else:
+            cur.execute("""CREATE TABLE IF NOT EXISTS usuarios (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                nome TEXT NOT NULL,
+                login TEXT NOT NULL UNIQUE,
+                senha_hash TEXT NOT NULL,
+                perfil TEXT NOT NULL DEFAULT 'usuario',
+                permissoes TEXT NOT NULL DEFAULT '[]',
+                ativo INTEGER NOT NULL DEFAULT 1,
+                criado_em TEXT DEFAULT (datetime('now','localtime')))""")
+        conn.commit()
+
         print(f"OK Banco criado ({'PostgreSQL' if USE_POSTGRES else 'SQLite'})")
     finally:
         conn.close()
@@ -858,6 +884,143 @@ def deletar_modelo(doc_id: str, cargo: str = None):
             else:
                 cur.execute("DELETE FROM modelos WHERE id=? AND cargo=?", (doc_id, cargo))
         conn.commit()
+    finally:
+        conn.close()
+
+
+# ── USUÁRIOS ──────────────────────────────────────────────
+
+def criar_usuario(nome: str, login: str, senha_hash: str, perfil: str = "usuario", permissoes: list = None) -> int:
+    import json
+    perms = json.dumps(permissoes or [])
+    conn = conectar()
+    try:
+        if USE_POSTGRES:
+            cur = conn.cursor(cursor_factory=_psycopg2_extras.RealDictCursor)
+            cur.execute(
+                "INSERT INTO usuarios (nome,login,senha_hash,perfil,permissoes) VALUES (%s,%s,%s,%s,%s) RETURNING id",
+                (nome, login, senha_hash, perfil, perms)
+            )
+            uid = cur.fetchone()["id"]
+        else:
+            cur = conn.cursor()
+            cur.execute(
+                "INSERT INTO usuarios (nome,login,senha_hash,perfil,permissoes) VALUES (?,?,?,?,?)",
+                (nome, login, senha_hash, perfil, perms)
+            )
+            uid = cur.lastrowid
+        conn.commit()
+        return uid
+    finally:
+        conn.close()
+
+
+def buscar_usuario_por_login(login: str) -> dict | None:
+    conn = conectar()
+    try:
+        if USE_POSTGRES:
+            cur = conn.cursor(cursor_factory=_psycopg2_extras.RealDictCursor)
+            cur.execute("SELECT * FROM usuarios WHERE login=%s AND ativo=1", (login,))
+        else:
+            cur = conn.cursor()
+            cur.execute("SELECT * FROM usuarios WHERE login=? AND ativo=1", (login,))
+        row = cur.fetchone()
+        return dict(row) if row else None
+    finally:
+        conn.close()
+
+
+def buscar_usuario_por_id(uid: int) -> dict | None:
+    conn = conectar()
+    try:
+        if USE_POSTGRES:
+            cur = conn.cursor(cursor_factory=_psycopg2_extras.RealDictCursor)
+            cur.execute("SELECT * FROM usuarios WHERE id=%s", (uid,))
+        else:
+            cur = conn.cursor()
+            cur.execute("SELECT * FROM usuarios WHERE id=?", (uid,))
+        row = cur.fetchone()
+        return dict(row) if row else None
+    finally:
+        conn.close()
+
+
+def listar_usuarios() -> list:
+    conn = conectar()
+    try:
+        if USE_POSTGRES:
+            cur = conn.cursor(cursor_factory=_psycopg2_extras.RealDictCursor)
+            cur.execute("SELECT id,nome,login,perfil,permissoes,ativo,criado_em FROM usuarios ORDER BY nome")
+        else:
+            cur = conn.cursor()
+            cur.execute("SELECT id,nome,login,perfil,permissoes,ativo,criado_em FROM usuarios ORDER BY nome")
+        return [dict(r) for r in cur.fetchall()]
+    finally:
+        conn.close()
+
+
+def atualizar_usuario(uid: int, dados: dict):
+    import json
+    conn = conectar()
+    try:
+        if USE_POSTGRES:
+            cur = conn.cursor()
+            if "senha_hash" in dados:
+                cur.execute(
+                    "UPDATE usuarios SET nome=%s,login=%s,senha_hash=%s,perfil=%s,permissoes=%s,ativo=%s WHERE id=%s",
+                    (dados["nome"], dados["login"], dados["senha_hash"],
+                     dados["perfil"], json.dumps(dados.get("permissoes", [])), dados.get("ativo", 1), uid)
+                )
+            else:
+                cur.execute(
+                    "UPDATE usuarios SET nome=%s,login=%s,perfil=%s,permissoes=%s,ativo=%s WHERE id=%s",
+                    (dados["nome"], dados["login"], dados["perfil"],
+                     json.dumps(dados.get("permissoes", [])), dados.get("ativo", 1), uid)
+                )
+        else:
+            cur = conn.cursor()
+            if "senha_hash" in dados:
+                cur.execute(
+                    "UPDATE usuarios SET nome=?,login=?,senha_hash=?,perfil=?,permissoes=?,ativo=? WHERE id=?",
+                    (dados["nome"], dados["login"], dados["senha_hash"],
+                     dados["perfil"], json.dumps(dados.get("permissoes", [])), dados.get("ativo", 1), uid)
+                )
+            else:
+                cur.execute(
+                    "UPDATE usuarios SET nome=?,login=?,perfil=?,permissoes=?,ativo=? WHERE id=?",
+                    (dados["nome"], dados["login"], dados["perfil"],
+                     json.dumps(dados.get("permissoes", [])), dados.get("ativo", 1), uid)
+                )
+        conn.commit()
+    finally:
+        conn.close()
+
+
+def deletar_usuario(uid: int):
+    conn = conectar()
+    try:
+        if USE_POSTGRES:
+            cur = conn.cursor()
+            cur.execute("DELETE FROM usuarios WHERE id=%s", (uid,))
+        else:
+            cur = conn.cursor()
+            cur.execute("DELETE FROM usuarios WHERE id=?", (uid,))
+        conn.commit()
+    finally:
+        conn.close()
+
+
+def contar_admins() -> int:
+    conn = conectar()
+    try:
+        if USE_POSTGRES:
+            cur = conn.cursor()
+            cur.execute("SELECT COUNT(*) FROM usuarios WHERE perfil='admin' AND ativo=1")
+        else:
+            cur = conn.cursor()
+            cur.execute("SELECT COUNT(*) FROM usuarios WHERE perfil='admin' AND ativo=1")
+        row = cur.fetchone()
+        return row[0] if row else 0
     finally:
         conn.close()
 

@@ -170,26 +170,69 @@ tr:hover td { background:#F9FAFB; }
 </head>
 <body>
 
+<!-- ═══ TELA DE LOGIN ═══ -->
+<div id="tela-login" style="display:none;position:fixed;inset:0;background:var(--fundo);z-index:9999;
+     align-items:center;justify-content:center;">
+  <div style="background:var(--card);border-radius:16px;padding:40px 36px;width:100%;max-width:380px;
+              box-shadow:0 8px 40px rgba(0,0,0,.12);">
+    <div style="text-align:center;margin-bottom:28px;">
+      <div style="font-size:36px;margin-bottom:8px;">🛡️</div>
+      <div style="font-size:20px;font-weight:700;color:var(--texto);">SST Digital</div>
+      <div style="font-size:13px;color:var(--texto2);margin-top:4px;">Faça login para continuar</div>
+    </div>
+    <div id="login-erro" style="display:none;background:#fef2f2;border:1px solid #fca5a5;border-radius:8px;
+         padding:10px 14px;font-size:13px;color:#dc2626;margin-bottom:16px;"></div>
+    <div class="field">
+      <label>Usuário</label>
+      <input type="text" id="login-input" placeholder="seu login" autocomplete="username"
+             onkeydown="if(event.key==='Enter')document.getElementById('senha-input').focus()"
+             style="width:100%;padding:10px 12px;border:1.5px solid var(--borda);border-radius:8px;font-size:14px;">
+    </div>
+    <div class="field" style="margin-top:12px;">
+      <label>Senha</label>
+      <input type="password" id="senha-input" placeholder="••••••••" autocomplete="current-password"
+             onkeydown="if(event.key==='Enter')fazerLogin()"
+             style="width:100%;padding:10px 12px;border:1.5px solid var(--borda);border-radius:8px;font-size:14px;">
+    </div>
+    <button onclick="fazerLogin()" id="btn-login"
+            style="width:100%;margin-top:20px;padding:12px;background:var(--verde);color:#fff;
+                   border:none;border-radius:8px;font-size:15px;font-weight:700;cursor:pointer;">
+      Entrar
+    </button>
+  </div>
+</div>
+
 <button class="mobile-toggle" onclick="toggleSidebar()"><i class="ti ti-menu-2"></i></button>
 
-<div class="layout">
+<div class="layout" id="layout-principal" style="display:none;">
 <!-- ═══ SIDEBAR ═══ -->
 <aside class="sidebar" id="sidebar">
   <div class="sb-logo">
     <h1>🛡️ SST Digital</h1>
     <p id="sb-empresa">...</p>
   </div>
-  <nav class="sb-nav">
-    <button class="nav-item active" onclick="irPara('funcionarios')"><i class="ti ti-users"></i>Funcionários</button>
-    <button class="nav-item" onclick="irPara('modelos')"><i class="ti ti-files"></i>Modelos & Funções</button>
-    <button class="nav-item" onclick="irPara('cadastro-epi')"><i class="ti ti-hard-hat"></i>Cadastro de EPI</button>
-    <button class="nav-item" onclick="irPara('envio-epi')"><i class="ti ti-shield-check"></i>Envio Ficha EPI</button>
-    <button class="nav-item" onclick="irPara('envio-lote')"><i class="ti ti-send"></i>Envio de Lote</button>
-    <button class="nav-item" onclick="irPara('ordem-servico')"><i class="ti ti-clipboard-list"></i>Ordem de Serviço</button>
-    <button class="nav-item" onclick="irPara('historico')"><i class="ti ti-clock"></i>Histórico</button>
-    <button class="nav-item" onclick="irPara('diario-obra')"><i class="ti ti-camera"></i>Diário de Obra</button>
+  <nav class="sb-nav" id="sb-nav">
+    <button class="nav-item" data-modulo="funcionarios" onclick="irPara('funcionarios')"><i class="ti ti-users"></i>Funcionários</button>
+    <button class="nav-item" data-modulo="modelos" onclick="irPara('modelos')"><i class="ti ti-files"></i>Modelos & Funções</button>
+    <button class="nav-item" data-modulo="cadastro-epi" onclick="irPara('cadastro-epi')"><i class="ti ti-hard-hat"></i>Cadastro de EPI</button>
+    <button class="nav-item" data-modulo="envio-epi" onclick="irPara('envio-epi')"><i class="ti ti-shield-check"></i>Envio Ficha EPI</button>
+    <button class="nav-item" data-modulo="envio-lote" onclick="irPara('envio-lote')"><i class="ti ti-send"></i>Envio de Lote</button>
+    <button class="nav-item" data-modulo="ordem-servico" onclick="irPara('ordem-servico')"><i class="ti ti-clipboard-list"></i>Ordem de Serviço</button>
+    <button class="nav-item" data-modulo="historico" onclick="irPara('historico')"><i class="ti ti-clock"></i>Histórico</button>
+    <button class="nav-item" data-modulo="diario-obra" onclick="irPara('diario-obra')"><i class="ti ti-camera"></i>Diário de Obra</button>
+    <button class="nav-item nav-admin" data-modulo="admin" onclick="irPara('admin')"
+            style="display:none;margin-top:8px;border-top:1px solid rgba(255,255,255,.1);padding-top:8px;">
+      <i class="ti ti-settings"></i>Administração
+    </button>
   </nav>
   <div class="sb-bottom">
+    <div style="padding:10px 16px;border-top:1px solid rgba(255,255,255,.08);">
+      <div style="font-size:12px;color:#aaa;margin-bottom:2px;" id="sb-usuario-nome">...</div>
+      <button onclick="fazerLogout()"
+              style="font-size:11px;color:#888;background:none;border:none;cursor:pointer;padding:0;">
+        <i class="ti ti-logout" style="font-size:12px;"></i> Sair
+      </button>
+    </div>
     <div class="sb-status">
       <span class="sb-status-dot"></span>
       <span id="status-txt">Verificando API...</span>
@@ -995,6 +1038,84 @@ tr:hover td { background:#F9FAFB; }
       </button>
     </div>
   </div>
+<!-- ── ADMINISTRAÇÃO ── -->
+<div class="panel" id="panel-admin">
+  <div class="page-header">
+    <div><div class="page-title">Administração</div><div class="page-sub">Gerencie usuários e permissões</div></div>
+    <button class="btn btn-primary" onclick="adminAbrirModal(null)"><i class="ti ti-plus"></i>Novo usuário</button>
+  </div>
+
+  <div class="card">
+    <table style="width:100%;border-collapse:collapse;font-size:13px;">
+      <thead>
+        <tr style="border-bottom:2px solid var(--borda);">
+          <th style="padding:10px 14px;text-align:left;color:var(--texto2);font-weight:600;">Nome</th>
+          <th style="padding:10px 14px;text-align:left;color:var(--texto2);font-weight:600;">Login</th>
+          <th style="padding:10px 14px;text-align:left;color:var(--texto2);font-weight:600;">Perfil</th>
+          <th style="padding:10px 14px;text-align:left;color:var(--texto2);font-weight:600;">Módulos liberados</th>
+          <th style="padding:10px 14px;text-align:center;color:var(--texto2);font-weight:600;">Status</th>
+          <th style="padding:10px 14px;text-align:center;color:var(--texto2);font-weight:600;">Ações</th>
+        </tr>
+      </thead>
+      <tbody id="admin-tbody">
+        <tr><td colspan="6" style="text-align:center;padding:40px;color:var(--texto2);">Carregando...</td></tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+</div></main></div><!-- fecha layout-principal -->
+
+<!-- ── MODAL USUÁRIO ── -->
+<div class="modal-overlay" id="modal-usuario" style="display:none;">
+  <div class="modal" style="max-width:520px;">
+    <div class="modal-header">
+      <div class="modal-title" id="modal-usuario-titulo">Novo usuário</div>
+      <button class="modal-close" onclick="fecharModal('modal-usuario')"><i class="ti ti-x"></i></button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="admin-uid">
+      <div class="grid2">
+        <div class="field">
+          <label>Nome completo</label>
+          <input type="text" id="admin-nome" placeholder="Ex: João Silva">
+        </div>
+        <div class="field">
+          <label>Login</label>
+          <input type="text" id="admin-login" placeholder="Ex: joao.silva" autocomplete="off">
+        </div>
+      </div>
+      <div class="grid2" style="margin-top:12px;">
+        <div class="field">
+          <label id="admin-senha-label">Senha</label>
+          <input type="password" id="admin-senha" placeholder="••••••••" autocomplete="new-password">
+        </div>
+        <div class="field">
+          <label>Perfil</label>
+          <select id="admin-perfil" onchange="adminTogglePerms()">
+            <option value="usuario">Usuário</option>
+            <option value="admin">Administrador</option>
+          </select>
+        </div>
+      </div>
+      <div id="admin-perms-section" style="margin-top:16px;">
+        <label style="font-size:13px;font-weight:600;color:var(--texto);display:block;margin-bottom:10px;">
+          Módulos permitidos
+        </label>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;" id="admin-perms-grid"></div>
+      </div>
+      <div class="field" style="margin-top:14px;">
+        <label style="display:flex;align-items:center;gap:8px;cursor:pointer;">
+          <input type="checkbox" id="admin-ativo" checked style="accent-color:var(--verde);">
+          Usuário ativo
+        </label>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="fecharModal('modal-usuario')">Cancelar</button>
+      <button class="btn btn-primary" onclick="adminSalvar()"><i class="ti ti-check"></i>Salvar</button>
+    </div>
+  </div>
 </div>
 
 <script>
@@ -1007,9 +1128,253 @@ let todosDocs = [];
 let lotePreview = [];
 
 // ══════════════════════════════════════════════════════
+//  AUTH
+// ══════════════════════════════════════════════════════
+const MODULOS = [
+  { id:'funcionarios',  label:'Funcionários' },
+  { id:'modelos',       label:'Modelos & Funções' },
+  { id:'cadastro-epi',  label:'Cadastro de EPI' },
+  { id:'envio-epi',     label:'Envio Ficha EPI' },
+  { id:'envio-lote',    label:'Envio de Lote' },
+  { id:'ordem-servico', label:'Ordem de Serviço' },
+  { id:'historico',     label:'Histórico' },
+  { id:'diario-obra',   label:'Diário de Obra' },
+];
+
+let _authToken = null;
+let _authUser  = null;
+
+function authHeaders() {
+  return _authToken ? { 'Authorization': 'Bearer ' + _authToken, 'Content-Type': 'application/json' } : { 'Content-Type': 'application/json' };
+}
+
+async function apiFetch(url, opts = {}) {
+  if (!opts.headers) opts.headers = {};
+  if (_authToken) opts.headers['Authorization'] = 'Bearer ' + _authToken;
+  const res = await apiFetch(url, opts);
+  if (res.status === 401) { fazerLogout(); return null; }
+  return res;
+}
+
+async function fazerLogin() {
+  const login = document.getElementById('login-input').value.trim();
+  const senha = document.getElementById('senha-input').value;
+  const erroEl = document.getElementById('login-erro');
+  const btn = document.getElementById('btn-login');
+  if (!login || !senha) { erroEl.textContent = 'Preencha login e senha.'; erroEl.style.display = ''; return; }
+  btn.textContent = 'Entrando...'; btn.disabled = true;
+  try {
+    const res = await apiFetch('/api/auth/login', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ login, senha })
+    });
+    const data = await res.json();
+    if (!res.ok) { erroEl.textContent = data.detail || 'Usuário ou senha incorretos.'; erroEl.style.display = ''; return; }
+    _authToken = data.token;
+    _authUser  = data;
+    localStorage.setItem('sst_token', data.token);
+    localStorage.setItem('sst_user',  JSON.stringify(data));
+    entrarNoSistema();
+  } catch(e) {
+    erroEl.textContent = 'Erro de conexão. Tente novamente.'; erroEl.style.display = '';
+  } finally {
+    btn.textContent = 'Entrar'; btn.disabled = false;
+  }
+}
+
+function fazerLogout() {
+  _authToken = null; _authUser = null;
+  localStorage.removeItem('sst_token');
+  localStorage.removeItem('sst_user');
+  document.getElementById('layout-principal').style.display = 'none';
+  const tl = document.getElementById('tela-login');
+  tl.style.display = 'flex'; tl.style.alignItems = 'center'; tl.style.justifyContent = 'center';
+  document.getElementById('login-input').value = '';
+  document.getElementById('senha-input').value = '';
+  document.getElementById('login-erro').style.display = 'none';
+}
+
+function temPermissao(modulo) {
+  if (!_authUser) return false;
+  if (_authUser.perfil === 'admin') return true;
+  const perms = _authUser.permissoes || [];
+  return perms.includes('*') || perms.includes(modulo);
+}
+
+function aplicarPermissoes() {
+  document.querySelectorAll('.nav-item[data-modulo]').forEach(btn => {
+    const modulo = btn.getAttribute('data-modulo');
+    if (modulo === 'admin') {
+      btn.style.display = _authUser?.perfil === 'admin' ? '' : 'none';
+      return;
+    }
+    if (temPermissao(modulo)) {
+      btn.style.opacity = '1';
+      btn.style.pointerEvents = '';
+      btn.style.filter = '';
+      btn.title = '';
+    } else {
+      btn.style.opacity = '0.4';
+      btn.style.pointerEvents = 'none';
+      btn.style.filter = 'grayscale(1)';
+      btn.title = 'Sem permissão';
+    }
+  });
+}
+
+function entrarNoSistema() {
+  document.getElementById('tela-login').style.display = 'none';
+  document.getElementById('layout-principal').style.display = 'flex';
+  document.getElementById('sb-usuario-nome').textContent = _authUser?.nome || '';
+  aplicarPermissoes();
+  // Navega para o primeiro módulo permitido
+  const primeiro = MODULOS.find(m => temPermissao(m.id));
+  if (primeiro) irPara(primeiro.id);
+  verificarAPI();
+  carregarEmpresa();
+}
+
+// Tenta restaurar sessão ao carregar
+window.addEventListener('DOMContentLoaded', async () => {
+  const token = localStorage.getItem('sst_token');
+  const user  = localStorage.getItem('sst_user');
+  if (token && user) {
+    try {
+      const res = await apiFetch('/api/auth/me', { headers: { 'Authorization': 'Bearer ' + token } });
+      if (res.ok) {
+        _authToken = token;
+        _authUser  = JSON.parse(user);
+        entrarNoSistema();
+        return;
+      }
+    } catch(e) {}
+  }
+  // Sem sessão válida → mostra login
+  const _tl = document.getElementById('tela-login');
+  _tl.style.display = 'flex'; _tl.style.alignItems = 'center'; _tl.style.justifyContent = 'center';
+  document.getElementById('layout-principal').style.display = 'none';
+});
+
+// ══════════════════════════════════════════════════════
+//  ADMIN — PAINEL DE USUÁRIOS
+// ══════════════════════════════════════════════════════
+async function carregarAdmin() {
+  const tbody = document.getElementById('admin-tbody');
+  tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:30px;color:var(--texto2);">Carregando...</td></tr>';
+  const res = await apiFetch('/api/usuarios');
+  if (!res) return;
+  const lista = await res.json();
+  if (!lista.length) {
+    tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:30px;color:var(--texto2);">Nenhum usuário cadastrado.</td></tr>';
+    return;
+  }
+  tbody.innerHTML = lista.map(u => {
+    const permsLabel = u.perfil === 'admin'
+      ? '<span style="color:var(--verde);font-weight:600;">Todos os módulos</span>'
+      : (u.permissoes?.length
+          ? u.permissoes.map(p => MODULOS.find(m=>m.id===p)?.label || p).join(', ')
+          : '<span style="color:var(--danger);">Nenhum</span>');
+    const statusBadge = u.ativo
+      ? '<span style="background:#f0fdf4;color:#16a34a;border:1px solid #bbf7d0;padding:2px 8px;border-radius:20px;font-size:11px;font-weight:600;">Ativo</span>'
+      : '<span style="background:#fef2f2;color:#dc2626;border:1px solid #fca5a5;padding:2px 8px;border-radius:20px;font-size:11px;font-weight:600;">Inativo</span>';
+    const perfilBadge = u.perfil === 'admin'
+      ? '<span style="background:#ede9fe;color:#7c3aed;border:1px solid #c4b5fd;padding:2px 8px;border-radius:20px;font-size:11px;font-weight:600;">Admin</span>'
+      : '<span style="background:var(--verde-light);color:var(--verde-dark);border:1px solid #a7f3d0;padding:2px 8px;border-radius:20px;font-size:11px;font-weight:600;">Usuário</span>';
+    return `<tr style="border-bottom:1px solid var(--borda);">
+      <td style="padding:10px 14px;font-weight:600;">${u.nome}</td>
+      <td style="padding:10px 14px;color:var(--texto2);font-family:monospace;">${u.login}</td>
+      <td style="padding:10px 14px;">${perfilBadge}</td>
+      <td style="padding:10px 14px;font-size:12px;color:var(--texto2);">${permsLabel}</td>
+      <td style="padding:10px 14px;text-align:center;">${statusBadge}</td>
+      <td style="padding:10px 14px;text-align:center;">
+        <div style="display:flex;gap:6px;justify-content:center;">
+          <button onclick="adminAbrirModal(${JSON.stringify(u).replace(/"/g,'&quot;')})"
+                  style="padding:4px 10px;border-radius:6px;background:var(--verde-light);color:var(--verde-dark);
+                         border:1px solid var(--verde);cursor:pointer;font-size:12px;font-weight:600;">
+            <i class="ti ti-edit"></i> Editar
+          </button>
+          <button onclick="adminExcluir(${u.id},'${u.nome.replace(/'/g,"\\'")}')"
+                  style="padding:4px 10px;border-radius:6px;background:#fef2f2;color:#dc2626;
+                         border:1px solid #fca5a5;cursor:pointer;font-size:12px;font-weight:600;">
+            <i class="ti ti-trash"></i>
+          </button>
+        </div>
+      </td>
+    </tr>`;
+  }).join('');
+}
+
+function adminAbrirModal(usuario) {
+  document.getElementById('admin-uid').value    = usuario?.id || '';
+  document.getElementById('admin-nome').value   = usuario?.nome || '';
+  document.getElementById('admin-login').value  = usuario?.login || '';
+  document.getElementById('admin-senha').value  = '';
+  document.getElementById('admin-perfil').value = usuario?.perfil || 'usuario';
+  document.getElementById('admin-ativo').checked = usuario ? !!usuario.ativo : true;
+  document.getElementById('modal-usuario-titulo').textContent = usuario ? 'Editar usuário' : 'Novo usuário';
+  document.getElementById('admin-senha-label').textContent = usuario ? 'Nova senha (deixe em branco para não alterar)' : 'Senha';
+
+  // Monta checkboxes de módulos
+  const perms = usuario?.permissoes || [];
+  const grid = document.getElementById('admin-perms-grid');
+  grid.innerHTML = MODULOS.map(m => `
+    <label style="display:flex;align-items:center;gap:8px;padding:8px 10px;border:1px solid var(--borda);
+                  border-radius:8px;cursor:pointer;font-size:13px;">
+      <input type="checkbox" value="${m.id}" class="perm-chk"
+             ${perms.includes(m.id) ? 'checked' : ''} style="accent-color:var(--verde);">
+      ${m.label}
+    </label>`).join('');
+
+  adminTogglePerms();
+  abrirModal('modal-usuario');
+}
+
+function adminTogglePerms() {
+  const isAdmin = document.getElementById('admin-perfil').value === 'admin';
+  document.getElementById('admin-perms-section').style.display = isAdmin ? 'none' : '';
+}
+
+async function adminSalvar() {
+  const uid    = document.getElementById('admin-uid').value;
+  const nome   = document.getElementById('admin-nome').value.trim();
+  const login  = document.getElementById('admin-login').value.trim();
+  const senha  = document.getElementById('admin-senha').value;
+  const perfil = document.getElementById('admin-perfil').value;
+  const ativo  = document.getElementById('admin-ativo').checked ? 1 : 0;
+  const perms  = perfil === 'admin' ? ['*']
+    : [...document.querySelectorAll('.perm-chk:checked')].map(c => c.value);
+
+  if (!nome || !login) { alert('Nome e login são obrigatórios.'); return; }
+  if (!uid && !senha)  { alert('Informe uma senha para o novo usuário.'); return; }
+
+  const body = { nome, login, perfil, permissoes: perms, ativo };
+  if (senha) body.senha = senha;
+
+  const res = await apiFetch(uid ? `/api/usuarios/${uid}` : '/api/usuarios', {
+    method: uid ? 'PUT' : 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body)
+  });
+  if (!res) return;
+  const data = await res.json();
+  if (!res.ok) { alert(data.detail || 'Erro ao salvar.'); return; }
+  fecharModal('modal-usuario');
+  carregarAdmin();
+}
+
+async function adminExcluir(uid, nome) {
+  if (!confirm(`Excluir o usuário "${nome}"? Esta ação não pode ser desfeita.`)) return;
+  const res = await apiFetch(`/api/usuarios/${uid}`, { method: 'DELETE' });
+  if (!res) return;
+  if (!res.ok) { const d = await res.json(); alert(d.detail || 'Erro ao excluir.'); return; }
+  carregarAdmin();
+}
+
+// ══════════════════════════════════════════════════════
 //  NAVEGAÇÃO
 // ══════════════════════════════════════════════════════
 function irPara(aba) {
+  if (aba !== 'admin' && !temPermissao(aba)) return;
   document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
   document.querySelectorAll('.nav-item').forEach(b => b.classList.remove('active'));
   document.getElementById('panel-'+aba).classList.add('active');
@@ -1025,6 +1390,7 @@ function irPara(aba) {
   if (aba==='ordem-servico') carregarOSCargos();
   if (aba==='historico')     carregarHistorico();
   if (aba==='diario-obra')   doInit();
+  if (aba==='admin')         carregarAdmin();
   // Fecha sidebar mobile
   document.getElementById('sidebar').classList.remove('open');
 }
@@ -1038,7 +1404,7 @@ function toggleSidebar() {
 // ══════════════════════════════════════════════════════
 async function carregarFuncionarios() {
   const busca = document.getElementById('busca-func').value;
-  const res = await fetch(`/api/funcionarios?busca=${encodeURIComponent(busca)}`);
+  const res = await apiFetch(`/api/funcionarios?busca=${encodeURIComponent(busca)}`);
   todosFunc = await res.json();
   document.getElementById('func-count-sub').textContent = `${todosFunc.length} funcionário(s) cadastrado(s)`;
   const tbody = document.getElementById('func-tbody');
@@ -1075,7 +1441,7 @@ async function salvarFunc() {
     dados[k] = document.getElementById('mf-'+k).value;
   });
   if (!dados.nome || !dados.cpf || !dados.cargo) { alert('Nome, CPF e Cargo são obrigatórios.'); return; }
-  await fetch('/api/funcionarios', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(dados) });
+  await apiFetch('/api/funcionarios', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(dados) });
   fecharModal('modal-func');
   carregarFuncionarios();
 }
@@ -1087,7 +1453,7 @@ async function uploadPlanilha(inp) {
   const fd = new FormData();
   fd.append('file', inp.files[0]);
   document.getElementById('import-result').innerHTML = '<div class="alert al-info"><i class="ti ti-loader-2"></i>Importando...</div>';
-  const res = await fetch('/api/funcionarios/importar', { method:'POST', body:fd });
+  const res = await apiFetch('/api/funcionarios/importar', { method:'POST', body:fd });
   const data = await res.json();
   if (data.ok) {
     document.getElementById('import-result').innerHTML = `<div class="alert al-success"><i class="ti ti-check"></i>✅ ${data.inseridos} inseridos · ${data.atualizados} atualizados</div>`;
@@ -1110,9 +1476,9 @@ const EPI_DOC_ID = '10_ficha_controle_epi';
 
 async function carregarModelos() {
   const [resDoc, resMod, resCargos] = await Promise.all([
-    fetch('/api/documentos'),
-    fetch('/api/modelos'),
-    fetch('/api/cargos')
+    apiFetch('/api/documentos'),
+    apiFetch('/api/modelos'),
+    apiFetch('/api/cargos')
   ]);
   todosDocs = await resDoc.json();
   const modelos = await resMod.json();
@@ -1224,7 +1590,7 @@ async function downloadModelo(docId, cargo) {
 async function carregarMatriz() {
   const cargo = document.getElementById('sel-cargo').value;
   if (!cargo) return;
-  const res = await fetch(`/api/matriz/${encodeURIComponent(cargo)}`);
+  const res = await apiFetch(`/api/matriz/${encodeURIComponent(cargo)}`);
   const docIds = await res.json();
   const div = document.getElementById('docs-checks');
   div.innerHTML = '';
@@ -1246,7 +1612,7 @@ async function salvarMatriz() {
   const cargo = document.getElementById('sel-cargo').value;
   if (!cargo) { alert('Selecione um cargo.'); return; }
   const doc_ids = [...document.querySelectorAll('#docs-checks input:checked')].map(i=>i.value);
-  await fetch(`/api/matriz/${encodeURIComponent(cargo)}`, {
+  await apiFetch(`/api/matriz/${encodeURIComponent(cargo)}`, {
     method:'POST', headers:{'Content-Type':'application/json'},
     body: JSON.stringify({doc_ids})
   });
@@ -1275,7 +1641,7 @@ async function uploadModelo(inp) {
   fd.append('file', inp.files[0]);
   let url = `/api/modelos/upload/${docId}`;
   if (cargo) url += `?cargo=${encodeURIComponent(cargo)}`;
-  const res = await fetch(url, { method:'POST', body:fd });
+  const res = await apiFetch(url, { method:'POST', body:fd });
   const data = await res.json();
   document.getElementById('modelo-result').innerHTML = data.ok
     ? `<div class="alert al-success"><i class="ti ti-check"></i>Arquivo enviado e salvo no banco!</div>`
@@ -1290,7 +1656,7 @@ async function uploadModelo(inp) {
 //  CADASTRO DE EPI
 // ══════════════════════════════════════════════════════
 async function carregarPainelCadEpi() {
-  const cargos = await fetch('/api/cargos').then(r=>r.json());
+  const cargos = await apiFetch('/api/cargos').then(r=>r.json());
   const sel = document.getElementById('sel-cargo-cat');
   sel.innerHTML = '<option value="">-- Selecione --</option>';
   cargos.forEach(c => sel.innerHTML += `<option value="${c}">${c}</option>`);
@@ -1298,7 +1664,7 @@ async function carregarPainelCadEpi() {
 }
 
 async function carregarCatalogoEpi() {
-  const res  = await fetch('/api/epis/catalogo');
+  const res  = await apiFetch('/api/epis/catalogo');
   const lista = await res.json();
   const div  = document.getElementById('catalogo-epi-lista');
   div.innerHTML = '';
@@ -1348,14 +1714,14 @@ async function salvarNovoEpi() {
     ca: document.getElementById('epi-ca').value.trim(),
     quantidade_padrao: parseInt(document.getElementById('epi-qtd').value) || 1
   };
-  const res  = await fetch('/api/epis/catalogo', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(payload) });
+  const res  = await apiFetch('/api/epis/catalogo', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(payload) });
   const data = await res.json();
   if (data.ok) { fecharModal('modal-novo-epi'); carregarCatalogoEpi(); }
 }
 
 async function deletarEpiCat(id) {
   if (!confirm('Remover este EPI do catálogo?')) return;
-  await fetch(`/api/epis/catalogo/${id}`, { method:'DELETE' });
+  await apiFetch(`/api/epis/catalogo/${id}`, { method:'DELETE' });
   carregarCatalogoEpi();
 }
 
@@ -1366,7 +1732,7 @@ async function carregarEpisDoCargo() {
   if (!cargo) { div.innerHTML = ''; return; }
 
   const [resCat, resCargo] = await Promise.all([
-    fetch('/api/epis/catalogo').then(r=>r.json()),
+    apiFetch('/api/epis/catalogo').then(r=>r.json()),
     fetch(`/api/epis/cargo/${encodeURIComponent(cargo)}`).then(r=>r.json())
   ]);
   const idsNosCargo = new Set(resCargo.map(e => e.epi_id));
@@ -1386,7 +1752,7 @@ async function salvarEpisCargo() {
   const cargo = document.getElementById('sel-cargo-cat').value;
   const epis  = [...document.querySelectorAll('#epis-cargo-lista input[type=checkbox]:checked')]
     .map(i => ({ epi_id: parseInt(i.value), quantidade: parseInt(document.getElementById('cepq-'+i.value).value)||1 }));
-  await fetch(`/api/epis/cargo/${encodeURIComponent(cargo)}`, {
+  await apiFetch(`/api/epis/cargo/${encodeURIComponent(cargo)}`, {
     method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({"epis": epis})
   });
   alert(`EPIs do cargo "${cargo}" salvos!`);
@@ -1407,7 +1773,7 @@ function trocarAbaEpi(aba) {
 
 async function buscarFuncEpi() {
   const q    = document.getElementById('busca-epi-func').value;
-  const res  = await fetch(`/api/funcionarios?busca=${encodeURIComponent(q)}`);
+  const res  = await apiFetch(`/api/funcionarios?busca=${encodeURIComponent(q)}`);
   const list = await res.json();
   const div  = document.getElementById('lista-epi-func');
   div.innerHTML = '';
@@ -1446,7 +1812,7 @@ async function selecionarFuncEpi(f) {
 
   // Carrega catálogo completo e EPIs do cargo
   const [resCat, resCargo] = await Promise.all([
-    fetch('/api/epis/catalogo').then(r=>r.json()),
+    apiFetch('/api/epis/catalogo').then(r=>r.json()),
     fetch(`/api/epis/cargo/${encodeURIComponent(f.cargo)}`).then(r=>r.json())
   ]);
   const idsNoCargo = new Set(resCargo.map(e => e.epi_id));
@@ -1502,7 +1868,7 @@ async function enviarEpiIndividual() {
   if (cel) epiFuncSel = {...epiFuncSel, celular: cel};
 
   // Coleta EPIs selecionados do checklist
-  const resCat = await fetch('/api/epis/catalogo').then(r=>r.json());
+  const resCat = await apiFetch('/api/epis/catalogo').then(r=>r.json());
   const episSel = resCat
     .filter(e => document.getElementById('epiind-'+e.id)?.checked)
     .map(e => ({
@@ -1517,7 +1883,7 @@ async function enviarEpiIndividual() {
   document.getElementById('epi-ind-resultado').innerHTML =
     '<div class="alert al-info"><i class="ti ti-loader-2"></i>Gerando ficha e enviando para ZapSign...</div>';
 
-  const res  = await fetch('/api/epi/enviar-custom', {
+  const res  = await apiFetch('/api/epi/enviar-custom', {
     method:'POST', headers:{'Content-Type':'application/json'},
     body: JSON.stringify({ func_id: epiFuncSel.id, epis: todosEpis })
   });
@@ -1542,7 +1908,7 @@ async function enviarEpiIndividual() {
 // Envio em lote EPI
 async function filtrarEpiLote() {
   const q    = document.getElementById('busca-epi-lote').value;
-  const res  = await fetch(`/api/funcionarios?busca=${encodeURIComponent(q)}`);
+  const res  = await apiFetch(`/api/funcionarios?busca=${encodeURIComponent(q)}`);
   const list = await res.json();
   const div  = document.getElementById('lista-epi-lote');
   div.innerHTML = '';
@@ -1575,7 +1941,7 @@ async function renderEpiLoteSel() {
   const div  = document.getElementById('lista-epi-sel');
   div.innerHTML = '';
   if (!epiLoteIds.size) { div.innerHTML = '<p style="font-size:12px;color:var(--texto2);text-align:center;padding:12px">Nenhum selecionado</p>'; return; }
-  const todos = await fetch('/api/funcionarios').then(r=>r.json());
+  const todos = await apiFetch('/api/funcionarios').then(r=>r.json());
   [...epiLoteIds].forEach(id => {
     const f = todos.find(x=>x.id===id);
     if (!f) return;
@@ -1596,7 +1962,7 @@ async function enviarEpiLote() {
   document.getElementById('epi-lote-resultado').innerHTML =
     '<div class="alert al-info"><i class="ti ti-loader-2"></i>Enviando...</div>';
 
-  const res  = await fetch('/api/epi/enviar', {
+  const res  = await apiFetch('/api/epi/enviar', {
     method:'POST', headers:{'Content-Type':'application/json'},
     body: JSON.stringify({ func_ids: [...epiLoteIds] })
   });
@@ -1632,7 +1998,7 @@ async function carregarEpiOs() {
   if (!cargo) { painel.style.display='none'; return; }
   painel.style.display='block';
 
-  const res = await fetch('/api/epi');
+  const res = await apiFetch('/api/epi');
   const lista = await res.json();
   const info = lista.find(x => x.cargo === cargo) || {tem_epi: false, tem_os: false};
   epiOsStatus[cargo] = info;
@@ -1671,7 +2037,7 @@ async function confirmarUploadEpiOs(inp) {
   const fd = new FormData();
   fd.append('file', inp.files[0]);
   const url = `/api/${tipo}/upload/${encodeURIComponent(cargo)}`;
-  const res  = await fetch(url, {method:'POST', body:fd});
+  const res  = await apiFetch(url, {method:'POST', body:fd});
   const data = await res.json();
   document.getElementById('epi-upload-result').innerHTML = data.ok
     ? `<div class="alert al-success"><i class="ti ti-check"></i>Arquivo salvo com sucesso!</div>`
@@ -1694,7 +2060,7 @@ async function deletarEpiOs(tipo) {
   const cargo = document.getElementById('sel-cargo-epi').value;
   const label = tipo === 'epi' ? 'Ficha de EPI' : 'Ordem de Serviço';
   if (!confirm(`Remover ${label} do cargo "${cargo}"?`)) return;
-  await fetch(`/api/${tipo}/${encodeURIComponent(cargo)}`, {method:'DELETE'});
+  await apiFetch(`/api/${tipo}/${encodeURIComponent(cargo)}`, {method:'DELETE'});
   carregarEpiOs();
   carregarTabelaEpiOs();
 }
@@ -1707,7 +2073,7 @@ async function editarTexto(tipo) {
   document.getElementById('editor-result').innerHTML = '';
   document.getElementById('editor-conteudo').value = 'Carregando...';
   abrirModal('modal-editor-texto');
-  const res  = await fetch(`/api/${tipo}/${encodeURIComponent(cargo)}/texto`);
+  const res  = await apiFetch(`/api/${tipo}/${encodeURIComponent(cargo)}/texto`);
   const data = await res.json();
   document.getElementById('editor-conteudo').value = data.texto || '';
 }
@@ -1717,7 +2083,7 @@ async function salvarTextoEditor() {
   const cargo = document.getElementById('sel-cargo-epi').value;
   const texto = document.getElementById('editor-conteudo').value;
   document.getElementById('editor-result').innerHTML = '<div class="alert al-info"><i class="ti ti-loader-2"></i>Salvando...</div>';
-  const res  = await fetch(`/api/${tipo}/${encodeURIComponent(cargo)}/texto`, {
+  const res  = await apiFetch(`/api/${tipo}/${encodeURIComponent(cargo)}/texto`, {
     method:'POST', headers:{'Content-Type':'application/json'},
     body: JSON.stringify({texto})
   });
@@ -1729,7 +2095,7 @@ async function salvarTextoEditor() {
 }
 
 async function carregarTabelaEpiOs() {
-  const res  = await fetch('/api/epi');
+  const res  = await apiFetch('/api/epi');
   const lista = await res.json();
   const div  = document.getElementById('epi-os-tabela');
   if (!lista.length) { div.innerHTML = ''; return; }
@@ -1756,7 +2122,7 @@ async function filtrarLote() {
   const q = document.getElementById('busca-lote').value.toLowerCase();
   const lista = document.getElementById('lista-lote');
   lista.innerHTML = '';
-  const todos = await fetch(`/api/funcionarios?busca=${encodeURIComponent(q)}`).then(r=>r.json());
+  const todos = await apiFetch(`/api/funcionarios?busca=${encodeURIComponent(q)}`).then(r=>r.json());
   todos.forEach(f => {
     const sel = loteIds.has(f.id);
     const ini = f.nome.split(' ').map(w=>w[0]).slice(0,2).join('').toUpperCase();
@@ -1787,7 +2153,7 @@ async function renderLoteSel() {
   document.getElementById('lote-count').textContent = loteIds.size;
   lista.innerHTML = '';
   if (!loteIds.size) { lista.innerHTML = '<p style="font-size:12px;color:var(--texto2);text-align:center;padding:12px">Nenhum selecionado</p>'; return; }
-  const todos = await fetch('/api/funcionarios').then(r=>r.json());
+  const todos = await apiFetch('/api/funcionarios').then(r=>r.json());
   [...loteIds].forEach(id => {
     const f = todos.find(x=>x.id===id);
     if (!f) return;
@@ -1812,7 +2178,7 @@ async function montarPreviewEnvio() {
   document.getElementById('envio-done').style.display='none';
 
   const desc = document.getElementById('lote-desc').value || `Lote ${new Date().toLocaleDateString('pt-BR')}`;
-  const res = await fetch('/api/lotes/preview', {
+  const res = await apiFetch('/api/lotes/preview', {
     method:'POST', headers:{'Content-Type':'application/json'},
     body: JSON.stringify({func_ids:[...loteIds]})
   });
@@ -1877,7 +2243,7 @@ async function enviarLote() {
   document.getElementById('send-prog').style.width = '10%';
 
   try {
-    const res = await fetch('/api/lotes/enviar', {
+    const res = await apiFetch('/api/lotes/enviar', {
       method:'POST', headers:{'Content-Type':'application/json'},
       body: JSON.stringify({
         func_ids: [...loteIds],
@@ -2020,7 +2386,7 @@ async function elEnviar() {
     // Envia Kit SST se selecionado
     if (enviarKit) {
       try {
-        const r = await fetch('/api/lotes/enviar', {
+        const r = await apiFetch('/api/lotes/enviar', {
           method:'POST', headers:{'Content-Type':'application/json'},
           body: JSON.stringify({ func_ids:[id], descricao:'Kit SST', celulares:{}, sandbox })
         });
@@ -2037,7 +2403,7 @@ async function elEnviar() {
     // Envia Ficha EPI se selecionado
     if (enviarEpi) {
       try {
-        const r = await fetch('/api/epi/enviar', {
+        const r = await apiFetch('/api/epi/enviar', {
           method:'POST', headers:{'Content-Type':'application/json'},
           body: JSON.stringify({ func_ids:[id], sandbox })
         });
@@ -2111,7 +2477,7 @@ async function carregarHistorico() {
   const tbody = document.getElementById('hist-tbody');
   tbody.innerHTML = `<tr><td colspan="6" style="text-align:center;padding:40px;color:var(--texto2);">Carregando...</td></tr>`;
   try {
-    const res  = await fetch('/api/envios?limite=500');
+    const res  = await apiFetch('/api/envios?limite=500');
     _histDados = await res.json();
     histFiltrar();
   } catch(e) {
@@ -2255,7 +2621,7 @@ async function histAtualizarUm(envioId, btn) {
   btn.disabled = true;
   btn.innerHTML = '<i class="ti ti-loader-2" style="font-size:13px;animation:spin 1s linear infinite;"></i>';
   try {
-    const res = await fetch(`/api/envios/${envioId}/atualizar-status`, {method:'POST'});
+    const res = await apiFetch(`/api/envios/${envioId}/atualizar-status`, {method:'POST'});
     if (!res.ok) throw new Error((await res.json()).detail || 'Erro');
     await carregarHistorico();
   } catch(e) {
@@ -2271,7 +2637,7 @@ async function histAtualizarTodos() {
   btn.disabled = true;
   btn.innerHTML = '<i class="ti ti-loader-2"></i> Atualizando...';
   try {
-    const res  = await fetch('/api/envios/atualizar-todos', {method:'POST'});
+    const res  = await apiFetch('/api/envios/atualizar-todos', {method:'POST'});
     const data = await res.json();
     msg.innerHTML = `<div class="alert al-success" style="margin-bottom:12px;"><i class="ti ti-check"></i>${data.atualizados} atualizado(s). ${data.erros>0?data.erros+' erro(s).':''}</div>`;
     await carregarHistorico();
@@ -2319,7 +2685,7 @@ document.querySelectorAll('.modal-bg').forEach(m => {
 // ══════════════════════════════════════════════════════
 async function verificarAPI() {
   try {
-    const res = await fetch('/api/zapsign/verificar');
+    const res = await apiFetch('/api/zapsign/verificar');
     const data = await res.json();
     document.getElementById('status-txt').textContent = data.ok ? 'API conectada' : 'API: erro';
     document.querySelector('.sb-status-dot').style.background = data.ok ? '#10B981' : '#EF4444';
@@ -2335,7 +2701,7 @@ document.getElementById('lote-desc').value = `Lote ${new Date().toLocaleDateStri
 // Carrega nome da empresa na sidebar
 async function carregarEmpresa() {
   try {
-    const data = await fetch('/api/config').then(r => r.json());
+    const data = await apiFetch('/api/config').then(r => r.json());
     document.getElementById('sb-empresa').textContent = data.empresa || '';
   } catch(e) {}
 }
@@ -2360,8 +2726,8 @@ function osAba(aba) {
 async function carregarOSCargos() {
   try {
     const [configList, epis] = await Promise.all([
-      fetch('/api/os/config').then(r=>r.json()),
-      fetch('/api/epis/catalogo').then(r=>r.json())
+      apiFetch('/api/os/config').then(r=>r.json()),
+      apiFetch('/api/epis/catalogo').then(r=>r.json())
     ]);
     const el = document.getElementById('os-lista-cargos');
     if (!configList.length) { el.innerHTML='<p>Nenhum cargo cadastrado.</p>'; return; }
@@ -2384,7 +2750,7 @@ async function selecionarOSCargo(cargo) {
   document.getElementById('os-salvar-status').style.display = 'none';
 
   try {
-    const data = await fetch(`/api/os/config/${encodeURIComponent(cargo)}`).then(r=>r.json());
+    const data = await apiFetch(`/api/os/config/${encodeURIComponent(cargo)}`).then(r=>r.json());
     document.getElementById('os-cbo-codigo').value    = data.cbo?.cbo_codigo || '';
     document.getElementById('os-cbo-titulo').value    = data.cbo?.cbo_titulo || '';
     document.getElementById('os-cbo-descricao').value = data.cbo?.cbo_descricao || '';
@@ -2421,7 +2787,7 @@ async function buscarCBOAuto() {
     if (ehCodigo) {
       // Busca direto pela descrição do código
       url = `/api/cbo/buscar?codigo=${encodeURIComponent(termo.split('-')[0])}`;
-      const r = await fetch(url);
+      const r = await apiFetch(url);
       data = await r.json();
       if (data.ok && data.descricao_sumaria) {
         // Preenche direto sem mostrar lista
@@ -2444,7 +2810,7 @@ async function buscarCBOAuto() {
     }
 
     // Busca por nome/título
-    const r = await fetch(`/api/cbo/buscar?titulo=${encodeURIComponent(termo)}`);
+    const r = await apiFetch(`/api/cbo/buscar?titulo=${encodeURIComponent(termo)}`);
     data = await r.json();
 
     if (!data.ok || !data.resultados?.length) {
@@ -2482,7 +2848,7 @@ async function selecionarCBOResultado(codigo, titulo, tipo) {
   lista.innerHTML = `<p style="font-size:12px;color:var(--texto2);padding:8px">Carregando descrição do CBO ${familia}...</p>`;
 
   try {
-    const r = await fetch(`/api/cbo/buscar?codigo=${familia}`);
+    const r = await apiFetch(`/api/cbo/buscar?codigo=${familia}`);
     const data = await r.json();
 
     if (data.ok && data.descricao_sumaria) {
@@ -2518,7 +2884,7 @@ async function salvarOSConfig() {
       cbo_titulo:    document.getElementById('os-cbo-titulo').value.trim(),
       cbo_descricao: document.getElementById('os-cbo-descricao').value.trim(),
     };
-    const r = await fetch(`/api/os/config/${encodeURIComponent(osCargoAtual)}`, {
+    const r = await apiFetch(`/api/os/config/${encodeURIComponent(osCargoAtual)}`, {
       method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload)
     });
     const data = await r.json();
@@ -2539,8 +2905,8 @@ async function salvarOSConfig() {
 async function carregarOSFuncs() {
   try {
     const [funcs, configs] = await Promise.all([
-      fetch('/api/funcionarios').then(r=>r.json()),
-      fetch('/api/os/config').then(r=>r.json())
+      apiFetch('/api/funcionarios').then(r=>r.json()),
+      apiFetch('/api/os/config').then(r=>r.json())
     ]);
     // Só mostra funcs com OS configurada para o cargo
     const cargosComOS = new Set(configs.filter(c=>c.cbo_descricao).map(c=>c.cargo));
@@ -2592,7 +2958,7 @@ async function enviarOSSelecionados() {
   res.innerHTML = '<p style="color:var(--texto2);font-size:13px">Processando...</p>';
 
   try {
-    const r = await fetch('/api/os/enviar', {
+    const r = await apiFetch('/api/os/enviar', {
       method:'POST', headers:{'Content-Type':'application/json'},
       body: JSON.stringify({func_ids:ids, sandbox})
     });
@@ -2617,10 +2983,7 @@ async function enviarOSSelecionados() {
   finally { btn.disabled=false; btn.innerHTML='<i class="ti ti-send"></i> Enviar OS Selecionados'; }
 }
 
-// Inicia
-carregarFuncionarios();
-verificarAPI();
-carregarEmpresa();
+// Inicialização movida para entrarNoSistema() (após login)
 
 // ══════════════════════════════════════════════════════
 //  DIÁRIO DE OBRA

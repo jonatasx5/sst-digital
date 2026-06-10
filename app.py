@@ -209,6 +209,30 @@ async def deletar_usuario(uid: int, payload=Depends(exigir_admin)):
 
 
 # ══════════════════════════════════════════════════════════
+#  ENGENHEIROS
+# ══════════════════════════════════════════════════════════
+
+@app.get("/api/engenheiros")
+async def listar_engenheiros(_=Depends(verificar_acesso)):
+    return banco.listar_engenheiros()
+
+@app.post("/api/engenheiros")
+async def criar_engenheiro(dados: dict, _=Depends(verificar_acesso)):
+    eid = banco.salvar_engenheiro(None, dados.get("nome",""), dados.get("crea",""))
+    return {"ok": True, "id": eid}
+
+@app.put("/api/engenheiros/{eid}")
+async def atualizar_engenheiro(eid: int, dados: dict, _=Depends(verificar_acesso)):
+    banco.salvar_engenheiro(eid, dados.get("nome",""), dados.get("crea",""))
+    return {"ok": True}
+
+@app.delete("/api/engenheiros/{eid}")
+async def deletar_engenheiro(eid: int, _=Depends(verificar_acesso)):
+    banco.deletar_engenheiro(eid)
+    return {"ok": True}
+
+
+# ══════════════════════════════════════════════════════════
 #  ROTA PRINCIPAL — serve o HTML
 # ══════════════════════════════════════════════════════════
 

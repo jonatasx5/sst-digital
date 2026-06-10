@@ -271,7 +271,74 @@ def criar_banco():
                 criado_em TEXT DEFAULT (datetime('now','localtime')))""")
         conn.commit()
 
+        # Tabela engenheiros
+        if USE_POSTGRES:
+            cur.execute("""
+                CREATE TABLE IF NOT EXISTS engenheiros (
+                    id SERIAL PRIMARY KEY,
+                    nome TEXT NOT NULL,
+                    crea TEXT DEFAULT '',
+                    ativo INTEGER DEFAULT 1,
+                    criado_em TIMESTAMP DEFAULT NOW()
+                )
+            """)
+        else:
+            cur.execute("""CREATE TABLE IF NOT EXISTS engenheiros (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                nome TEXT NOT NULL,
+                crea TEXT DEFAULT '',
+                ativo INTEGER DEFAULT 1,
+                criado_em TEXT DEFAULT (datetime('now','localtime')))""")
+        conn.commit()
+
         print(f"OK Banco criado ({'PostgreSQL' if USE_POSTGRES else 'SQLite'})")
+    finally:
+        conn.close()
+
+
+# ── ENGENHEIROS ───────────────────────────────────────────
+
+def listar_engenheiros() -> list:
+    conn = conectar()
+    try:
+        cur = conn.cursor()
+        cur.execute("SELECT id, nome, crea FROM engenheiros WHERE ativo=1 ORDER BY nome")
+        rows = cur.fetchall()
+        return [{"id": r[0], "nome": r[1], "crea": r[2]} for r in rows]
+    finally:
+        conn.close()
+
+
+def salvar_engenheiro(eid, nome: str, crea: str = '') -> int:
+    conn = conectar()
+    try:
+        cur = conn.cursor()
+        if eid:
+            cur.execute("UPDATE engenheiros SET nome=%s, crea=%s WHERE id=%s" if USE_POSTGRES
+                        else "UPDATE engenheiros SET nome=?, crea=? WHERE id=?",
+                        (nome, crea, eid))
+            conn.commit()
+            return eid
+        else:
+            if USE_POSTGRES:
+                cur.execute("INSERT INTO engenheiros (nome, crea) VALUES (%s, %s) RETURNING id", (nome, crea))
+                new_id = cur.fetchone()[0]
+            else:
+                cur.execute("INSERT INTO engenheiros (nome, crea) VALUES (?, ?)", (nome, crea))
+                new_id = cur.lastrowid
+            conn.commit()
+            return new_id
+    finally:
+        conn.close()
+
+
+def deletar_engenheiro(eid: int):
+    conn = conectar()
+    try:
+        cur = conn.cursor()
+        cur.execute("UPDATE engenheiros SET ativo=0 WHERE id=%s" if USE_POSTGRES
+                    else "UPDATE engenheiros SET ativo=0 WHERE id=?", (eid,))
+        conn.commit()
     finally:
         conn.close()
 

@@ -973,15 +973,26 @@ tr:hover td { background:#F9FAFB; }
           <select id="do-obra" style="width:100%;padding:10px;border:1.5px solid var(--borda);border-radius:8px;font-size:14px;background:var(--fundo);">
             <option value="">Carregando obras...</option>
           </select>
+          <div id="do-obra-manual-container" style="display:none;margin-top:6px">
+            <input type="text" id="do-obra-manual" placeholder="Digite o nome da obra" style="width:100%;padding:10px;border:1.5px solid var(--borda);border-radius:8px;font-size:14px;">
+          </div>
         </div>
-        <div class="field"><label>Executora *</label><input type="text" id="do-executora" placeholder="Empresa executora"></div>
+        <div class="field"><label>Executora *</label>
+          <select id="do-executora" style="width:100%;padding:10px;border:1.5px solid var(--borda);border-radius:8px;font-size:14px;background:var(--fundo);">
+            <option value="JS Construtora">JS Construtora</option>
+            <option value="__outro__">Outra...</option>
+          </select>
+          <div id="do-executora-manual-container" style="display:none;margin-top:6px">
+            <input type="text" id="do-executora-manual" placeholder="Digite o nome da executora" style="width:100%;padding:10px;border:1.5px solid var(--borda);border-radius:8px;font-size:14px;">
+          </div>
+        </div>
       </div>
       <div class="grid2">
-        <div class="field"><label>Supervisora</label><input type="text" id="do-supervisora" placeholder="Empresa supervisora"></div>
-        <div class="field"><label>Contrato de Execução</label><input type="text" id="do-contrato" placeholder="Nº do contrato"></div>
-      </div>
-      <div class="grid2">
-        <div class="field"><label>Número da Medição</label><input type="number" id="do-medicao" placeholder="Ex: 5" min="1"></div>
+        <div class="field"><label>Engenheiro Responsável</label>
+          <select id="do-engenheiro" style="width:100%;padding:10px;border:1.5px solid var(--borda);border-radius:8px;font-size:14px;background:var(--fundo);">
+            <option value="">Selecione o engenheiro</option>
+          </select>
+        </div>
         <div class="field"><label>Mês de Referência *</label>
           <select id="do-mes" style="width:100%;padding:10px;border:1.5px solid var(--borda);border-radius:8px;font-size:14px;background:var(--fundo);">
             <option value="">Selecione o mês</option>
@@ -992,11 +1003,26 @@ tr:hover td { background:#F9FAFB; }
         </div>
       </div>
       <div class="grid2">
-        <div class="field"><label>Ano</label><input type="number" id="do-ano" value="2025" min="2020" max="2035"></div>
+        <div class="field"><label>Ano</label>
+          <div style="display:flex;align-items:center;gap:8px;">
+            <button onclick="document.getElementById('do-ano').stepDown()" style="padding:8px 14px;border:1.5px solid var(--borda);border-radius:8px;background:#fff;cursor:pointer;font-size:16px;">−</button>
+            <input type="number" id="do-ano" value="2026" min="2020" max="2035" style="width:90px;padding:10px;border:1.5px solid var(--borda);border-radius:8px;font-size:14px;text-align:center;">
+            <button onclick="document.getElementById('do-ano').stepUp()" style="padding:8px 14px;border:1.5px solid var(--borda);border-radius:8px;background:#fff;cursor:pointer;font-size:16px;">+</button>
+          </div>
+        </div>
         <div></div>
       </div>
     </div>
-    <button class="btn btn-primary" onclick="doStep(1)" style="display:flex;align-items:center;gap:6px;">
+
+    <!-- Cadastro de engenheiros -->
+    <div class="card" style="margin-top:12px;">
+      <div class="card-title" style="margin-bottom:12px;"><i class="ti ti-user-check"></i>Engenheiros Responsáveis
+        <button onclick="doAbrirCadEngenheiro()" class="btn btn-outline btn-sm" style="margin-left:auto"><i class="ti ti-plus"></i>Cadastrar</button>
+      </div>
+      <div id="do-eng-lista" style="font-size:13px;color:var(--texto2);">Carregando...</div>
+    </div>
+
+    <button class="btn btn-primary" onclick="doStep(1)" style="display:flex;align-items:center;gap:6px;margin-top:12px;">
       <i class="ti ti-arrow-right"></i>Avançar → Adicionar Fotos
     </button>
   </div>
@@ -1077,6 +1103,25 @@ tr:hover td { background:#F9FAFB; }
 </div>
 
 </main></div><!-- fecha layout-principal -->
+
+<!-- ── MODAL ENGENHEIRO ── -->
+<div class="modal-overlay" id="modal-engenheiro" style="display:none;">
+  <div class="modal" style="max-width:420px;">
+    <div class="modal-header">
+      <div class="modal-title">Cadastrar Engenheiro</div>
+      <button class="modal-close" onclick="fecharModal('modal-engenheiro')"><i class="ti ti-x"></i></button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="eng-id">
+      <div class="field"><label>Nome completo *</label><input type="text" id="eng-nome" placeholder="Ex: João Silva"></div>
+      <div class="field"><label>CREA</label><input type="text" id="eng-crea" placeholder="Ex: CREA-GO 12345-D"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="fecharModal('modal-engenheiro')">Cancelar</button>
+      <button class="btn btn-primary" onclick="doSalvarEngenheiro()"><i class="ti ti-check"></i>Salvar</button>
+    </div>
+  </div>
+</div>
 
 <!-- ── MODAL USUÁRIO ── -->
 <div class="modal-bg" id="modal-usuario">
@@ -3033,7 +3078,7 @@ let doFotos = [];
 let doStepAtual = 0;
 
 async function doInit() {
-  // Preenche select de dias se ainda não foi feito
+  // Preenche select de dias
   const sel = document.getElementById('do-dia');
   if (sel.options.length <= 1) {
     for (let i = 1; i <= 31; i++) {
@@ -3060,24 +3105,78 @@ async function doInit() {
   }
 
   obrasSel.onchange = function() {
-    const container = document.getElementById('do-obra-manual-container');
-    if (this.value === '__outro__') {
-      if (!container) {
-        const div = document.createElement('div');
-        div.id = 'do-obra-manual-container';
-        div.className = 'field';
-        div.style.marginTop = '8px';
-        div.innerHTML = '<label>Nome da Obra (manual)</label><input type="text" id="do-obra-manual" placeholder="Digite o nome da obra">';
-        obrasSel.parentElement.parentElement.appendChild(div);
-      } else {
-        container.style.display = '';
-      }
-    } else if (container) {
-      container.style.display = 'none';
-    }
+    document.getElementById('do-obra-manual-container').style.display = this.value === '__outro__' ? '' : 'none';
   };
 
+  // Executora — toggle manual
+  document.getElementById('do-executora').onchange = function() {
+    document.getElementById('do-executora-manual-container').style.display = this.value === '__outro__' ? '' : 'none';
+  };
+
+  // Carrega engenheiros
+  await doCarregarEngenheiros();
+
   doRenderFotos();
+}
+
+// ── ENGENHEIROS ────────────────────────────────────────
+async function doCarregarEngenheiros() {
+  const res = await apiFetch('/api/engenheiros');
+  if (!res || !res.ok) return;
+  const lista = await res.json();
+
+  // Atualiza select
+  const engSel = document.getElementById('do-engenheiro');
+  const valAtual = engSel.value;
+  engSel.innerHTML = '<option value="">Selecione o engenheiro</option>'
+    + lista.map(e => `<option value="${e.nome}" ${e.nome===valAtual?'selected':''}>${e.nome}${e.crea?' — '+e.crea:''}</option>`).join('');
+
+  // Atualiza lista de cadastrados
+  const listaEl = document.getElementById('do-eng-lista');
+  if (!lista.length) {
+    listaEl.innerHTML = '<span style="color:var(--texto2)">Nenhum engenheiro cadastrado.</span>';
+    return;
+  }
+  listaEl.innerHTML = lista.map(e => `
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--borda);">
+      <div>
+        <span style="font-weight:600;">${e.nome}</span>
+        ${e.crea ? `<span style="color:var(--texto2);font-size:12px;margin-left:8px;">${e.crea}</span>` : ''}
+      </div>
+      <div style="display:flex;gap:6px;">
+        <button onclick="doAbrirCadEngenheiro(${JSON.stringify(e).replace(/"/g,'&quot;')})" class="btn btn-outline btn-sm"><i class="ti ti-edit"></i></button>
+        <button onclick="doDeletarEngenheiro(${e.id})" class="btn btn-danger btn-sm"><i class="ti ti-trash"></i></button>
+      </div>
+    </div>`).join('');
+}
+
+function doAbrirCadEngenheiro(eng) {
+  document.getElementById('eng-id').value   = eng?.id || '';
+  document.getElementById('eng-nome').value = eng?.nome || '';
+  document.getElementById('eng-crea').value = eng?.crea || '';
+  abrirModal('modal-engenheiro');
+}
+
+async function doSalvarEngenheiro() {
+  const id   = document.getElementById('eng-id').value;
+  const nome = document.getElementById('eng-nome').value.trim();
+  const crea = document.getElementById('eng-crea').value.trim();
+  if (!nome) { alert('Informe o nome do engenheiro.'); return; }
+  const method = id ? 'PUT' : 'POST';
+  const url    = id ? `/api/engenheiros/${id}` : '/api/engenheiros';
+  const res = await apiFetch(url, {
+    method, headers: {'Content-Type':'application/json'},
+    body: JSON.stringify({nome, crea})
+  });
+  if (!res || !res.ok) { alert('Erro ao salvar.'); return; }
+  fecharModal('modal-engenheiro');
+  doCarregarEngenheiros();
+}
+
+async function doDeletarEngenheiro(id) {
+  if (!confirm('Excluir este engenheiro?')) return;
+  await apiFetch(`/api/engenheiros/${id}`, { method: 'DELETE' });
+  doCarregarEngenheiros();
 }
 
 function doStep(n) {

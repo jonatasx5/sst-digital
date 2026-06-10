@@ -1271,10 +1271,11 @@ async function carregarAdmin() {
     return;
   }
   tbody.innerHTML = lista.map(u => {
-    const permsLabel = u.perfil === 'admin'
+    const perms = Array.isArray(u.permissoes) ? u.permissoes : [];
+    const permsLabel = (u.perfil === 'admin' || perms.includes('*'))
       ? '<span style="color:var(--verde);font-weight:600;">Todos os módulos</span>'
-      : (u.permissoes?.length
-          ? u.permissoes.map(p => MODULOS.find(m=>m.id===p)?.label || p).join(', ')
+      : (perms.length
+          ? perms.map(p => MODULOS.find(m=>m.id===p)?.label || p).join(', ')
           : '<span style="color:var(--danger);">Nenhum</span>');
     const statusBadge = u.ativo
       ? '<span style="background:#f0fdf4;color:#16a34a;border:1px solid #bbf7d0;padding:2px 8px;border-radius:20px;font-size:11px;font-weight:600;">Ativo</span>'

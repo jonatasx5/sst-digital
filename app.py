@@ -81,17 +81,22 @@ def exigir_admin(payload=Depends(verificar_acesso)):
 
 def _garantir_admin_inicial():
     """Cria o usuário admin padrão se não existir nenhum admin."""
-    if banco.contar_admins() == 0:
-        login_padrao = os.environ.get("ADMIN_LOGIN", "admin")
-        senha_padrao = os.environ.get("ADMIN_SENHA", "admin123")
-        banco.criar_usuario(
-            nome="Administrador",
-            login=login_padrao,
-            senha_hash=_hash_senha(senha_padrao),
-            perfil="admin",
-            permissoes=["*"]
-        )
-        print(f"Admin inicial criado: login={login_padrao}")
+    try:
+        total = banco.contar_admins()
+        print(f"DEBUG admins no banco: {total}")
+        if total == 0:
+            login_padrao = os.environ.get("ADMIN_LOGIN", "admin")
+            senha_padrao = os.environ.get("ADMIN_SENHA", "admin123")
+            uid = banco.criar_usuario(
+                nome="Administrador",
+                login=login_padrao,
+                senha_hash=_hash_senha(senha_padrao),
+                perfil="admin",
+                permissoes=["*"]
+            )
+            print(f"Admin inicial criado: login={login_padrao} id={uid}")
+    except Exception as e:
+        print(f"ERRO ao criar admin inicial: {e}")
 
 
 # Cria banco na inicialização
@@ -126,6 +131,24 @@ async def login(dados: dict):
 @app.get("/api/auth/me")
 async def me(payload=Depends(verificar_acesso)):
     return payload
+
+
+@app.post("/api/auth/reset-admin")
+async def reset_admin(dados: dict):
+    """Reseta a senha do admin. Só funciona se RESET_SECRET bater."""
+    secret = os.environ.get("RESET_SECRET", "")
+    if not secret or dados.get("secret") != secret:
+        raise HTTPException(403, "Não autorizado")
+    nova_senha = dados.get("senha", "admin123")
+    usuarios = banco.listar_usuarios()
+    admin = next((u for u in usuarios if u["perfil"] == "admin"), None)
+    if not admin:
+        # Cria se não existir
+        uid = banco.criar_usuario("Administrador", "admin", _hash_senha(nova_senha), "admin", ["*"])
+        return {"ok": True, "acao": "criado", "id": uid}
+    banco.atualizar_usuario(admin["id"], {**admin, "senha_hash": _hash_senha(nova_senha),
+                                          "permissoes": ["*"]})
+    return {"ok": True, "acao": "senha_atualizada", "login": admin["login"]}
 
 
 # ══════════════════════════════════════════════════════════

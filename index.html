@@ -1151,7 +1151,7 @@ function authHeaders() {
 async function apiFetch(url, opts = {}) {
   if (!opts.headers) opts.headers = {};
   if (_authToken) opts.headers['Authorization'] = 'Bearer ' + _authToken;
-  const res = await apiFetch(url, opts);
+  const res = await fetch(url, opts);
   if (res.status === 401) { fazerLogout(); return null; }
   return res;
 }
@@ -1164,7 +1164,7 @@ async function fazerLogin() {
   if (!login || !senha) { erroEl.textContent = 'Preencha login e senha.'; erroEl.style.display = ''; return; }
   btn.textContent = 'Entrando...'; btn.disabled = true;
   try {
-    const res = await apiFetch('/api/auth/login', {
+    const res = await fetch('/api/auth/login', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ login, senha })
     });

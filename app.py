@@ -17,7 +17,7 @@ from datetime import datetime, timedelta
 
 import hashlib
 import secrets as _secrets
-from jose import JWTError, jwt
+import jwt as _jwt
 
 import banco
 import processador
@@ -58,8 +58,8 @@ def _verificar_senha(senha: str, hashed: str) -> bool:
 
 def _criar_token(uid: int, perfil: str, permissoes: list) -> str:
     exp = datetime.utcnow() + timedelta(hours=JWT_EXPIRY)
-    return jwt.encode({"sub": str(uid), "perfil": perfil,
-                       "permissoes": permissoes, "exp": exp}, JWT_SECRET, algorithm=JWT_ALGO)
+    return _jwt.encode({"sub": str(uid), "perfil": perfil,
+                        "permissoes": permissoes, "exp": exp}, JWT_SECRET, algorithm=JWT_ALGO)
 
 
 def verificar_acesso(creds: HTTPAuthorizationCredentials = Depends(bearer_sec)):
@@ -67,9 +67,9 @@ def verificar_acesso(creds: HTTPAuthorizationCredentials = Depends(bearer_sec)):
     if creds is None:
         raise HTTPException(401, "Token não fornecido")
     try:
-        payload = jwt.decode(creds.credentials, JWT_SECRET, algorithms=[JWT_ALGO])
+        payload = _jwt.decode(creds.credentials, JWT_SECRET, algorithms=[JWT_ALGO])
         return payload
-    except JWTError:
+    except Exception:
         raise HTTPException(401, "Token inválido ou expirado")
 
 

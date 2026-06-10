@@ -1045,7 +1045,7 @@ async def atualizar_todos_pendentes(_=Depends(verificar_acesso)):
     atualizados = 0
     erros = 0
     for envio in pendentes:
-        doc_token = envio.get("autentique_id")
+        doc_token = envio.get("autentique_id") or envio.get("zapsign_token")
         if not doc_token:
             continue
         resultado = zapsign.consultar_status(doc_token)

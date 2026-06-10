@@ -15,8 +15,9 @@ import shutil
 import tempfile
 from datetime import datetime, timedelta
 
+import hashlib
+import secrets as _secrets
 from jose import JWTError, jwt
-from passlib.context import CryptContext
 
 import banco
 import processador
@@ -37,8 +38,22 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-pwd_ctx    = CryptContext(schemes=["bcrypt"], deprecated="auto")
 bearer_sec = HTTPBearer(auto_error=False)
+
+
+def _hash_senha(senha: str) -> str:
+    salt = _secrets.token_hex(16)
+    h = hashlib.pbkdf2_hmac("sha256", senha.encode(), salt.encode(), 260000)
+    return f"pbkdf2$sha256${salt}${h.hex()}"
+
+
+def _verificar_senha(senha: str, hashed: str) -> bool:
+    try:
+        _, algo, salt, stored = hashed.split("$")
+        h = hashlib.pbkdf2_hmac(algo, senha.encode(), salt.encode(), 260000)
+        return _secrets.compare_digest(h.hex(), stored)
+    except Exception:
+        return False
 
 
 def _criar_token(uid: int, perfil: str, permissoes: list) -> str:
@@ -72,7 +87,7 @@ def _garantir_admin_inicial():
         banco.criar_usuario(
             nome="Administrador",
             login=login_padrao,
-            senha_hash=pwd_ctx.hash(senha_padrao),
+            senha_hash=_hash_senha(senha_padrao),
             perfil="admin",
             permissoes=["*"]
         )
@@ -92,7 +107,7 @@ async def login(dados: dict):
     login_str = dados.get("login", "").strip()
     senha     = dados.get("senha", "")
     usuario   = banco.buscar_usuario_por_login(login_str)
-    if not usuario or not pwd_ctx.verify(senha, usuario["senha_hash"]):
+    if not usuario or not _verificar_senha(senha, usuario["senha_hash"]):
         raise HTTPException(401, "Usuário ou senha incorretos")
     import json as _json
     perms = usuario.get("permissoes", "[]")
@@ -136,7 +151,7 @@ async def criar_usuario(dados: dict, _=Depends(exigir_admin)):
     uid = banco.criar_usuario(
         nome=dados.get("nome", dados["login"]),
         login=dados["login"],
-        senha_hash=pwd_ctx.hash(dados["senha"]),
+        senha_hash=_hash_senha(dados["senha"]),
         perfil=dados.get("perfil", "usuario"),
         permissoes=dados.get("permissoes", [])
     )
@@ -156,7 +171,7 @@ async def atualizar_usuario(uid: int, dados: dict, _=Depends(exigir_admin)):
         "ativo":      dados.get("ativo", usuario["ativo"]),
     }
     if dados.get("senha"):
-        update["senha_hash"] = pwd_ctx.hash(dados["senha"])
+        update["senha_hash"] = _hash_senha(dados["senha"])
     banco.atualizar_usuario(uid, update)
     return {"ok": True}
 

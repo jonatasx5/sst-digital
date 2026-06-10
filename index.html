@@ -1260,6 +1260,16 @@ window.addEventListener('DOMContentLoaded', async () => {
 // ══════════════════════════════════════════════════════
 //  ADMIN — PAINEL DE USUÁRIOS
 // ══════════════════════════════════════════════════════
+const MODULOS = [
+  { id: 'funcionarios',  label: 'Funcionários' },
+  { id: 'modelos',       label: 'Modelos & Funções' },
+  { id: 'cadastro-epi',  label: 'Cadastro de EPI' },
+  { id: 'envio-epi',     label: 'Envio Ficha EPI' },
+  { id: 'envio-lote',    label: 'Envio de Lote' },
+  { id: 'ordem-servico', label: 'Ordem de Serviço' },
+  { id: 'historico',     label: 'Histórico' },
+  { id: 'diario-obra',   label: 'Diário de Obra' },
+];
 async function carregarAdmin() {
   const tbody = document.getElementById('admin-tbody');
   tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:30px;color:var(--texto2);">Carregando...</td></tr>';

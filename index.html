@@ -1884,10 +1884,17 @@ async function selecionarFuncEpi(f) {
     <div style="font-size:12px;color:var(--texto2)">${f.cargo} · ${f.lotacao||''}</div>`;
 
   // Carrega catálogo completo e EPIs do cargo
-  const [resCat, resCargo] = await Promise.all([
-    apiFetch('/api/epis/catalogo').then(r=>r.json()),
-    apiFetch(`/api/epis/cargo/${encodeURIComponent(f.cargo)}`).then(r=>r.json())
-  ]);
+  let resCat = [], resCargo = [];
+  try {
+    const [r1, r2] = await Promise.all([
+      apiFetch('/api/epis/catalogo'),
+      apiFetch(`/api/epis/cargo/${encodeURIComponent(f.cargo)}`)
+    ]);
+    resCat   = r1 ? await r1.json() : [];
+    resCargo = r2 ? await r2.json() : [];
+    if (!Array.isArray(resCat))   resCat = [];
+    if (!Array.isArray(resCargo)) resCargo = [];
+  } catch(e) { console.error('Erro ao carregar EPIs:', e); }
   const idsNoCargo = new Set(resCargo.map(e => e.epi_id));
   const div = document.getElementById('epi-checklist');
   div.innerHTML = '';

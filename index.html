@@ -184,8 +184,7 @@ tr:hover td { background:#F9FAFB; }
     <button class="nav-item" onclick="irPara('modelos')"><i class="ti ti-files"></i>Modelos & Funções</button>
     <button class="nav-item" onclick="irPara('cadastro-epi')"><i class="ti ti-hard-hat"></i>Cadastro de EPI</button>
     <button class="nav-item" onclick="irPara('envio-epi')"><i class="ti ti-shield-check"></i>Envio Ficha EPI</button>
-    <button class="nav-item" onclick="irPara('lote')"><i class="ti ti-package"></i>Montar Lote</button>
-    <button class="nav-item" onclick="irPara('envio')"><i class="ti ti-send"></i>Enviar</button>
+    <button class="nav-item" onclick="irPara('envio-lote')"><i class="ti ti-send"></i>Envio de Lote</button>
     <button class="nav-item" onclick="irPara('ordem-servico')"><i class="ti ti-clipboard-list"></i>Ordem de Serviço</button>
     <button class="nav-item" onclick="irPara('historico')"><i class="ti ti-clock"></i>Histórico</button>
     <button class="nav-item" onclick="irPara('diario-obra')"><i class="ti ti-camera"></i>Diário de Obra</button>
@@ -448,83 +447,118 @@ tr:hover td { background:#F9FAFB; }
   </div>
 </div>
 
-<!-- ── MONTAR LOTE ── -->
-<div class="panel" id="panel-lote">
+<!-- ── ENVIO DE LOTE ── -->
+<div class="panel" id="panel-envio-lote">
   <div class="page-header">
-    <div><div class="page-title">Montar Lote</div><div class="page-sub">Selecione os admitidos desta semana</div></div>
-    <button class="btn btn-primary" onclick="irParaEnvio()"><i class="ti ti-arrow-right"></i>Preparar envio</button>
+    <div><div class="page-title">Envio de Lote</div><div class="page-sub">Selecione funcionários e escolha o que enviar</div></div>
   </div>
 
-  <div class="grid2">
-    <div>
+  <!-- Steps -->
+  <div style="display:flex;gap:0;margin-bottom:20px;border-radius:10px;overflow:hidden;border:1px solid var(--borda);">
+    <div id="el-tab0" style="flex:1;padding:10px;text-align:center;font-size:13px;font-weight:600;background:var(--verde);color:#fff;">1. Funcionários</div>
+    <div id="el-tab1" style="flex:1;padding:10px;text-align:center;font-size:13px;font-weight:500;background:var(--card);color:var(--texto2);border-left:1px solid var(--borda);">2. O que enviar</div>
+    <div id="el-tab2" style="flex:1;padding:10px;text-align:center;font-size:13px;font-weight:500;background:var(--card);color:var(--texto2);border-left:1px solid var(--borda);">3. Resultado</div>
+  </div>
+
+  <!-- Step 1: Selecionar funcionários -->
+  <div id="el-step0">
+    <div class="grid2">
       <div class="card">
         <div class="card-title"><i class="ti ti-search"></i>Buscar funcionário</div>
-        <input type="text" id="busca-lote" placeholder="Nome ou cargo..." style="width:100%;padding:8px 12px;border:1px solid var(--borda);border-radius:8px;font-size:13px;margin-bottom:10px" oninput="filtrarLote()">
+        <input type="text" id="busca-lote" placeholder="Nome ou cargo..."
+               style="width:100%;padding:8px 12px;border:1px solid var(--borda);border-radius:8px;font-size:13px;margin-bottom:10px"
+               oninput="filtrarLote()">
         <div class="lista-scroll" id="lista-lote"></div>
       </div>
-    </div>
-    <div>
       <div class="card">
-        <div class="card-title"><i class="ti ti-package"></i>No lote (<span id="lote-count">0</span>)</div>
-        <div class="field">
-          <label>Descrição do lote</label>
-          <input type="text" id="lote-desc" value="">
-        </div>
+        <div class="card-title"><i class="ti ti-users"></i>Selecionados (<span id="lote-count">0</span>)</div>
         <div id="lista-sel"></div>
-        <button class="btn btn-danger btn-sm" style="margin-top:8px" onclick="limparLote()"><i class="ti ti-trash"></i>Limpar lote</button>
+        <div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap;">
+          <button class="btn btn-danger btn-sm" onclick="limparLote()"><i class="ti ti-trash"></i>Limpar</button>
+        </div>
+        <button class="btn btn-primary" style="width:100%;justify-content:center;margin-top:16px;" onclick="elAvancar()"
+                id="el-btn-avancar">
+          <i class="ti ti-arrow-right"></i>Avançar — Escolher documentos
+        </button>
       </div>
+    </div>
+  </div>
+
+  <!-- Step 2: O que enviar -->
+  <div id="el-step1" style="display:none;">
+    <div class="card">
+      <div class="card-title"><i class="ti ti-files"></i>O que deseja enviar para os <span id="el-count-func">0</span> funcionário(s)?</div>
+
+      <div style="display:flex;flex-direction:column;gap:12px;margin-bottom:20px;">
+        <label style="display:flex;align-items:flex-start;gap:12px;padding:14px;border:2px solid var(--borda);border-radius:10px;cursor:pointer;transition:border .15s;"
+               id="el-card-kit" onclick="elToggleOpcao('kit')">
+          <input type="checkbox" id="el-chk-kit" style="width:18px;height:18px;margin-top:1px;accent-color:var(--verde);">
+          <div>
+            <div style="font-weight:700;font-size:14px;">Kit SST</div>
+            <div style="font-size:12px;color:var(--texto2);margin-top:2px;">Envia todos os documentos pré-configurados para o cargo de cada funcionário (treinamentos, políticas, NRs)</div>
+          </div>
+        </label>
+
+        <label style="display:flex;align-items:flex-start;gap:12px;padding:14px;border:2px solid var(--borda);border-radius:10px;cursor:pointer;transition:border .15s;"
+               id="el-card-epi" onclick="elToggleOpcao('epi')">
+          <input type="checkbox" id="el-chk-epi" style="width:18px;height:18px;margin-top:1px;accent-color:var(--verde);">
+          <div>
+            <div style="font-weight:700;font-size:14px;">Ficha de EPI</div>
+            <div style="font-size:12px;color:var(--texto2);margin-top:2px;">Gera automaticamente a ficha com todos os EPIs do cargo de cada funcionário e envia para assinatura</div>
+          </div>
+        </label>
+      </div>
+
+      <div class="field" style="max-width:300px;">
+        <label>Modo de envio</label>
+        <select id="el-modo" style="width:100%;padding:9px;border:1.5px solid var(--borda);border-radius:8px;font-size:13px;">
+          <option value="real">Envio real</option>
+          <option value="sandbox">Sandbox / Teste</option>
+        </select>
+      </div>
+
+      <div style="display:flex;gap:10px;margin-top:16px;">
+        <button class="btn btn-secondary" onclick="elVoltar()" style="display:flex;align-items:center;gap:6px;">
+          <i class="ti ti-arrow-left"></i>Voltar
+        </button>
+        <button class="btn btn-primary" onclick="elEnviar()" id="el-btn-enviar"
+                style="flex:1;justify-content:center;display:flex;align-items:center;gap:8px;font-size:14px;">
+          <i class="ti ti-rocket"></i>Enviar Lote
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Step 3: Resultado -->
+  <div id="el-step2" style="display:none;">
+    <div id="el-enviando" style="display:none;">
+      <div class="card" style="text-align:center;padding:32px;">
+        <div class="spinner"></div>
+        <div style="font-size:14px;font-weight:600;margin-top:12px;">Processando lote...</div>
+        <div style="font-size:12px;color:var(--texto2);margin-top:4px;" id="el-status-txt">Iniciando...</div>
+      </div>
+    </div>
+    <div id="el-resultado"></div>
+    <div id="el-erros"></div>
+    <div id="el-btns-fim" style="display:none;gap:8px;margin-top:16px;">
+      <button class="btn btn-secondary" onclick="elNovoLote()" style="display:flex;align-items:center;gap:6px;">
+        <i class="ti ti-plus"></i>Novo lote
+      </button>
+      <button class="btn btn-primary" onclick="irPara('historico')" style="display:flex;align-items:center;gap:6px;">
+        <i class="ti ti-clock"></i>Ver histórico
+      </button>
     </div>
   </div>
 </div>
 
-<!-- ── ENVIO ── -->
-<div class="panel" id="panel-envio">
-  <div class="page-header">
-    <div><div class="page-title">Enviar Lote</div><div class="page-sub" id="envio-sub">Confirme os dados antes de enviar</div></div>
-  </div>
-
-  <div id="envio-preview-section">
-    <div id="envio-preview-lista"></div>
-    <div class="card" style="margin-top:8px">
-      <div class="card-title"><i class="ti ti-settings"></i>Opções de envio</div>
-      <div class="grid2">
-        <div class="field">
-          <label>Modo</label>
-          <select id="modo-envio">
-            <option value="real">Envio real (consome cota)</option>
-            <option value="sandbox">Sandbox / Teste (não consome)</option>
-          </select>
-        </div>
-      </div>
-      <button class="btn btn-primary" style="width:100%;justify-content:center;height:44px;font-size:14px" id="btn-enviar" onclick="enviarLote()">
-        <i class="ti ti-rocket"></i>Enviar Lote para ZapSign
-      </button>
-    </div>
-  </div>
-
-  <div id="envio-sending" style="display:none">
-    <div class="card" style="text-align:center;padding:32px">
-      <div class="spinner"></div>
-      <div style="font-size:14px;font-weight:600;margin-bottom:4px">Processando lote...</div>
-      <div style="font-size:12px;color:var(--texto2)" id="send-status-txt">Iniciando...</div>
-      <div class="prog-bar" style="margin-top:16px"><div class="prog-fill" id="send-prog" style="width:0%"></div></div>
-      <div id="send-prog-list" style="margin-top:12px;text-align:left"></div>
-    </div>
-  </div>
-
-  <div id="envio-done" style="display:none">
-    <div class="card" style="text-align:center;padding:32px">
-      <i class="ti ti-circle-check" style="font-size:48px;color:var(--verde);display:block;margin-bottom:12px"></i>
-      <div style="font-size:16px;font-weight:700;margin-bottom:4px">Lote enviado!</div>
-      <div style="font-size:13px;color:var(--texto2);margin-bottom:20px" id="done-resumo"></div>
-    </div>
-    <div id="links-resultado"></div>
-    <div id="erros-resultado"></div>
-    <div style="display:flex;gap:8px;margin-top:12px">
-      <button class="btn btn-outline" onclick="novoLote()"><i class="ti ti-plus"></i>Novo lote</button>
-      <button class="btn btn-primary" onclick="irPara('historico')"><i class="ti ti-clock"></i>Ver histórico</button>
-    </div>
-  </div>
+<!-- mantém panel-lote e panel-envio como aliases invisíveis para não quebrar JS legado -->
+<div class="panel" id="panel-lote" style="display:none!important"></div>
+<div class="panel" id="panel-envio" style="display:none!important">
+  <div id="envio-preview-lista"></div>
+  <div id="envio-sending" style="display:none"><div id="send-status-txt"></div><div class="prog-fill" id="send-prog"></div><div id="send-prog-list"></div></div>
+  <div id="envio-done" style="display:none"><div id="done-resumo"></div><div id="links-resultado"></div><div id="erros-resultado"></div></div>
+  <select id="modo-envio"><option value="real">real</option><option value="sandbox">sandbox</option></select>
+  <input type="text" id="lote-desc" style="display:none">
 </div>
 
 <!-- ── ORDEM DE SERVIÇO ── -->
@@ -987,6 +1021,7 @@ function irPara(aba) {
   if (aba==='cadastro-epi')  carregarPainelCadEpi();
   if (aba==='envio-epi')     { buscarFuncEpi(); filtrarEpiLote(); }
   if (aba==='lote')          { filtrarLote(); renderLoteSel(); }
+  if (aba==='envio-lote')   { elReset(); filtrarLote(); renderLoteSel(); }
   if (aba==='ordem-servico') carregarOSCargos();
   if (aba==='historico')     carregarHistorico();
   if (aba==='diario-obra')   doInit();
@@ -1917,6 +1952,154 @@ function novoLote() {
   document.getElementById('envio-done').style.display='none';
   document.getElementById('envio-preview-lista').innerHTML='';
   irPara('lote');
+}
+
+// ══════════════════════════════════════════════════════
+//  ENVIO DE LOTE (novo panel unificado)
+// ══════════════════════════════════════════════════════
+function elReset() {
+  elMostrarStep(0);
+  document.getElementById('el-chk-kit').checked = false;
+  document.getElementById('el-chk-epi').checked = false;
+  document.getElementById('el-card-kit').style.border = '2px solid var(--borda)';
+  document.getElementById('el-card-epi').style.border = '2px solid var(--borda)';
+  document.getElementById('el-resultado').innerHTML = '';
+  document.getElementById('el-erros').innerHTML = '';
+  document.getElementById('el-btns-fim').style.display = 'none';
+  document.getElementById('el-enviando').style.display = 'none';
+}
+
+function elMostrarStep(n) {
+  [0,1,2].forEach(i => {
+    document.getElementById('el-step'+i).style.display = i===n ? '' : 'none';
+    const tab = document.getElementById('el-tab'+i);
+    tab.style.background = i===n ? 'var(--verde)' : (i<n ? '#e8f5e9' : 'var(--card)');
+    tab.style.color = i<=n ? (i===n ? '#fff' : 'var(--verde)') : 'var(--texto2)';
+    tab.style.fontWeight = i===n ? '700' : '500';
+  });
+}
+
+function elAvancar() {
+  if (!loteIds.size) { alert('Selecione ao menos um funcionário.'); return; }
+  document.getElementById('el-count-func').textContent = loteIds.size;
+  elMostrarStep(1);
+}
+
+function elVoltar() { elMostrarStep(0); }
+
+function elToggleOpcao(tipo) {
+  const chk = document.getElementById(`el-chk-${tipo}`);
+  const card = document.getElementById(`el-card-${tipo}`);
+  chk.checked = !chk.checked;
+  card.style.border = chk.checked ? '2px solid var(--verde)' : '2px solid var(--borda)';
+}
+
+async function elEnviar() {
+  const enviarKit = document.getElementById('el-chk-kit').checked;
+  const enviarEpi = document.getElementById('el-chk-epi').checked;
+  if (!enviarKit && !enviarEpi) { alert('Selecione ao menos uma opção: Kit SST ou Ficha de EPI.'); return; }
+  if (!confirm(`Enviar ${enviarKit?'Kit SST':''} ${enviarKit&&enviarEpi?'e ':''} ${enviarEpi?'Ficha de EPI':''} para ${loteIds.size} funcionário(s)?`)) return;
+
+  const sandbox = document.getElementById('el-modo').value === 'sandbox';
+  elMostrarStep(2);
+  document.getElementById('el-enviando').style.display = '';
+  document.getElementById('el-btns-fim').style.display = 'none';
+  document.getElementById('el-resultado').innerHTML = '';
+  document.getElementById('el-erros').innerHTML = '';
+
+  const funcIds = [...loteIds];
+  const resultados = [];
+  const erros = [];
+  let totalEnviados = 0;
+
+  for (let i = 0; i < funcIds.length; i++) {
+    const id = funcIds[i];
+    document.getElementById('el-status-txt').textContent =
+      `Processando ${i+1}/${funcIds.length}...`;
+
+    // Envia Kit SST se selecionado
+    if (enviarKit) {
+      try {
+        const r = await fetch('/api/lotes/enviar', {
+          method:'POST', headers:{'Content-Type':'application/json'},
+          body: JSON.stringify({ func_ids:[id], descricao:'Kit SST', celulares:{}, sandbox })
+        });
+        const d = await r.json();
+        const func = d.resultados?.[0];
+        if (func) {
+          resultados.push({ ...func, tipo:'Kit SST' });
+          totalEnviados++;
+        }
+        if (d.erros?.length) erros.push(...d.erros.map(e=>`[Kit SST] ${e}`));
+      } catch(e) { erros.push(`[Kit SST] Funcionário ID ${id}: ${e.message}`); }
+    }
+
+    // Envia Ficha EPI se selecionado
+    if (enviarEpi) {
+      try {
+        const r = await fetch('/api/epi/enviar', {
+          method:'POST', headers:{'Content-Type':'application/json'},
+          body: JSON.stringify({ func_ids:[id], sandbox })
+        });
+        const d = await r.json();
+        const func = d.resultados?.[0];
+        if (func) {
+          resultados.push({ nome: func.nome, cargo: func.cargo, celular:'', tipo:'Ficha EPI', links:[{doc:'Ficha de EPI', link:func.link||''}] });
+          totalEnviados++;
+        }
+        if (d.erros?.length) erros.push(...d.erros.map(e=>`[Ficha EPI] ${e}`));
+      } catch(e) { erros.push(`[Ficha EPI] Funcionário ID ${id}: ${e.message}`); }
+    }
+  }
+
+  document.getElementById('el-enviando').style.display = 'none';
+
+  // Monta resultado
+  const resDiv = document.getElementById('el-resultado');
+  if (resultados.length) {
+    // Agrupa por funcionário
+    const porFunc = {};
+    resultados.forEach(r => {
+      const key = r.nome || 'Funcionário';
+      if (!porFunc[key]) porFunc[key] = { nome: r.nome, celular: r.celular, cargo: r.cargo, docs: [] };
+      (r.links||[]).forEach(l => porFunc[key].docs.push({ tipo: r.tipo, ...l }));
+    });
+
+    resDiv.innerHTML = Object.values(porFunc).map(f => `
+      <div class="card" style="margin-bottom:8px">
+        <div style="font-size:13px;font-weight:700;margin-bottom:4px">${f.nome}</div>
+        <div style="font-size:11px;color:var(--texto2);margin-bottom:8px">${f.cargo||''} ${f.celular ? '· '+f.celular : ''}</div>
+        ${f.docs.map(d => `
+          <div style="margin-bottom:8px">
+            <div style="font-size:12px;font-weight:600;margin-bottom:4px;color:var(--verde)">${d.tipo} — ${d.doc}</div>
+            <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center">
+              <div class="link-box" style="flex:1;min-width:0">
+                <input type="text" value="${d.link||''}" readonly style="min-width:0;flex:1">
+                <button class="btn btn-primary btn-sm" onclick="copiar('${d.link}',this)"><i class="ti ti-copy"></i>Copiar</button>
+              </div>
+              <button class="btn btn-secondary btn-sm" onclick="histAbrirWhatsApp({celular:'${f.celular||''}',nome:'${f.nome.replace(/'/g,"\\'")}'},'${(d.link||'').replace(/'/g,"\\'")}')">
+                <i class="ti ti-brand-whatsapp"></i>WhatsApp
+              </button>
+            </div>
+          </div>`).join('')}
+      </div>`).join('');
+  }
+
+  if (erros.length) {
+    document.getElementById('el-erros').innerHTML = `<div class="alert al-error" style="margin-top:8px">
+      <i class="ti ti-alert-triangle"></i>
+      <div><strong>${erros.length} erro(s):</strong><br>${erros.join('<br>')}</div>
+    </div>`;
+  }
+
+  document.getElementById('el-btns-fim').style.display = 'flex';
+}
+
+function elNovoLote() {
+  loteIds.clear();
+  elReset();
+  filtrarLote();
+  renderLoteSel();
 }
 
 // ══════════════════════════════════════════════════════

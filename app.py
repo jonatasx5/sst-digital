@@ -1063,8 +1063,8 @@ async def atualizar_todos_pendentes(_=Depends(verificar_acesso)):
 
 
 @app.get("/api/envios/{envio_id}/download")
-async def download_pdf_assinado(envio_id: int, _=Depends(verificar_acesso)):
-    """Baixa o PDF assinado direto do ZapSign."""
+async def download_pdf_assinado(envio_id: int):
+    """Baixa o PDF assinado direto do ZapSign (sem auth — link direto no browser)."""
     envio = banco.buscar_envio_por_id(envio_id)
     if not envio:
         raise HTTPException(404, "Envio não encontrado")
@@ -1078,9 +1078,6 @@ async def download_pdf_assinado(envio_id: int, _=Depends(verificar_acesso)):
         raise HTTPException(400, erro)
 
     nome_arquivo = (envio.get("doc_nome") or "documento").replace("/", "-").replace(" ", "_")
-    funcionario  = (envio.get("funcionario_nome") or "")
-    if funcionario:
-        nome_arquivo = f"{nome_arquivo}_{funcionario.replace(' ', '_')}"
     nome_arquivo += "_assinado.pdf"
 
     import io

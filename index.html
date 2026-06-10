@@ -1886,7 +1886,7 @@ async function selecionarFuncEpi(f) {
   // Carrega catálogo completo e EPIs do cargo
   const [resCat, resCargo] = await Promise.all([
     apiFetch('/api/epis/catalogo').then(r=>r.json()),
-    fetch(`/api/epis/cargo/${encodeURIComponent(f.cargo)}`).then(r=>r.json())
+    apiFetch(`/api/epis/cargo/${encodeURIComponent(f.cargo)}`).then(r=>r.json())
   ]);
   const idsNoCargo = new Set(resCargo.map(e => e.epi_id));
   const div = document.getElementById('epi-checklist');

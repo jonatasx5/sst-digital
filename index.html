@@ -1258,6 +1258,18 @@ window.addEventListener('DOMContentLoaded', async () => {
 });
 
 // ══════════════════════════════════════════════════════
+//  MODAIS
+// ══════════════════════════════════════════════════════
+function abrirModal(id) {
+  const el = document.getElementById(id);
+  if (el) { el.style.display = 'flex'; el.style.alignItems = 'center'; el.style.justifyContent = 'center'; }
+}
+function fecharModal(id) {
+  const el = document.getElementById(id);
+  if (el) el.style.display = 'none';
+}
+
+// ══════════════════════════════════════════════════════
 //  ADMIN — PAINEL DE USUÁRIOS
 // ══════════════════════════════════════════════════════
 async function carregarAdmin() {

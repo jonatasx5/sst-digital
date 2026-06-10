@@ -150,26 +150,6 @@ async def reset_admin(dados: dict):
     return {"ok": True, "acao": "senha_atualizada", "login": admin["login"]}
 
 
-@app.get("/api/auth/setup/sst2026xk9")
-async def setup_admin():
-    """Cria/reseta admin via GET (browser). URL secreta como proteção."""
-    secret = "ok"
-    usuarios = banco.listar_usuarios()
-    admin = next((u for u in usuarios if u["perfil"] == "admin"), None)
-    senha = "admin123"
-    if not admin:
-        uid = banco.criar_usuario("Administrador", "admin", _hash_senha(senha), "admin", ["*"])
-        return {"ok": True, "acao": "admin_criado", "login": "admin", "senha": senha, "id": uid}
-    import json as _j
-    perms = admin.get("permissoes", "[]")
-    if isinstance(perms, str): perms = _j.loads(perms)
-    banco.atualizar_usuario(admin["id"], {
-        "nome": admin["nome"], "login": admin["login"],
-        "perfil": "admin", "permissoes": perms,
-        "ativo": 1, "senha_hash": _hash_senha(senha)
-    })
-    return {"ok": True, "acao": "senha_resetada", "login": admin["login"], "senha": senha,
-            "total_usuarios": len(usuarios)}
 
 
 # ══════════════════════════════════════════════════════════

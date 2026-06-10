@@ -969,7 +969,11 @@ tr:hover td { background:#F9FAFB; }
     <div class="card">
       <div class="card-title"><i class="ti ti-building-factory-2"></i>Dados da Obra</div>
       <div class="grid2">
-        <div class="field"><label>Nome da Obra *</label><input type="text" id="do-obra" placeholder="Ex: Pavimentação BR-153 Trecho 4"></div>
+        <div class="field"><label>Nome da Obra *</label>
+          <select id="do-obra" style="width:100%;padding:10px;border:1.5px solid var(--borda);border-radius:8px;font-size:14px;background:var(--fundo);">
+            <option value="">Carregando obras...</option>
+          </select>
+        </div>
         <div class="field"><label>Executora *</label><input type="text" id="do-executora" placeholder="Empresa executora"></div>
       </div>
       <div class="grid2">
@@ -3028,7 +3032,7 @@ const DO_SERVICOS = [
 let doFotos = [];
 let doStepAtual = 0;
 
-function doInit() {
+async function doInit() {
   // Preenche select de dias se ainda não foi feito
   const sel = document.getElementById('do-dia');
   if (sel.options.length <= 1) {
@@ -3038,6 +3042,41 @@ function doInit() {
       sel.appendChild(o);
     }
   }
+
+  // Carrega lotações dos funcionários para o select de obras
+  const obrasSel = document.getElementById('do-obra');
+  const valorAtual = obrasSel.value;
+  try {
+    const res = await apiFetch('/api/funcionarios');
+    if (res && res.ok) {
+      const funcs = await res.json();
+      const lotacoes = [...new Set(funcs.map(f => f.lotacao).filter(l => l && l.trim()))].sort();
+      obrasSel.innerHTML = '<option value="">Selecione a obra</option>'
+        + lotacoes.map(l => `<option value="${l}" ${l===valorAtual?'selected':''}>${l}</option>`).join('')
+        + '<option value="__outro__">Outra (digitar manualmente)</option>';
+    }
+  } catch(e) {
+    obrasSel.innerHTML = '<option value="">Erro ao carregar obras</option>';
+  }
+
+  obrasSel.onchange = function() {
+    const container = document.getElementById('do-obra-manual-container');
+    if (this.value === '__outro__') {
+      if (!container) {
+        const div = document.createElement('div');
+        div.id = 'do-obra-manual-container';
+        div.className = 'field';
+        div.style.marginTop = '8px';
+        div.innerHTML = '<label>Nome da Obra (manual)</label><input type="text" id="do-obra-manual" placeholder="Digite o nome da obra">';
+        obrasSel.parentElement.parentElement.appendChild(div);
+      } else {
+        container.style.display = '';
+      }
+    } else if (container) {
+      container.style.display = 'none';
+    }
+  };
+
   doRenderFotos();
 }
 
@@ -3235,7 +3274,8 @@ function doRenderFotos() {
 
 // ── RESUMO ────────────────────────────────────────────
 function doBuildResumo() {
-  const obra = document.getElementById('do-obra').value || '(não informado)';
+  const _obraVal = document.getElementById('do-obra').value;
+  const obra = (_obraVal === '__outro__' ? document.getElementById('do-obra-manual')?.value : _obraVal) || '(não informado)';
   const mes  = document.getElementById('do-mes').value  || '(não informado)';
   const ano  = document.getElementById('do-ano').value  || '';
   const dias = [...new Set(doFotos.map(f=>f.dia))].sort((a,b)=>a-b);
@@ -3279,7 +3319,8 @@ function doExportarXLSX() {
   if (typeof XLSX === 'undefined') { alert('Biblioteca XLSX ainda carregando, tente novamente em instantes.'); return; }
 
   const wb   = XLSX.utils.book_new();
-  const obra = document.getElementById('do-obra').value||'';
+  const _obraVal2 = document.getElementById('do-obra').value;
+  const obra = (_obraVal2 === '__outro__' ? document.getElementById('do-obra-manual')?.value : _obraVal2) || '';
   const exec = document.getElementById('do-executora').value||'';
   const sup  = document.getElementById('do-supervisora').value||'';
   const cont = document.getElementById('do-contrato').value||'';

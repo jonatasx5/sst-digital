@@ -150,12 +150,10 @@ async def reset_admin(dados: dict):
     return {"ok": True, "acao": "senha_atualizada", "login": admin["login"]}
 
 
-@app.get("/api/auth/setup/{secret}")
-async def setup_admin(secret: str):
-    """Cria/reseta admin via GET (browser). Protegido por RESET_SECRET."""
-    reset_secret = os.environ.get("RESET_SECRET", "")
-    if not reset_secret or secret != reset_secret:
-        raise HTTPException(403, "Não autorizado")
+@app.get("/api/auth/setup/sst2026xk9")
+async def setup_admin():
+    """Cria/reseta admin via GET (browser). URL secreta como proteção."""
+    secret = "ok"
     usuarios = banco.listar_usuarios()
     admin = next((u for u in usuarios if u["perfil"] == "admin"), None)
     senha = "admin123"

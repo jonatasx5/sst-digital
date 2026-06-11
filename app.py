@@ -1224,7 +1224,9 @@ async def atualizar_status_envio(envio_id: int, _=Depends(verificar_acesso)):
 @app.post("/api/envios/atualizar-todos")
 async def atualizar_todos_pendentes(_=Depends(verificar_acesso)):
     """Atualiza o status de todos os envios pendentes consultando o ZapSign."""
-    pendentes = banco.listar_envios(status="enviado", limite=200)
+    # Busca todos os envios que ainda não foram assinados (independente do status exato)
+    todos = banco.listar_envios(status=None, limite=500)
+    pendentes = [e for e in todos if e.get("status") != "signed"]
     atualizados = 0
     erros = 0
     for envio in pendentes:

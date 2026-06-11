@@ -2718,7 +2718,11 @@ async function histBaixarPdf(envioId, btn) {
   try {
     const res = await apiFetch(`/api/envios/${envioId}/download`);
     if (!res || !res.ok) {
-      const msg = res ? (await res.text()) : 'Sem resposta do servidor';
+      let msg = 'Sem resposta do servidor';
+      if (res) {
+        try { const j = await res.json(); msg = j.detail || JSON.stringify(j); }
+        catch { msg = await res.text(); }
+      }
       alert('Erro ao baixar PDF: ' + msg);
       btn.innerHTML = orig;
       btn.disabled = false;

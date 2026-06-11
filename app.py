@@ -1254,11 +1254,16 @@ async def download_pdf_assinado(envio_id: int):
     if not envio:
         raise HTTPException(404, "Envio não encontrado")
 
-    doc_token = envio.get("autentique_id")
+    doc_token = envio.get("autentique_id") or envio.get("zapsign_token")
     if not doc_token:
         raise HTTPException(400, "Envio não possui token ZapSign")
 
-    pdf_bytes, erro = zapsign.baixar_pdf_assinado(doc_token)
+    try:
+        pdf_bytes, erro = zapsign.baixar_pdf_assinado(doc_token)
+    except Exception as exc:
+        print(f"ERRO download envio {envio_id}: {exc}")
+        raise HTTPException(500, f"Erro interno ao baixar PDF: {exc}")
+
     if erro:
         raise HTTPException(400, erro)
 

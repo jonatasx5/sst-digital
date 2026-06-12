@@ -419,9 +419,14 @@ tr:hover td { background:#F9FAFB; }
   <div id="epi-aba-individual">
     <div class="card">
       <div class="card-title"><i class="ti ti-search"></i>Buscar funcionário</div>
-      <input type="text" id="busca-epi-func" placeholder="Nome ou cargo..."
-        style="width:100%;padding:8px 12px;border:1px solid var(--borda);border-radius:8px;font-size:13px;margin-bottom:10px"
-        oninput="buscarFuncEpi()">
+      <div style="display:flex;gap:8px;margin-bottom:10px">
+        <input type="text" id="busca-epi-func" placeholder="Nome ou cargo..."
+          style="flex:1;padding:8px 12px;border:1px solid var(--borda);border-radius:8px;font-size:13px"
+          oninput="buscarFuncEpi()">
+        <button class="btn btn-outline btn-sm" onclick="abrirCadastroRapidoEpi()" title="Pessoa não cadastrada no sistema">
+          <i class="ti ti-user-plus"></i> Novo
+        </button>
+      </div>
       <div id="lista-epi-func" class="lista-scroll"></div>
     </div>
     <div id="epi-func-selecionado" style="display:none">
@@ -887,6 +892,35 @@ tr:hover td { background:#F9FAFB; }
     </div>
     <input type="file" id="inp-modelo" accept=".docx" style="display:none" onchange="uploadModelo(this)">
     <div id="modelo-result" style="margin-top:12px"></div>
+  </div>
+</div>
+
+<!-- ── MODAL CADASTRO RÁPIDO EPI ── -->
+<div class="modal-bg" id="modal-cadastro-rapido-epi">
+  <div class="modal" style="max-width:420px">
+    <div class="modal-title">
+      <span><i class="ti ti-user-plus"></i> Novo Destinatário</span>
+      <button class="modal-close" onclick="fecharModal('modal-cadastro-rapido-epi')">×</button>
+    </div>
+    <p style="font-size:12px;color:var(--texto2);margin-bottom:16px">
+      Para pessoas que não estão no quadro de funcionários. Preencha apenas Nome e CPF.
+    </p>
+    <div class="field">
+      <label>Nome completo *</label>
+      <input type="text" id="cr-nome" placeholder="Ex: João da Silva" style="text-transform:uppercase">
+    </div>
+    <div class="field">
+      <label>CPF *</label>
+      <input type="text" id="cr-cpf" placeholder="000.000.000-00" maxlength="14" oninput="mascaraCpf(this)">
+    </div>
+    <div class="field">
+      <label>Cargo / Função</label>
+      <input type="text" id="cr-cargo" placeholder="Ex: PEDREIRO (opcional)" style="text-transform:uppercase">
+    </div>
+    <div id="cr-erro" style="color:#dc2626;font-size:12px;margin-bottom:8px;display:none"></div>
+    <button class="btn btn-primary" style="width:100%;justify-content:center" onclick="confirmarCadastroRapidoEpi()">
+      <i class="ti ti-check"></i> Usar na Ficha
+    </button>
   </div>
 </div>
 
@@ -1967,6 +2001,35 @@ function limparSelEpiFunc() {
   epiFuncSel = null;
   document.getElementById('epi-func-selecionado').style.display = 'none';
   document.getElementById('epi-ind-resultado').innerHTML = '';
+}
+
+function mascaraCpf(input) {
+  let v = input.value.replace(/\D/g,'').slice(0,11);
+  if (v.length > 9) v = v.replace(/(\d{3})(\d{3})(\d{3})(\d{0,2})/,'$1.$2.$3-$4');
+  else if (v.length > 6) v = v.replace(/(\d{3})(\d{3})(\d{0,3})/,'$1.$2.$3');
+  else if (v.length > 3) v = v.replace(/(\d{3})(\d{0,3})/,'$1.$2');
+  input.value = v;
+}
+
+function abrirCadastroRapidoEpi() {
+  document.getElementById('cr-nome').value = '';
+  document.getElementById('cr-cpf').value = '';
+  document.getElementById('cr-cargo').value = '';
+  document.getElementById('cr-erro').style.display = 'none';
+  abrirModal('modal-cadastro-rapido-epi');
+}
+
+function confirmarCadastroRapidoEpi() {
+  const nome  = document.getElementById('cr-nome').value.trim().toUpperCase();
+  const cpf   = document.getElementById('cr-cpf').value.trim();
+  const cargo = document.getElementById('cr-cargo').value.trim().toUpperCase() || 'NÃO INFORMADO';
+  const erroEl = document.getElementById('cr-erro');
+  if (!nome) { erroEl.textContent = 'Nome é obrigatório.'; erroEl.style.display=''; return; }
+  if (!cpf)  { erroEl.textContent = 'CPF é obrigatório.'; erroEl.style.display=''; return; }
+  erroEl.style.display = 'none';
+  const funcTemp = { id: null, nome, cpf, cargo, lotacao: '', admissao: '', celular: '', email: '', matricula: cpf };
+  fecharModal('modal-cadastro-rapido-epi');
+  selecionarFuncEpi(funcTemp);
 }
 
 async function enviarEpiIndividual() {

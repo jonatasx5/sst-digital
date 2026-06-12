@@ -224,7 +224,7 @@ tr:hover td { background:#F9FAFB; }
     <button class="nav-item" data-modulo="funcionarios" onclick="irPara('funcionarios')"><i class="ti ti-users"></i>Funcionários</button>
     <button class="nav-item" data-modulo="modelos" onclick="irPara('modelos')"><i class="ti ti-files"></i>Modelos & Funções</button>
     <button class="nav-item" data-modulo="cadastro-epi" onclick="irPara('cadastro-epi')"><i class="ti ti-hard-hat"></i>Cadastro de EPI</button>
-    <button class="nav-item" data-modulo="envio-epi" onclick="irPara('envio-epi')"><i class="ti ti-shield-check"></i>Entrega de EPI/EPC</button>
+    <button class="nav-item" data-modulo="envio-epi" onclick="irPara('envio-epi')"><i class="ti ti-shield-check"></i>Entrega EPI/EPC/Uniformes</button>
     <button class="nav-item" data-modulo="envio-lote" onclick="irPara('envio-lote')"><i class="ti ti-send"></i>Envio de Lote</button>
     <button class="nav-item" data-modulo="ordem-servico" onclick="irPara('ordem-servico')"><i class="ti ti-clipboard-list"></i>Ordem de Serviço</button>
     <button class="nav-item" data-modulo="historico" onclick="irPara('historico')"><i class="ti ti-clock"></i>Histórico</button>
@@ -406,7 +406,7 @@ tr:hover td { background:#F9FAFB; }
 <!-- ── ENVIO FICHA EPI ── -->
 <div class="panel" id="panel-envio-epi">
   <div class="page-header">
-    <div><div class="page-title">Entrega de EPI/EPC</div><div class="page-sub">Envie a ficha de entrega de EPI/EPC para assinatura via ZapSign</div></div>
+    <div><div class="page-title">Ficha de Entrega de EPI/EPC/UNIFORMES</div><div class="page-sub">Envie a ficha de entrega de EPI/EPC/Uniformes para assinatura via ZapSign</div></div>
   </div>
 
   <!-- Abas -->
@@ -1743,11 +1743,10 @@ const EPI_EPC_SEED = [
   {descricao:'CONE DE SINALIZAÇÃO',ca:'',quantidade_padrao:1},
   {descricao:'CONE DE SINALIZAÇÃO 50CM',ca:'',quantidade_padrao:1},
   {descricao:'CONE DE SINALIZAÇÃO 75CM',ca:'',quantidade_padrao:1},
-  {descricao:'PLACA DE SINALIZAÇÃO - PROIBIDO ENTRADA',ca:'',quantidade_padrao:1},
-  {descricao:'PLACA DE SINALIZAÇÃO - ÁREA RESTRITA',ca:'',quantidade_padrao:1},
-  {descricao:'PLACA DE SINALIZAÇÃO - CUIDADO RISCO DE QUEDA',ca:'',quantidade_padrao:1},
-  {descricao:'PLACA DE SINALIZAÇÃO - USO OBRIGATÓRIO DE EPI',ca:'',quantidade_padrao:1},
-  {descricao:'PLACA DE SINALIZAÇÃO - SAÍDA DE EMERGÊNCIA',ca:'',quantidade_padrao:1},
+  {descricao:'PLACA DE SINALIZAÇÃO 300M',ca:'',quantidade_padrao:1},
+  {descricao:'PLACA DE SINALIZAÇÃO 500M',ca:'',quantidade_padrao:1},
+  {descricao:'PLACA DE SINALIZAÇÃO 1000M',ca:'',quantidade_padrao:1},
+  {descricao:'PLACA DE SINALIZAÇÃO 2000M',ca:'',quantidade_padrao:1},
   {descricao:'FITA DE SINALIZAÇÃO',ca:'',quantidade_padrao:1},
   {descricao:'CAVALETE DE SINALIZAÇÃO',ca:'',quantidade_padrao:1},
 ];

@@ -1050,7 +1050,7 @@ async def enviar_ficha_epi_custom(dados: dict, _=Depends(verificar_acesso)):
     try: os.remove(caminho_docx)
     except: pass
 
-    nome_doc = f"Ficha de EPI — {f['nome']}"
+    nome_doc = f"Ficha de Entrega de EPI/EPC/UNIFORMES — {f['nome']}"
     ret = zapsign.enviar_documento(nome_documento=nome_doc, caminho_pdf=caminho_pdf,
                                       funcionario=f, sandbox=sandbox)
     if ret["sucesso"]:
@@ -1102,7 +1102,7 @@ async def enviar_ficha_epi(dados: dict, _=Depends(verificar_acesso)):
         except Exception:
             pass
 
-        nome_doc = f"Ficha de EPI — {f['nome']}"
+        nome_doc = f"Ficha de Entrega de EPI/EPC/UNIFORMES — {f['nome']}"
         ret = zapsign.enviar_documento(
             nome_documento=nome_doc,
             caminho_pdf=caminho_pdf,

@@ -1050,7 +1050,7 @@ async def enviar_ficha_epi_custom(dados: dict, _=Depends(verificar_acesso)):
     try: os.remove(caminho_docx)
     except: pass
 
-    nome_doc = f"Ficha de EPI — {f['nome']}"
+    nome_doc = f"Ficha de Entrega de EPI/EPC/UNIFORMES — {f['nome']}"
     ret = zapsign.enviar_documento(nome_documento=nome_doc, caminho_pdf=caminho_pdf,
                                       funcionario=f, sandbox=sandbox)
     if ret["sucesso"]:
@@ -1102,7 +1102,7 @@ async def enviar_ficha_epi(dados: dict, _=Depends(verificar_acesso)):
         except Exception:
             pass
 
-        nome_doc = f"Ficha de EPI — {f['nome']}"
+        nome_doc = f"Ficha de Entrega de EPI/EPC/UNIFORMES — {f['nome']}"
         ret = zapsign.enviar_documento(
             nome_documento=nome_doc,
             caminho_pdf=caminho_pdf,
@@ -1223,7 +1223,7 @@ async def atualizar_status_envio(envio_id: int, _=Depends(verificar_acesso)):
 
 @app.post("/api/envios/atualizar-todos")
 async def atualizar_todos_pendentes(_=Depends(verificar_acesso)):
-    """Atualiza o status de todos os envios pendentes consultando o ZapSign."""
+    """Atualiza o status de todos os envios não-assinados consultando o ZapSign."""
     # Busca todos os envios que ainda não foram assinados (independente do status exato)
     todos = banco.listar_envios(status=None, limite=500)
     pendentes = [e for e in todos if e.get("status") != "signed"]

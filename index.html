@@ -224,7 +224,7 @@ tr:hover td { background:#F9FAFB; }
     <button class="nav-item" data-modulo="funcionarios" onclick="irPara('funcionarios')"><i class="ti ti-users"></i>Funcionários</button>
     <button class="nav-item" data-modulo="modelos" onclick="irPara('modelos')"><i class="ti ti-files"></i>Modelos & Funções</button>
     <button class="nav-item" data-modulo="cadastro-epi" onclick="irPara('cadastro-epi')"><i class="ti ti-hard-hat"></i>Cadastro de EPI</button>
-    <button class="nav-item" data-modulo="envio-epi" onclick="irPara('envio-epi')"><i class="ti ti-shield-check"></i>Envio Ficha EPI</button>
+    <button class="nav-item" data-modulo="envio-epi" onclick="irPara('envio-epi')"><i class="ti ti-shield-check"></i>Entrega de EPI/EPC</button>
     <button class="nav-item" data-modulo="envio-lote" onclick="irPara('envio-lote')"><i class="ti ti-send"></i>Envio de Lote</button>
     <button class="nav-item" data-modulo="ordem-servico" onclick="irPara('ordem-servico')"><i class="ti ti-clipboard-list"></i>Ordem de Serviço</button>
     <button class="nav-item" data-modulo="historico" onclick="irPara('historico')"><i class="ti ti-clock"></i>Histórico</button>
@@ -373,14 +373,17 @@ tr:hover td { background:#F9FAFB; }
 <!-- ── CADASTRO DE EPI ── -->
 <div class="panel" id="panel-cadastro-epi">
   <div class="page-header">
-    <div><div class="page-title">Cadastro de EPI</div><div class="page-sub">Gerencie o catálogo de EPIs e os kits por cargo</div></div>
-    <button class="btn btn-primary btn-sm" onclick="abrirModalNovoEpi()"><i class="ti ti-plus"></i>Novo EPI</button>
+    <div><div class="page-title">Cadastro de EPI/EPC</div><div class="page-sub">Gerencie o catálogo de EPIs, EPCs e os kits por cargo</div></div>
+    <div style="display:flex;gap:8px">
+      <button class="btn btn-outline btn-sm" onclick="importarEpcPadrao()" title="Adiciona cones e placas de sinalização ao catálogo"><i class="ti ti-download"></i>Importar EPC Padrão</button>
+      <button class="btn btn-primary btn-sm" onclick="abrirModalNovoEpi()"><i class="ti ti-plus"></i>Novo EPI/EPC</button>
+    </div>
   </div>
 
   <div class="grid2">
     <!-- Catálogo -->
     <div class="card">
-      <div class="card-title"><i class="ti ti-list"></i>Catálogo de EPIs</div>
+      <div class="card-title"><i class="ti ti-list"></i>Catálogo de EPI/EPC</div>
       <div id="catalogo-epi-lista"></div>
     </div>
     <!-- EPIs por cargo -->
@@ -403,7 +406,7 @@ tr:hover td { background:#F9FAFB; }
 <!-- ── ENVIO FICHA EPI ── -->
 <div class="panel" id="panel-envio-epi">
   <div class="page-header">
-    <div><div class="page-title">Envio Ficha de EPI</div><div class="page-sub">Envie a ficha de EPI para assinatura via ZapSign</div></div>
+    <div><div class="page-title">Entrega de EPI/EPC</div><div class="page-sub">Envie a ficha de entrega de EPI/EPC para assinatura via ZapSign</div></div>
   </div>
 
   <!-- Abas -->
@@ -891,11 +894,11 @@ tr:hover td { background:#F9FAFB; }
 <div class="modal-bg" id="modal-novo-epi">
   <div class="modal">
     <div class="modal-title">
-      <span id="modal-epi-titulo">Novo EPI</span>
+      <span id="modal-epi-titulo">Novo EPI/EPC</span>
       <button class="modal-close" onclick="fecharModal('modal-novo-epi')">×</button>
     </div>
     <input type="hidden" id="epi-edit-id">
-    <div class="field"><label>Descrição *</label><input type="text" id="epi-desc" placeholder="Ex: BOTINA DE SEGURANÇA"></div>
+    <div class="field"><label>Descrição *</label><input type="text" id="epi-desc" placeholder="Ex: BOTINA DE SEGURANÇA ou CONE DE SINALIZAÇÃO"></div>
     <div class="grid2">
       <div class="field"><label>CA</label><input type="text" id="epi-ca" placeholder="Ex: 48413"></div>
       <div class="field"><label>Qtd padrão</label><input type="number" id="epi-qtd" value="1" min="1"></div>
@@ -1736,13 +1739,38 @@ async function carregarPainelCadEpi() {
   carregarCatalogoEpi();
 }
 
+const EPI_EPC_SEED = [
+  {descricao:'CONE DE SINALIZAÇÃO',ca:'',quantidade_padrao:1},
+  {descricao:'CONE DE SINALIZAÇÃO 50CM',ca:'',quantidade_padrao:1},
+  {descricao:'CONE DE SINALIZAÇÃO 75CM',ca:'',quantidade_padrao:1},
+  {descricao:'PLACA DE SINALIZAÇÃO - PROIBIDO ENTRADA',ca:'',quantidade_padrao:1},
+  {descricao:'PLACA DE SINALIZAÇÃO - ÁREA RESTRITA',ca:'',quantidade_padrao:1},
+  {descricao:'PLACA DE SINALIZAÇÃO - CUIDADO RISCO DE QUEDA',ca:'',quantidade_padrao:1},
+  {descricao:'PLACA DE SINALIZAÇÃO - USO OBRIGATÓRIO DE EPI',ca:'',quantidade_padrao:1},
+  {descricao:'PLACA DE SINALIZAÇÃO - SAÍDA DE EMERGÊNCIA',ca:'',quantidade_padrao:1},
+  {descricao:'FITA DE SINALIZAÇÃO',ca:'',quantidade_padrao:1},
+  {descricao:'CAVALETE DE SINALIZAÇÃO',ca:'',quantidade_padrao:1},
+];
+
+async function importarEpcPadrao() {
+  if (!confirm(`Isso adicionará ${EPI_EPC_SEED.length} itens de EPC (cones e placas de sinalização) ao catálogo. Itens já existentes não serão duplicados.\n\nDeseja continuar?`)) return;
+  const res = await apiFetch('/api/epis/catalogo/bulk', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({lista: EPI_EPC_SEED})});
+  const data = await res.json();
+  if (data.ok) {
+    alert(`${data.total} item(ns) importado(s) com sucesso!`);
+    carregarCatalogoEpi();
+  } else {
+    alert('Erro ao importar itens.');
+  }
+}
+
 async function carregarCatalogoEpi() {
   const res  = await apiFetch('/api/epis/catalogo');
   const lista = await res.json();
   const div  = document.getElementById('catalogo-epi-lista');
   div.innerHTML = '';
   if (!lista.length) {
-    div.innerHTML = '<p style="font-size:12px;color:var(--texto2);text-align:center;padding:16px">Nenhum EPI cadastrado.</p>';
+    div.innerHTML = '<p style="font-size:12px;color:var(--texto2);text-align:center;padding:16px">Nenhum EPI/EPC cadastrado.</p>';
     return;
   }
   lista.forEach(e => {
@@ -1764,7 +1792,7 @@ function abrirModalNovoEpi() {
   document.getElementById('epi-desc').value = '';
   document.getElementById('epi-ca').value = '';
   document.getElementById('epi-qtd').value = '1';
-  document.getElementById('modal-epi-titulo').textContent = 'Novo EPI';
+  document.getElementById('modal-epi-titulo').textContent = 'Novo EPI/EPC';
   document.getElementById('novo-epi-result').innerHTML = '';
   abrirModal('modal-novo-epi');
 }

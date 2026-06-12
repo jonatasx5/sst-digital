@@ -2648,12 +2648,12 @@ function histRenderTabela(dados) {
          </button>` : '';
 
     const btnBaixar = assinado
-      ? `<a href="/api/envios/${e.id}/download" target="_blank"
+      ? `<button onclick="histBaixarPDF(${e.id}, this)"
            style="display:inline-flex;align-items:center;gap:4px;padding:4px 10px;border-radius:6px;
                   background:#f0fdf4;color:#16a34a;border:1px solid #bbf7d0;
-                  font-size:12px;text-decoration:none;white-space:nowrap;" title="Baixar PDF assinado">
+                  cursor:pointer;font-size:12px;font-weight:600;white-space:nowrap;" title="Baixar PDF assinado">
            <i class="ti ti-download" style="font-size:13px;"></i> Baixar
-         </a>` : '';
+         </button>` : '';
 
     const btnAtualizar = `<button onclick="histAtualizarUm(${e.id}, this)"
         style="display:inline-flex;align-items:center;padding:5px 7px;border-radius:6px;
@@ -2678,6 +2678,32 @@ function histRenderTabela(dados) {
       </td>
     </tr>`;
   }).join('');
+}
+
+async function histBaixarPDF(envioId, btn) {
+  const orig = btn.innerHTML;
+  btn.disabled = true;
+  btn.innerHTML = '<i class="ti ti-loader-2" style="font-size:13px;animation:spin 1s linear infinite;"></i> Baixando...';
+  try {
+    const res = await apiFetch(`/api/envios/${envioId}/download`);
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.detail || `Erro ${res.status}`);
+    }
+    const blob = await res.blob();
+    const url  = URL.createObjectURL(blob);
+    const a    = document.createElement('a');
+    a.href     = url;
+    a.download = `documento_assinado_${envioId}.pdf`;
+    a.click();
+    URL.revokeObjectURL(url);
+    btn.innerHTML = '<i class="ti ti-check" style="font-size:13px;"></i> Baixado!';
+    setTimeout(() => { btn.innerHTML = orig; btn.disabled = false; }, 3000);
+  } catch(e) {
+    alert('Erro ao baixar PDF: ' + e.message);
+    btn.innerHTML = orig;
+    btn.disabled = false;
+  }
 }
 
 function histCopiarLink(link, btn) {

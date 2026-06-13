@@ -3,7 +3,7 @@
 *.env
 
 # Banco local
-sst.db
+*.db
 
 # Arquivos gerados
 output/

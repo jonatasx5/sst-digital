@@ -245,6 +245,34 @@ def criar_banco():
                 atualizado_em TEXT DEFAULT (datetime('now','localtime')))""")
         conn.commit()
 
+        # Tabela PGR por cargo
+        if USE_POSTGRES:
+            cur.execute("""
+                CREATE TABLE IF NOT EXISTS pgr_inventario (
+                    id SERIAL PRIMARY KEY,
+                    cargo TEXT NOT NULL UNIQUE,
+                    cbo TEXT DEFAULT '',
+                    ambiente TEXT DEFAULT '',
+                    atividades TEXT DEFAULT '',
+                    riscos TEXT DEFAULT '',
+                    epis TEXT DEFAULT '',
+                    epcs TEXT DEFAULT '',
+                    atualizado_em TIMESTAMP DEFAULT NOW()
+                )
+            """)
+        else:
+            cur.execute("""CREATE TABLE IF NOT EXISTS pgr_inventario (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                cargo TEXT NOT NULL UNIQUE,
+                cbo TEXT DEFAULT '',
+                ambiente TEXT DEFAULT '',
+                atividades TEXT DEFAULT '',
+                riscos TEXT DEFAULT '',
+                epis TEXT DEFAULT '',
+                epcs TEXT DEFAULT '',
+                atualizado_em TEXT DEFAULT (datetime('now','localtime')))""")
+        conn.commit()
+
         # Tabela usuarios
         if USE_POSTGRES:
             cur.execute("""
@@ -342,6 +370,57 @@ def deletar_engenheiro(eid: int):
     finally:
         conn.close()
 
+
+# ── PGR INVENTÁRIO ────────────────────────────────────────
+
+def salvar_pgr_cargo(cargo: str, cbo: str = '', ambiente: str = '', atividades: str = '',
+                     riscos: str = '', epis: str = '', epcs: str = ''):
+    conn = conectar()
+    try:
+        cur = conn.cursor()
+        if USE_POSTGRES:
+            cur.execute("""INSERT INTO pgr_inventario (cargo,cbo,ambiente,atividades,riscos,epis,epcs)
+                VALUES (%s,%s,%s,%s,%s,%s,%s)
+                ON CONFLICT (cargo) DO UPDATE SET cbo=EXCLUDED.cbo, ambiente=EXCLUDED.ambiente,
+                atividades=EXCLUDED.atividades, riscos=EXCLUDED.riscos, epis=EXCLUDED.epis,
+                epcs=EXCLUDED.epcs, atualizado_em=NOW()""",
+                (cargo, cbo, ambiente, atividades, riscos, epis, epcs))
+        else:
+            cur.execute("""INSERT INTO pgr_inventario (cargo,cbo,ambiente,atividades,riscos,epis,epcs)
+                VALUES (?,?,?,?,?,?,?)
+                ON CONFLICT(cargo) DO UPDATE SET cbo=excluded.cbo, ambiente=excluded.ambiente,
+                atividades=excluded.atividades, riscos=excluded.riscos, epis=excluded.epis,
+                epcs=excluded.epcs""",
+                (cargo, cbo, ambiente, atividades, riscos, epis, epcs))
+        conn.commit()
+    finally:
+        conn.close()
+
+def buscar_pgr_cargo(cargo: str) -> dict:
+    conn = conectar()
+    try:
+        cur = conn.cursor()
+        if USE_POSTGRES:
+            cur.execute("SELECT * FROM pgr_inventario WHERE UPPER(cargo)=UPPER(%s)", (cargo,))
+        else:
+            cur.execute("SELECT * FROM pgr_inventario WHERE UPPER(cargo)=UPPER(?)", (cargo,))
+        row = cur.fetchone()
+        if not row:
+            return {}
+        cols = [d[0] for d in cur.description]
+        return dict(zip(cols, row))
+    finally:
+        conn.close()
+
+def listar_pgr() -> list:
+    conn = conectar()
+    try:
+        cur = conn.cursor()
+        cur.execute("SELECT cargo, cbo, ambiente, riscos, epis FROM pgr_inventario ORDER BY cargo")
+        cols = [d[0] for d in cur.description]
+        return [dict(zip(cols, r)) for r in cur.fetchall()]
+    finally:
+        conn.close()
 
 # ── CATÁLOGO DE EPIs ──────────────────────────────────────
 

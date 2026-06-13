@@ -626,8 +626,11 @@ tr:hover td { background:#F9FAFB; }
   <div class="page-header">
     <div>
       <div class="page-title">Ordens de Serviço</div>
-      <div class="page-sub">Configure o CBO por cargo e envie a OS para assinatura</div>
+      <div class="page-sub">Configure o CBO, riscos (PGR) por cargo e envie a OS para assinatura</div>
     </div>
+    <button class="btn btn-outline btn-sm" onclick="importarPGR()" title="Importa riscos e EPIs do PGR para todos os cargos">
+      <i class="ti ti-shield-lock"></i> Importar PGR
+    </button>
   </div>
 
   <!-- Tabs -->
@@ -683,12 +686,20 @@ tr:hover td { background:#F9FAFB; }
 
         <div class="field">
           <label>Descrição das Atividades</label>
-          <textarea id="os-cbo-descricao" rows="8" placeholder="Preenchido automaticamente após selecionar o CBO..."></textarea>
+          <textarea id="os-cbo-descricao" rows="6" placeholder="Preenchido automaticamente após selecionar o CBO..."></textarea>
+        </div>
+
+        <div class="field">
+          <label style="display:flex;align-items:center;justify-content:space-between">
+            <span>Riscos a que está exposto</span>
+            <span id="os-pgr-badge" style="display:none;font-size:10px;background:var(--verde);color:#fff;padding:2px 8px;border-radius:10px">PGR</span>
+          </label>
+          <textarea id="os-riscos" rows="5" placeholder="Preenchido automaticamente pelo PGR ao selecionar o cargo, ou edite manualmente..."></textarea>
         </div>
 
         <div class="card" style="background:var(--verde-light);border-color:var(--verde);margin-bottom:12px">
           <div style="font-size:12px;font-weight:600;color:var(--verde-dark);margin-bottom:8px">
-            <i class="ti ti-shield"></i> EPIs do cargo (preenchimento automático)
+            <i class="ti ti-shield"></i> EPIs do cargo (PGR + cadastro)
           </div>
           <div id="os-epis-preview" style="font-size:12px;color:var(--texto2)">—</div>
         </div>
@@ -2939,6 +2950,17 @@ function osAba(aba) {
   if (aba === 'envio') carregarOSFuncs();
 }
 
+async function importarPGR() {
+  if (!confirm('Isso importará os riscos e EPIs do PGR para todos os cargos cadastrados no sistema. Dados já existentes serão atualizados.\n\nDeseja continuar?')) return;
+  const res = await apiFetch('/api/pgr/seed', {method:'POST'});
+  const data = await res.json();
+  if (data.ok) {
+    alert(`PGR importado com sucesso! ${data.total} cargos atualizados.\n\nAgora ao selecionar um cargo, os riscos serão preenchidos automaticamente.`);
+  } else {
+    alert('Erro ao importar PGR.');
+  }
+}
+
 async function carregarOSCargos() {
   try {
     const [configList, epis] = await Promise.all([
@@ -2966,19 +2988,36 @@ async function selecionarOSCargo(cargo) {
   document.getElementById('os-salvar-status').style.display = 'none';
 
   try {
-    const data = await apiFetch(`/api/os/config/${encodeURIComponent(cargo)}`).then(r=>r.json());
+    const [data, pgr] = await Promise.all([
+      apiFetch(`/api/os/config/${encodeURIComponent(cargo)}`).then(r=>r.json()),
+      apiFetch(`/api/pgr/cargo/${encodeURIComponent(cargo)}`).then(r=>r.json()).catch(()=>({}))
+    ]);
     document.getElementById('os-cbo-codigo').value    = data.cbo?.cbo_codigo || '';
     document.getElementById('os-cbo-titulo').value    = data.cbo?.cbo_titulo || '';
     document.getElementById('os-cbo-descricao').value = data.cbo?.cbo_descricao || '';
 
-    // Preview EPIs
+    // Preenche riscos do PGR
+    const riscosEl = document.getElementById('os-riscos');
+    const pgrBadge = document.getElementById('os-pgr-badge');
+    if (pgr && pgr.riscos) {
+      riscosEl.value = pgr.riscos;
+      pgrBadge.style.display = '';
+    } else {
+      if (!riscosEl.value) riscosEl.value = '';
+      pgrBadge.style.display = 'none';
+    }
+
+    // Preview EPIs (do cadastro + PGR)
     const epis = data.epis || [];
-    document.getElementById('os-epis-preview').innerHTML = epis.length
+    const episPgr = pgr?.epis ? pgr.epis.split(';').map(s=>s.trim()).filter(Boolean) : [];
+    const episHtml = epis.length
       ? epis.map(e=>`<div>• ${e.descricao}${e.ca?' (C.A: '+e.ca+')':''} — Qtd: ${e.quantidade}</div>`).join('')
-      : '<em>Nenhum EPI configurado para este cargo</em>';
+      : episPgr.length
+        ? episPgr.map(e=>`<div>• ${e} <em style="color:var(--verde);font-size:10px">(PGR)</em></div>`).join('')
+        : '<em>Nenhum EPI configurado para este cargo</em>';
+    document.getElementById('os-epis-preview').innerHTML = episHtml;
   } catch(e) {}
 
-  // Refresh lista para destacar cargo selecionado
   carregarOSCargos();
 }
 
@@ -3099,6 +3138,7 @@ async function salvarOSConfig() {
       cbo_codigo:    document.getElementById('os-cbo-codigo').value.trim(),
       cbo_titulo:    document.getElementById('os-cbo-titulo').value.trim(),
       cbo_descricao: document.getElementById('os-cbo-descricao').value.trim(),
+      riscos:        document.getElementById('os-riscos').value.trim(),
     };
     const r = await apiFetch(`/api/os/config/${encodeURIComponent(osCargoAtual)}`, {
       method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload)

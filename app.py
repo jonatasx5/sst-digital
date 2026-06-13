@@ -368,6 +368,149 @@ async def deletar_modelo(doc_id: str, cargo: str = None, _=Depends(verificar_ace
     return {"ok": True}
 
 # ══════════════════════════════════════════════════════════
+#  PGR - INVENTÁRIO DE RISCOS
+# ══════════════════════════════════════════════════════════
+
+PGR_SEED = [
+    {"cargo":"ADMINISTRADOR","cbo":"411005","ambiente":"ADMINISTRATIVO",
+     "atividades":"Documentos administrativos diversos, emissão de N.F, verificar recebimentos e lançamento no sistema, atendimento ao cliente via telefone.",
+     "riscos":"Ergonômico: postura sentada por longos períodos (Risco Tolerável).",
+     "epis":"","epcs":"VENTILAÇÃO ARTIFICIAL, EXTINTOR DE INCÊNDIO"},
+    {"cargo":"AJUDANTE A","cbo":"717020","ambiente":"OPERACIONAL/OBRA",
+     "atividades":"Auxiliar os profissionais nas montagens efetuando transportes e recolhimento de materiais, limpeza do local da obra, transporte e recolhimento de ferramentas e qualquer atividade de auxílio ao bom andamento da obra.",
+     "riscos":"Ergonômico: postura em pé por longos períodos e levantamento de cargas (Risco Moderado). Físico: Ruído (76,2 dB - Risco Moderado). Químico: Poeira Mineral (Risco Tolerável).",
+     "epis":"BOTINA DE SEGURANÇA; LUVA PARA PROTEÇÃO CONTRA AGENTES MECÂNICOS; AVENTAL DE RASPA; LUVA DE PROTEÇÃO CONTRA AGENTES QUÍMICOS; PROTETOR AURICULAR TIPO PLUG; PROTETOR RESPIRATÓRIO PFF1",
+     "epcs":""},
+    {"cargo":"ALMOXARIFADO","cbo":"414105","ambiente":"OPERACIONAL/OBRA",
+     "atividades":"Recepcionam, conferem e armazenam produtos e materiais. Fazem lançamentos de movimentação de entradas e saídas e controlam estoques. Distribuem produtos e materiais. Organizam o almoxarifado. Controle de entrada e saída de materiais, recebimento de materiais na obra.",
+     "riscos":"Ergonômico: postura em pé por longos períodos (Risco Tolerável).",
+     "epis":"","epcs":""},
+    {"cargo":"ANALISTA DE CONTROLADORIA","cbo":"252405","ambiente":"ADMINISTRATIVO",
+     "atividades":"Responsável pela folha de pagamento, registro de ponto, recrutamento e seleção de funcionários.",
+     "riscos":"Ergonômico: postura sentada por longos períodos (Risco Tolerável).",
+     "epis":"","epcs":"VENTILAÇÃO ARTIFICIAL, EXTINTOR DE INCÊNDIO"},
+    {"cargo":"ANALISTA DE DEPARTAMENTO PESSOAL","cbo":"252405","ambiente":"ADMINISTRATIVO",
+     "atividades":"Responsável pela folha de pagamento, registro de ponto, recrutamento e seleção de funcionários.",
+     "riscos":"Ergonômico: postura sentada por longos períodos (Risco Tolerável).",
+     "epis":"","epcs":"VENTILAÇÃO ARTIFICIAL, EXTINTOR DE INCÊNDIO"},
+    {"cargo":"ANALISTA FINANCEIRA","cbo":"252405","ambiente":"ADMINISTRATIVO",
+     "atividades":"Responsável pela folha de pagamento, registro de ponto, recrutamento e seleção de funcionários.",
+     "riscos":"Ergonômico: postura sentada por longos períodos (Risco Tolerável).",
+     "epis":"","epcs":"VENTILAÇÃO ARTIFICIAL, EXTINTOR DE INCÊNDIO"},
+    {"cargo":"ANALISTA FISCAL","cbo":"251225","ambiente":"ADMINISTRATIVO",
+     "atividades":"Presta assistência na área administrativa; auxilia o administrador em suas atividades rotineiras e no controle de gestão financeira, administração, organização de arquivos, gerência de informações, contratações; revisão de documentos; emissão de notas.",
+     "riscos":"Ergonômico: postura sentada por longos períodos (Risco Tolerável).",
+     "epis":"","epcs":"VENTILAÇÃO ARTIFICIAL, EXTINTOR DE INCÊNDIO"},
+    {"cargo":"ASSISTENTE ADMINISTRATIVO","cbo":"411005","ambiente":"ADMINISTRATIVO",
+     "atividades":"Documentos administrativos diversos, emissão de N.F, verificar recebimentos e lançamento no sistema, atendimento ao cliente via telefone.",
+     "riscos":"Ergonômico: postura sentada por longos períodos (Risco Tolerável).",
+     "epis":"","epcs":"VENTILAÇÃO ARTIFICIAL, EXTINTOR DE INCÊNDIO"},
+    {"cargo":"ASSISTENTE DEPARTAMENTO PESSOAL","cbo":"411005","ambiente":"ADMINISTRATIVO",
+     "atividades":"Documentos administrativos diversos, emissão de N.F, verificar recebimentos e lançamento no sistema, atendimento ao cliente via telefone.",
+     "riscos":"Ergonômico: postura sentada por longos períodos (Risco Tolerável).",
+     "epis":"","epcs":"VENTILAÇÃO ARTIFICIAL, EXTINTOR DE INCÊNDIO"},
+    {"cargo":"ASSISTENTE FINANCEIRO","cbo":"411005","ambiente":"ADMINISTRATIVO",
+     "atividades":"Responsável por auxiliar nas atividades financeiras da organização: controle de contas a pagar e a receber, conciliação bancária, emissão de relatórios financeiros.",
+     "riscos":"Ergonômico: postura sentada por longos períodos (Risco Tolerável).",
+     "epis":"","epcs":"VENTILAÇÃO ARTIFICIAL, EXTINTOR DE INCÊNDIO"},
+    {"cargo":"AUXILIAR ADMINISTRATIVO","cbo":"411005","ambiente":"ADMINISTRATIVO",
+     "atividades":"Documentos administrativos diversos, emissão de N.F, verificar recebimentos e lançamento no sistema, atendimento ao cliente via telefone.",
+     "riscos":"Ergonômico: postura sentada por longos períodos (Risco Tolerável).",
+     "epis":"","epcs":"VENTILAÇÃO ARTIFICIAL, EXTINTOR DE INCÊNDIO"},
+    {"cargo":"AUXILIAR CONTÁBIL","cbo":"413110","ambiente":"ADMINISTRATIVO",
+     "atividades":"Rotinas contábeis, garantindo que as operações financeiras sejam registradas corretamente dentro das normas contábeis e tributárias. Realiza diversas tarefas administrativas e auxilia no suporte à equipe contábil.",
+     "riscos":"Ergonômico: postura sentada por longos períodos (Risco Tolerável).",
+     "epis":"","epcs":"VENTILAÇÃO ARTIFICIAL, EXTINTOR DE INCÊNDIO"},
+    {"cargo":"AUXILIAR DE DP","cbo":"411005","ambiente":"ADMINISTRATIVO",
+     "atividades":"Documentos administrativos diversos, emissão de N.F, verificar recebimentos e lançamento no sistema, atendimento ao cliente via telefone.",
+     "riscos":"Ergonômico: postura sentada por longos períodos (Risco Tolerável).",
+     "epis":"","epcs":"VENTILAÇÃO ARTIFICIAL, EXTINTOR DE INCÊNDIO"},
+    {"cargo":"AUXILIAR DE LIMPEZA","cbo":"514320","ambiente":"LIMPEZA",
+     "atividades":"Cuida da limpeza do escritório, mantendo sempre limpo e organizado.",
+     "riscos":"Ergonômico: postura em pé por longos períodos (Risco Tolerável). Químico: Produtos Químicos Domissanitários - detergente, sabão, produtos de limpeza (Risco Tolerável).",
+     "epis":"LUVA LATEX",
+     "epcs":""},
+    {"cargo":"AUXILIAR DE MECÂNICO NIVEL I","cbo":"725205","ambiente":"OPERACIONAL/OBRA",
+     "atividades":"Realiza manutenção mecânica preventiva e corretiva de veículos, monta e troca peças, lubrifica motor, regula mecanismos e alinha equipamentos. Verifica quanto à substituição e aproveitamento de componentes.",
+     "riscos":"Ergonômico: postura em pé por longos períodos (Risco Tolerável). Físico: Ruído 70,3 dB (Risco Tolerável). Químico: Benzeno - produtos durante abastecimento e lubrificação (Risco Moderado); Óleos minerais/graxas e lubrificantes (Risco Moderado).",
+     "epis":"BOTINA DE COURO; PROTETOR AURICULAR TIPO PLUG; LUVA DE PROTEÇÃO CONTRA AGENTES QUÍMICOS; CREME PROTETOR",
+     "epcs":""},
+    {"cargo":"AUXILIAR DE MECÂNICO NIVEL II","cbo":"725205","ambiente":"OPERACIONAL/OBRA",
+     "atividades":"Realiza manutenção mecânica preventiva e corretiva de veículos, monta e troca peças, lubrifica motor, regula mecanismos e alinha equipamentos. Verifica quanto à substituição e aproveitamento de componentes.",
+     "riscos":"Ergonômico: postura em pé por longos períodos (Risco Tolerável). Físico: Ruído 70,3 dB (Risco Tolerável). Químico: Benzeno - produtos durante abastecimento e lubrificação (Risco Moderado); Óleos minerais/graxas e lubrificantes (Risco Moderado).",
+     "epis":"BOTINA DE COURO; PROTETOR AURICULAR TIPO PLUG; LUVA DE PROTEÇÃO CONTRA AGENTES QUÍMICOS; CREME PROTETOR",
+     "epcs":""},
+    {"cargo":"AUXILIAR DE RH","cbo":"411005","ambiente":"ADMINISTRATIVO",
+     "atividades":"Executam serviços de apoio nas áreas de recursos humanos e administração, atendem fornecedores e clientes, fornecendo e recebendo informações sobre produtos e serviços.",
+     "riscos":"Ergonômico: postura sentada por longos períodos (Risco Tolerável).",
+     "epis":"","epcs":"VENTILAÇÃO ARTIFICIAL, EXTINTOR DE INCÊNDIO"},
+    {"cargo":"COMPRADORA JUNIOR","cbo":"354205","ambiente":"ADMINISTRATIVO",
+     "atividades":"Recebem requisições de compras, executam processo de cotação e concretizam a compra de serviços, produtos e equipamentos. Acompanham o fluxo de entregas, desenvolvem fornecedores, supervisionam equipe e processos de compra.",
+     "riscos":"Ergonômico: postura sentada por longos períodos (Risco Tolerável).",
+     "epis":"","epcs":"VENTILAÇÃO ARTIFICIAL, EXTINTOR DE INCÊNDIO"},
+    {"cargo":"ENCARREGADO DE RECURSOS HUMANOS","cbo":"252405","ambiente":"ADMINISTRATIVO",
+     "atividades":"Responsável pela folha de pagamento, registro de ponto, recrutamento e seleção de funcionários. Administram pessoal e plano de cargos e salários; promovem ações de treinamento e desenvolvimento de pessoal.",
+     "riscos":"Ergonômico: postura sentada por longos períodos (Risco Tolerável).",
+     "epis":"","epcs":"VENTILAÇÃO ARTIFICIAL, EXTINTOR DE INCÊNDIO"},
+    {"cargo":"GERENTE FINANCEIRO","cbo":"142115","ambiente":"ADMINISTRATIVO",
+     "atividades":"Exerce a gerência das operações financeiras da empresa, como previsão de receita, financiamentos, orçamento, créditos e outras, planejando, organizando e controlando os programas e sua execução.",
+     "riscos":"Ergonômico: postura sentada por longos períodos (Risco Tolerável).",
+     "epis":"","epcs":"VENTILAÇÃO ARTIFICIAL, EXTINTOR DE INCÊNDIO"},
+    {"cargo":"MOTORISTA DE CAMINHÃO","cbo":"782510","ambiente":"OPERACIONAL/OBRA",
+     "atividades":"Serviço de transporte de materiais em caminhão caçamba.",
+     "riscos":"Acidente/Mecânico: operação de máquina e condução de veículos - risco de acidentes de trânsito (Risco Tolerável). Físico: Ruído 76,7 dB (Risco Tolerável).",
+     "epis":"BOTINA DE SEGURANÇA; LUVA PIGMENTADA (AGENTES MECÂNICOS); PROTETOR AURICULAR TIPO PLUG",
+     "epcs":""},
+    {"cargo":"RECEPCIONISTA","cbo":"422105","ambiente":"ADMINISTRATIVO",
+     "atividades":"Atendimento ao cliente presencial e por telefone, direcionamento de cliente ao departamento desejado.",
+     "riscos":"Ergonômico: postura sentada por longos períodos (Risco Tolerável).",
+     "epis":"","epcs":""},
+    {"cargo":"SOLDADOR NIVEL II","cbo":"724315","ambiente":"OPERACIONAL/OBRA",
+     "atividades":"Faz corte de peças metálicas, solda em aço carbono e aço inox, furos, chapas e equipamentos, utilizando processos de soldagem e corte: eletrodo revestido, TIG, MIG, MAG, oxigás, arco submerso, brasagem e plasma.",
+     "riscos":"Acidente/Mecânico: objetos cortantes e perfurocortantes - uso de equipamentos de corte (Risco Moderado). Ergonômico: postura em pé por longos períodos (Risco Tolerável). Físico: Ruído 79,9 dB (Risco Moderado). Químico: Manganês e seus compostos/fumos de solda (Risco Moderado).",
+     "epis":"BOTINA DE COURO; LUVA PARA PROTEÇÃO CONTRA AGENTES MECÂNICOS; ÓCULOS DE PROTEÇÃO INCOLOR; AVENTAL DE RASPA; MANGOTE DE RASPA; PROTETOR AURICULAR TIPO PLUG; PROTETOR AURICULAR CONCHA; PROTETOR RESPIRATÓRIO PFF2; MÁSCARA DE SOLDA",
+     "epcs":"PROTEÇÃO DE PARTES MÓVEIS DE EQUIPAMENTOS"},
+    {"cargo":"SUPERVISOR DE MANUTENÇÃO FROTA","cbo":"141605","ambiente":"OPERACIONAL/OBRA",
+     "atividades":"Organização de materiais dos caminhões.",
+     "riscos":"Ergonômico: postura sentada por longos períodos (Risco Tolerável).",
+     "epis":"","epcs":""},
+    {"cargo":"TÉCNICO EM SEGURANÇA DO TRABALHO","cbo":"351605","ambiente":"ADMINISTRATIVO/OPERACIONAL",
+     "atividades":"Elaboram, participam da elaboração e implementam política de saúde e segurança no trabalho; realizam auditoria, acompanhamento e avaliação na área; identificam variáveis de controle de doenças e acidentes. Desenvolvem ações educativas em SST; participam de perícias e fiscalizações. Investigam, analisam acidentes e recomendam medidas de prevenção e controle.",
+     "riscos":"Acidente/Mecânico: quedas, tropeções, escorregões em áreas operacionais (Risco Tolerável). Ergonômico: necessidade de manter ritmos intensos de trabalho (Risco Tolerável). Físico: Ruído 73,9 dB - equipamentos pesados em operação (Risco Tolerável).",
+     "epis":"BOTINA DE COURO; CAPACETE COM JUGULAR; PROTETOR AURICULAR TIPO PLUG",
+     "epcs":""},
+]
+
+@app.get("/api/pgr")
+async def listar_pgr(_=Depends(verificar_acesso)):
+    return banco.listar_pgr()
+
+@app.get("/api/pgr/cargo/{cargo}")
+async def buscar_pgr_cargo(cargo: str, _=Depends(verificar_acesso)):
+    dados = banco.buscar_pgr_cargo(cargo)
+    return dados if dados else {}
+
+@app.post("/api/pgr/seed")
+async def seed_pgr(_=Depends(verificar_acesso)):
+    """Importa todos os dados do PGR para o banco."""
+    for item in PGR_SEED:
+        banco.salvar_pgr_cargo(**item)
+    return {"ok": True, "total": len(PGR_SEED)}
+
+@app.post("/api/pgr/cargo/{cargo}")
+async def salvar_pgr_cargo(cargo: str, dados: dict, _=Depends(verificar_acesso)):
+    banco.salvar_pgr_cargo(
+        cargo=cargo,
+        cbo=dados.get("cbo",""),
+        ambiente=dados.get("ambiente",""),
+        atividades=dados.get("atividades",""),
+        riscos=dados.get("riscos",""),
+        epis=dados.get("epis",""),
+        epcs=dados.get("epcs",""),
+    )
+    return {"ok": True}
+
+# ══════════════════════════════════════════════════════════
 #  CATÁLOGO DE EPIs
 # ══════════════════════════════════════════════════════════
 
@@ -753,11 +896,25 @@ async def get_os_config_cargo(cargo: str, _=Depends(verificar_acesso)):
 @app.post("/api/os/config/{cargo}")
 async def salvar_os_config_cargo(cargo: str, dados: dict, _=Depends(verificar_acesso)):
     """Salva configuração de CBO para um cargo e gera a OS modelo."""
-    cbo_codigo   = dados.get("cbo_codigo", "")
-    cbo_titulo   = dados.get("cbo_titulo", "")
+    cbo_codigo    = dados.get("cbo_codigo", "")
+    cbo_titulo    = dados.get("cbo_titulo", "")
     cbo_descricao = dados.get("cbo_descricao", "")
+    riscos        = dados.get("riscos", "")
 
     banco.salvar_cargo_cbo(cargo, cbo_codigo, cbo_titulo, cbo_descricao)
+
+    # Salva riscos no PGR se informado
+    if riscos:
+        pgr_atual = banco.buscar_pgr_cargo(cargo)
+        banco.salvar_pgr_cargo(
+            cargo=cargo,
+            cbo=pgr_atual.get("cbo", cbo_codigo),
+            ambiente=pgr_atual.get("ambiente", ""),
+            atividades=pgr_atual.get("atividades", cbo_descricao),
+            riscos=riscos,
+            epis=pgr_atual.get("epis", ""),
+            epcs=pgr_atual.get("epcs", ""),
+        )
 
     # Gera a OS modelo para o cargo (sem funcionário — com placeholders)
     modelo_base = banco.buscar_modelo("03_os_base")
@@ -775,7 +932,7 @@ async def salvar_os_config_cargo(cargo: str, dados: dict, _=Depends(verificar_ac
         "rg": "{{RG}}",
     }
     docx_bytes = processador.preencher_os_dinamica(
-        func_template, cbo_descricao, epis_texto, modelo_base
+        func_template, cbo_descricao, epis_texto, modelo_base, riscos_texto=riscos
     )
     banco.salvar_modelo(OS_DOC_ID, "Ordem de Serviço", docx_bytes, cargo=cargo)
 
@@ -834,7 +991,10 @@ async def enviar_os(dados: dict, _=Depends(verificar_acesso)):
         epis = banco.listar_epis_do_cargo(f["cargo"])
         epis_texto = _formatar_epis_texto(epis)
 
-        docx_bytes = processador.preencher_os_dinamica(f, cbo_descricao, epis_texto, modelo_bytes)
+        pgr = banco.buscar_pgr_cargo(f["cargo"])
+        riscos_texto = pgr.get("riscos", "") if pgr else ""
+
+        docx_bytes = processador.preencher_os_dinamica(f, cbo_descricao, epis_texto, modelo_bytes, riscos_texto=riscos_texto)
 
         import re as _re
         nome_seguro = _re.sub(r"[^\w\s-]", "", f["nome"])

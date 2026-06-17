@@ -1239,6 +1239,7 @@ tr:hover td { background:#F9FAFB; }
       <div id="aloja-save-result" style="font-size:13px;color:var(--verde);align-self:center"></div>
       <button class="btn btn-outline" onclick="alojaNovaVistoria()"><i class="ti ti-refresh"></i>Limpar</button>
       <button id="aloja-btn-pdf" class="btn btn-outline btn-sm" style="display:none" onclick="alojaGerarPDF()"><i class="ti ti-file-type-pdf"></i>Gerar PDF</button>
+      <button id="aloja-btn-enviar" class="btn btn-outline btn-sm" style="display:none;border-color:#16a34a;color:#16a34a" onclick="alojaEnviarAssinatura()"><i class="ti ti-signature"></i>Enviar para Assinatura</button>
       <button class="btn btn-primary" onclick="alojaSalvar()"><i class="ti ti-device-floppy"></i>Salvar Vistoria</button>
     </div>
   </div>
@@ -4074,6 +4075,8 @@ async function alojaSalvar() {
   _alojaId = data.id;
   const btn = document.getElementById('aloja-btn-pdf');
   if (btn) btn.style.display = '';
+  const btnEnviar = document.getElementById('aloja-btn-enviar');
+  if (btnEnviar) btnEnviar.style.display = '';
   const result = document.getElementById('aloja-save-result');
   if (result) { result.textContent = `✓ Vistoria #${_alojaId} salva com sucesso!`; setTimeout(()=>result.textContent='', 4000); }
 }
@@ -4105,6 +4108,46 @@ async function alojaGerarPDF() {
   }
 }
 
+async function alojaEnviarAssinatura() {
+  if (!_alojaId) { alert('Salve a vistoria primeiro.'); return; }
+  const enc = document.getElementById('aloja-encarregado')?.value?.trim();
+  if (!enc) { alert('Informe o nome do encarregado antes de enviar.'); return; }
+
+  const celular = prompt(`Celular do encarregado "${enc}" (com DDD, ex: 11987654321):`, '');
+  if (celular === null) return;
+
+  const btn = document.getElementById('aloja-btn-enviar');
+  const orig = btn.innerHTML;
+  btn.disabled = true;
+  btn.innerHTML = '<i class="ti ti-loader-2" style="animation:spin 1s linear infinite"></i> Enviando...';
+
+  try {
+    const res = await apiFetch(`/api/alojamentos/vistorias/${_alojaId}/enviar`, {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({ celular_encarregado: celular })
+    });
+    if (!res || !res.ok) {
+      const txt = await res?.text().catch(()=>'');
+      let msg = txt; try { msg = JSON.parse(txt).detail || txt; } catch {}
+      alert('Erro ao enviar: ' + msg);
+      return;
+    }
+    const data = await res.json();
+    const link = data.link_assinatura;
+    const result = document.getElementById('aloja-save-result');
+    if (result) {
+      result.innerHTML = `✓ Enviado! <a href="${link}" target="_blank" style="color:var(--verde);text-decoration:underline">Link assinatura</a>
+        <button onclick="navigator.clipboard.writeText('${link}').then(()=>alert('Link copiado!'))" style="margin-left:6px;padding:2px 8px;font-size:11px;border:1px solid var(--borda);border-radius:4px;cursor:pointer">Copiar</button>
+        <a href="https://wa.me/${celular.replace(/\D/g,'')}?text=${encodeURIComponent('Olá '+enc+', segue o link para assinar o Relatório de Vistoria de Alojamento: '+link)}" target="_blank" style="margin-left:6px;padding:2px 8px;font-size:11px;border:1px solid #25d366;border-radius:4px;color:#25d366;text-decoration:none">WhatsApp</a>`;
+    }
+  } catch(e) {
+    alert('Erro: ' + e.message);
+  } finally {
+    btn.innerHTML = orig; btn.disabled = false;
+  }
+}
+
 function alojaNovaVistoria() {
   _alojaId = null; _alojaFotos = [];
   document.getElementById('aloja-frente').value = '';
@@ -4121,6 +4164,7 @@ function alojaNovaVistoria() {
   document.querySelector('input[name="aloja-resultado"][value="conforme"]').checked = true;
   document.getElementById('aloja-plano-body').innerHTML = '';
   document.getElementById('aloja-btn-pdf').style.display = 'none';
+  document.getElementById('aloja-btn-enviar').style.display = 'none';
   document.getElementById('aloja-save-result').textContent = '';
   alojaRenderFotos();
   alojaRenderBlocos();
@@ -4156,6 +4200,8 @@ async function alojaCarregarHistorico() {
         <td style="padding:10px;text-align:center;white-space:nowrap">
           <button onclick="alojaAbrirVistoria(${v.id})" style="padding:4px 10px;border-radius:6px;border:1px solid var(--borda);background:var(--fundo);cursor:pointer;font-size:12px;margin:2px" title="Editar"><i class="ti ti-edit"></i></button>
           <button onclick="alojaGerarPDFHist(${v.id})" style="padding:4px 10px;border-radius:6px;border:1px solid #bbf7d0;background:#f0fdf4;color:#16a34a;cursor:pointer;font-size:12px;margin:2px" title="Baixar PDF"><i class="ti ti-file-type-pdf"></i></button>
+          <button onclick="alojaEnviarAssinaturaHist(${v.id},'${(v.encarregado||'').replace(/'/g,'')}')" style="padding:4px 10px;border-radius:6px;border:1px solid #818cf8;background:#eef2ff;color:#4f46e5;cursor:pointer;font-size:12px;margin:2px" title="Enviar para assinatura">${v.link_assinatura ? '<i class="ti ti-signature-off"></i>' : '<i class="ti ti-signature"></i>'}</button>
+          ${v.link_assinatura ? `<a href="${v.link_assinatura}" target="_blank" style="padding:4px 10px;border-radius:6px;border:1px solid #bbf7d0;background:#f0fdf4;color:#16a34a;font-size:12px;margin:2px;text-decoration:none" title="Ver link de assinatura"><i class="ti ti-link"></i></a>` : ''}
           <button onclick="alojaDeletar(${v.id})" style="padding:4px 10px;border-radius:6px;border:1px solid #fecaca;background:#fef2f2;color:#dc2626;cursor:pointer;font-size:12px;margin:2px" title="Excluir"><i class="ti ti-trash"></i></button>
         </td>
       </tr>`;
@@ -4220,6 +4266,26 @@ async function alojaGerarPDFHist(id) {
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a'); a.href=url; a.download=`vistoria_${id}.pdf`; a.click();
   URL.revokeObjectURL(url);
+}
+
+async function alojaEnviarAssinaturaHist(id, encNome) {
+  const celular = prompt(`Celular do encarregado "${encNome}" (com DDD, ex: 11987654321):`, '');
+  if (celular === null) return;
+  const res = await apiFetch(`/api/alojamentos/vistorias/${id}/enviar`, {
+    method: 'POST',
+    headers: {'Content-Type':'application/json'},
+    body: JSON.stringify({ celular_encarregado: celular })
+  });
+  if (!res || !res.ok) {
+    const txt = await res?.text().catch(()=>'');
+    let msg = txt; try { msg = JSON.parse(txt).detail || txt; } catch {}
+    alert('Erro ao enviar: ' + msg); return;
+  }
+  const data = await res.json();
+  const link = data.link_assinatura;
+  const copiar = confirm(`✓ Enviado!\n\nLink de assinatura:\n${link}\n\nCopiar o link?`);
+  if (copiar) navigator.clipboard.writeText(link).catch(()=>prompt('Copie o link:', link));
+  alojaCarregarHistorico();
 }
 
 async function alojaDeletar(id) {

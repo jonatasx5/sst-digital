@@ -338,7 +338,9 @@ def criar_banco():
                     assinatura_responsavel TEXT DEFAULT '',
                     assinatura_encarregado TEXT DEFAULT '',
                     criado_por TEXT DEFAULT '',
-                    criado_em TIMESTAMP DEFAULT NOW()
+                    criado_em TIMESTAMP DEFAULT NOW(),
+                    link_assinatura TEXT DEFAULT '',
+                    zapsign_token TEXT DEFAULT ''
                 )
             """)
             cur.execute("""
@@ -389,7 +391,9 @@ def criar_banco():
                 assinatura_responsavel TEXT DEFAULT '',
                 assinatura_encarregado TEXT DEFAULT '',
                 criado_por TEXT DEFAULT '',
-                criado_em TEXT DEFAULT (datetime('now','localtime')))""")
+                criado_em TEXT DEFAULT (datetime('now','localtime')),
+                link_assinatura TEXT DEFAULT '',
+                zapsign_token TEXT DEFAULT '')""")
             cur.execute("""CREATE TABLE IF NOT EXISTS alojamento_itens (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 vistoria_id INTEGER REFERENCES alojamento_vistorias(id),
@@ -412,6 +416,20 @@ def criar_banco():
                 responsavel TEXT DEFAULT '',
                 prazo TEXT DEFAULT '',
                 status_acao TEXT DEFAULT 'pendente')""")
+
+        # Migrações: adiciona colunas novas se ainda não existirem
+        if USE_POSTGRES:
+            for col, defval in [('link_assinatura', "''"), ('zapsign_token', "''")]:
+                try:
+                    cur.execute(f"ALTER TABLE alojamento_vistorias ADD COLUMN {col} TEXT DEFAULT {defval}")
+                except Exception:
+                    pass  # coluna já existe
+        else:
+            cols_existentes = [r[1] for r in cur.execute("PRAGMA table_info(alojamento_vistorias)").fetchall()]
+            for col, defval in [('link_assinatura', "''"), ('zapsign_token', "''")]:
+                if col not in cols_existentes:
+                    cur.execute(f"ALTER TABLE alojamento_vistorias ADD COLUMN {col} TEXT DEFAULT {defval}")
+
         conn.commit()
 
         print(f"OK Banco criado ({'PostgreSQL' if USE_POSTGRES else 'SQLite'})")
@@ -1344,6 +1362,11 @@ def deletar_vistoria_alojamento(vistoria_id: int):
     executar('DELETE FROM alojamento_fotos WHERE vistoria_id=?', (vistoria_id,), commit=True)
     executar('DELETE FROM alojamento_itens WHERE vistoria_id=?', (vistoria_id,), commit=True)
     executar('DELETE FROM alojamento_vistorias WHERE id=?', (vistoria_id,), commit=True)
+
+
+def salvar_link_vistoria(vistoria_id: int, link: str, token: str):
+    executar('UPDATE alojamento_vistorias SET link_assinatura=?, zapsign_token=? WHERE id=?',
+             (link, token, vistoria_id), commit=True)
 
 
 if __name__ == "__main__":

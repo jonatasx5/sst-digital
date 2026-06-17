@@ -1667,33 +1667,42 @@ async def gerar_pdf_vistoria(vid: int, _=Depends(verificar_acesso)):
             for foto in fotos:
                 try:
                     b64 = foto.get('dados_base64','')
+                    if not b64:
+                        continue
                     if ',' in b64:
                         b64 = b64.split(',', 1)[1]
                     img_bytes = base64.b64decode(b64)
                     img_buf = io.BytesIO(img_bytes)
                     if _pillow_ok:
                         pil = PILImage.open(img_buf)
-                        pil.thumbnail((400, 300))
+                        # Converter para RGB se necessário (PNG com alpha, WEBP etc.)
+                        if pil.mode not in ('RGB', 'L'):
+                            pil = pil.convert('RGB')
+                        pil.thumbnail((600, 450), PILImage.LANCZOS)
                         out = io.BytesIO()
-                        pil.save(out, format='JPEG')
+                        pil.save(out, format='JPEG', quality=85)
                         out.seek(0)
-                        rl_img = RLImage(out, width=8*cm, height=6*cm)
+                        # Calcular dimensões mantendo proporção
+                        w, h = pil.size
+                        max_w, max_h = 8*cm, 6*cm
+                        ratio = min(max_w/w, max_h/h) if w and h else 1
+                        rl_img = RLImage(out, width=w*ratio, height=h*ratio)
                     else:
                         rl_img = RLImage(img_buf, width=8*cm, height=6*cm)
                     foto_row.append(rl_img)
                     if len(foto_row) == 2:
                         ft = Table([foto_row], colWidths=[9*cm, 9*cm])
-                        ft.setStyle(TableStyle([('ALIGN',(0,0),(-1,-1),'CENTER'),('PADDING',(0,0),(-1,-1),4)]))
+                        ft.setStyle(TableStyle([('ALIGN',(0,0),(-1,-1),'CENTER'),('VALIGN',(0,0),(-1,-1),'MIDDLE'),('PADDING',(0,0),(-1,-1),6)]))
                         story.append(ft)
-                        story.append(Spacer(1,4))
+                        story.append(Spacer(1,6))
                         foto_row = []
-                except Exception:
-                    pass
+                except Exception as e:
+                    print(f"ERRO ao processar foto na vistoria {vid}: {e}")
             if foto_row:
                 while len(foto_row) < 2:
-                    foto_row.append('')
+                    foto_row.append(Paragraph('', body_style))
                 ft = Table([foto_row], colWidths=[9*cm, 9*cm])
-                ft.setStyle(TableStyle([('ALIGN',(0,0),(-1,-1),'CENTER'),('PADDING',(0,0),(-1,-1),4)]))
+                ft.setStyle(TableStyle([('ALIGN',(0,0),(-1,-1),'CENTER'),('VALIGN',(0,0),(-1,-1),'MIDDLE'),('PADDING',(0,0),(-1,-1),6)]))
                 story.append(ft)
 
         doc.build(story)

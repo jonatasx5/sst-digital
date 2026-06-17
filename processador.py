@@ -436,7 +436,8 @@ def preencher_ficha_epi_dinamica(funcionario: dict, epis: list, modelo_bytes: by
 
 
 def preencher_os_dinamica(funcionario: dict, descricao_atividades: str,
-                          epis_texto: str, modelo_bytes: bytes) -> bytes:
+                          epis_texto: str, modelo_bytes: bytes,
+                          riscos_texto: str = "") -> bytes:
     """
     Preenche a OS modelo com dados do funcionário + CBO + EPIs.
     - descricao_atividades: texto da descrição sumária do CBO
@@ -468,8 +469,9 @@ def preencher_os_dinamica(funcionario: dict, descricao_atividades: str,
 
     for table in doc.tables:
         # Primeira passagem: identifica índices das linhas-alvo (cabeçalhos)
-        idx_cbo   = None  # linha após "DESCRIÇÃO DAS ATIVIDADES"
-        idx_epis  = None  # linha após "EQUIPAMENTO DE PROTEÇÃO INDIVIDUAL"
+        idx_cbo    = None  # linha após "DESCRIÇÃO DAS ATIVIDADES"
+        idx_riscos = None  # linha após "RISCOS"
+        idx_epis   = None  # linha após "EQUIPAMENTO DE PROTEÇÃO INDIVIDUAL"
 
         for ri, row in enumerate(table.rows):
             # Pega apenas a primeira célula única para não duplicar
@@ -481,13 +483,17 @@ def preencher_os_dinamica(funcionario: dict, descricao_atividades: str,
                     cells_unicas.append(c)
             texto_linha = " ".join(c.text.strip() for c in cells_unicas).upper()
 
-            # Cabeçalho EXATO: "DESCRIÇÃO DAS ATIVIDADES" — linha curta, sem conteúdo longo
+            # Cabeçalho: "DESCRIÇÃO DAS ATIVIDADES"
             if ("DESCRI" in texto_linha and "ATIVIDADE" in texto_linha
                     and len(texto_linha) < 50 and idx_cbo is None):
                 idx_cbo = ri + 1
 
-            # Cabeçalho EXATO: "EQUIPAMENTO DE PROTEÇÃO INDIVIDUAL (EPI)"
-            # Deve ser uma linha de cabeçalho, não parte do texto de obrigações
+            # Cabeçalho: "RISCOS" ou "RISCO A QUE ESTÁ EXPOSTO"
+            if ("RISCO" in texto_linha and idx_riscos is None
+                    and len(texto_linha) < 60):
+                idx_riscos = ri + 1
+
+            # Cabeçalho: "EQUIPAMENTO DE PROTEÇÃO INDIVIDUAL (EPI)"
             if ("EQUIPAMENTO" in texto_linha and "EPI" in texto_linha
                     and "UNIFORME" in texto_linha and idx_epis is None
                     and len(texto_linha) < 80):
@@ -517,6 +523,8 @@ def preencher_os_dinamica(funcionario: dict, descricao_atividades: str,
 
         if idx_cbo is not None:
             _preencher_celula(table, idx_cbo, descricao_atividades)
+        if idx_riscos is not None and riscos_texto:
+            _preencher_celula(table, idx_riscos, riscos_texto)
         if idx_epis is not None:
             _preencher_celula(table, idx_epis, epis_texto)
 

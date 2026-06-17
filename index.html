@@ -229,6 +229,7 @@ tr:hover td { background:#F9FAFB; }
     <button class="nav-item" data-modulo="ordem-servico" onclick="irPara('ordem-servico')"><i class="ti ti-clipboard-list"></i>Ordem de Serviço</button>
     <button class="nav-item" data-modulo="historico" onclick="irPara('historico')"><i class="ti ti-clock"></i>Histórico</button>
     <button class="nav-item" data-modulo="diario-obra" onclick="irPara('diario-obra')"><i class="ti ti-camera"></i>Diário de Obra</button>
+    <button class="nav-item" data-modulo="alojamentos" onclick="irPara('alojamentos')"><i class="ti ti-home-2"></i>Alojamentos</button>
     <button class="nav-item nav-admin" data-modulo="admin" onclick="irPara('admin')"
             style="display:none;margin-top:8px;border-top:1px solid rgba(255,255,255,.1);padding-top:8px;">
       <i class="ti ti-settings"></i>Administração
@@ -419,9 +420,14 @@ tr:hover td { background:#F9FAFB; }
   <div id="epi-aba-individual">
     <div class="card">
       <div class="card-title"><i class="ti ti-search"></i>Buscar funcionário</div>
-      <input type="text" id="busca-epi-func" placeholder="Nome ou cargo..."
-        style="width:100%;padding:8px 12px;border:1px solid var(--borda);border-radius:8px;font-size:13px;margin-bottom:10px"
-        oninput="buscarFuncEpi()">
+      <div style="display:flex;gap:8px;margin-bottom:10px">
+        <input type="text" id="busca-epi-func" placeholder="Nome ou cargo..."
+          style="flex:1;padding:8px 12px;border:1px solid var(--borda);border-radius:8px;font-size:13px"
+          oninput="buscarFuncEpi()">
+        <button class="btn btn-outline btn-sm" onclick="abrirCadastroRapidoEpi()" title="Pessoa não cadastrada no sistema">
+          <i class="ti ti-user-plus"></i> Novo
+        </button>
+      </div>
       <div id="lista-epi-func" class="lista-scroll"></div>
     </div>
     <div id="epi-func-selecionado" style="display:none">
@@ -621,8 +627,11 @@ tr:hover td { background:#F9FAFB; }
   <div class="page-header">
     <div>
       <div class="page-title">Ordens de Serviço</div>
-      <div class="page-sub">Configure o CBO por cargo e envie a OS para assinatura</div>
+      <div class="page-sub">Configure o CBO, riscos (PGR) por cargo e envie a OS para assinatura</div>
     </div>
+    <button class="btn btn-outline btn-sm" onclick="importarPGR()" title="Importa riscos e EPIs do PGR para todos os cargos">
+      <i class="ti ti-shield-lock"></i> Importar PGR
+    </button>
   </div>
 
   <!-- Tabs -->
@@ -678,12 +687,20 @@ tr:hover td { background:#F9FAFB; }
 
         <div class="field">
           <label>Descrição das Atividades</label>
-          <textarea id="os-cbo-descricao" rows="8" placeholder="Preenchido automaticamente após selecionar o CBO..."></textarea>
+          <textarea id="os-cbo-descricao" rows="6" placeholder="Preenchido automaticamente após selecionar o CBO..."></textarea>
+        </div>
+
+        <div class="field">
+          <label style="display:flex;align-items:center;justify-content:space-between">
+            <span>Riscos a que está exposto</span>
+            <span id="os-pgr-badge" style="display:none;font-size:10px;background:var(--verde);color:#fff;padding:2px 8px;border-radius:10px">PGR</span>
+          </label>
+          <textarea id="os-riscos" rows="5" placeholder="Preenchido automaticamente pelo PGR ao selecionar o cargo, ou edite manualmente..."></textarea>
         </div>
 
         <div class="card" style="background:var(--verde-light);border-color:var(--verde);margin-bottom:12px">
           <div style="font-size:12px;font-weight:600;color:var(--verde-dark);margin-bottom:8px">
-            <i class="ti ti-shield"></i> EPIs do cargo (preenchimento automático)
+            <i class="ti ti-shield"></i> EPIs do cargo (PGR + cadastro)
           </div>
           <div id="os-epis-preview" style="font-size:12px;color:var(--texto2)">—</div>
         </div>
@@ -890,6 +907,35 @@ tr:hover td { background:#F9FAFB; }
   </div>
 </div>
 
+<!-- ── MODAL CADASTRO RÁPIDO EPI ── -->
+<div class="modal-bg" id="modal-cadastro-rapido-epi">
+  <div class="modal" style="max-width:420px">
+    <div class="modal-title">
+      <span><i class="ti ti-user-plus"></i> Novo Destinatário</span>
+      <button class="modal-close" onclick="fecharModal('modal-cadastro-rapido-epi')">×</button>
+    </div>
+    <p style="font-size:12px;color:var(--texto2);margin-bottom:16px">
+      Para pessoas que não estão no quadro de funcionários. Preencha apenas Nome e CPF.
+    </p>
+    <div class="field">
+      <label>Nome completo *</label>
+      <input type="text" id="cr-nome" placeholder="Ex: João da Silva" style="text-transform:uppercase">
+    </div>
+    <div class="field">
+      <label>CPF *</label>
+      <input type="text" id="cr-cpf" placeholder="000.000.000-00" maxlength="14" oninput="mascaraCpf(this)">
+    </div>
+    <div class="field">
+      <label>Cargo / Função</label>
+      <input type="text" id="cr-cargo" placeholder="Ex: PEDREIRO (opcional)" style="text-transform:uppercase">
+    </div>
+    <div id="cr-erro" style="color:#dc2626;font-size:12px;margin-bottom:8px;display:none"></div>
+    <button class="btn btn-primary" style="width:100%;justify-content:center" onclick="confirmarCadastroRapidoEpi()">
+      <i class="ti ti-check"></i> Usar na Ficha
+    </button>
+  </div>
+</div>
+
 <!-- ── MODAL NOVO EPI ── -->
 <div class="modal-bg" id="modal-novo-epi">
   <div class="modal">
@@ -1079,6 +1125,130 @@ tr:hover td { background:#F9FAFB; }
   </div>
 </div><!-- fecha panel-diario-obra -->
 
+<!-- ── ALOJAMENTOS ── -->
+<div class="panel" id="panel-alojamentos">
+  <div class="page-header">
+    <div>
+      <div class="page-title">Alojamentos</div>
+      <div class="page-sub">Relatório de Vistoria de Alojamento — NR-18 / NR-24</div>
+    </div>
+    <div style="display:flex;gap:8px">
+      <button class="btn btn-outline btn-sm" onclick="alojaAba('historico')"><i class="ti ti-clock"></i>Histórico</button>
+      <button class="btn btn-primary btn-sm" onclick="alojaAba('form')"><i class="ti ti-plus"></i>Nova Vistoria</button>
+    </div>
+  </div>
+
+  <!-- Abas -->
+  <div style="display:flex;gap:4px;margin-bottom:16px;border-bottom:2px solid var(--borda)">
+    <button id="aloja-tab-form" class="tab-btn active" onclick="alojaAba('form')" style="padding:8px 18px;border:none;background:none;cursor:pointer;font-weight:600;color:var(--primario);border-bottom:2px solid var(--primario);margin-bottom:-2px">Nova Vistoria</button>
+    <button id="aloja-tab-historico" class="tab-btn" onclick="alojaAba('historico')" style="padding:8px 18px;border:none;background:none;cursor:pointer;color:var(--texto2)">Histórico</button>
+  </div>
+
+  <!-- Painel Formulário -->
+  <div id="aloja-panel-form">
+    <!-- IDENTIFICAÇÃO -->
+    <div class="card" style="margin-bottom:16px">
+      <div class="card-title"><i class="ti ti-id-badge-2"></i>Identificação</div>
+      <div class="grid2" style="gap:12px">
+        <div class="field"><label>Frente de Serviço / Contrato</label><input type="text" id="aloja-frente" placeholder="Ex: LOTE 85 / CONT. 89/2026"></div>
+        <div class="field"><label>Localização do Alojamento</label><input type="text" id="aloja-local" placeholder="Cidade, endereço"></div>
+        <div class="field"><label>Data da Vistoria</label><input type="date" id="aloja-data"></div>
+        <div class="field"><label>Nº de Trabalhadores Alojados</label><input type="number" id="aloja-num" min="0" value="0"></div>
+        <div class="field"><label>Responsável pela Vistoria</label><input type="text" id="aloja-responsavel" placeholder="Nome completo"></div>
+        <div class="field"><label>Cargo / Registro</label><input type="text" id="aloja-cargo" placeholder="Ex: Técnico em Segurança do Trabalho"></div>
+        <div class="field" style="grid-column:1/-1"><label>Encarregado Presente</label><input type="text" id="aloja-encarregado" placeholder="Nome do encarregado presente"></div>
+      </div>
+    </div>
+
+    <!-- BLOCOS DE CHECKLIST -->
+    <div id="aloja-blocos"></div>
+
+    <!-- UPLOAD DE FOTOS -->
+    <div class="card" style="margin-bottom:16px">
+      <div class="card-title"><i class="ti ti-camera"></i>Registro Fotográfico</div>
+      <div id="aloja-fotos-preview" style="display:flex;flex-wrap:wrap;gap:10px;margin-bottom:10px"></div>
+      <label style="display:flex;align-items:center;gap:8px;cursor:pointer;padding:12px;border:2px dashed var(--borda);border-radius:8px;color:var(--texto2)">
+        <i class="ti ti-upload" style="font-size:20px"></i>
+        <span>Clique para adicionar fotos</span>
+        <input type="file" id="aloja-foto-input" accept="image/*" multiple style="display:none" onchange="alojaAdicionarFotos(this)">
+      </label>
+    </div>
+
+    <!-- RESULTADO -->
+    <div class="card" style="margin-bottom:16px">
+      <div class="card-title"><i class="ti ti-clipboard-check"></i>Resultado da Vistoria</div>
+      <div style="display:flex;gap:16px;flex-wrap:wrap;margin-bottom:12px">
+        <label style="display:flex;align-items:center;gap:6px;cursor:pointer">
+          <input type="radio" name="aloja-resultado" value="conforme" checked> Conforme
+        </label>
+        <label style="display:flex;align-items:center;gap:6px;cursor:pointer">
+          <input type="radio" name="aloja-resultado" value="nao_conforme"> Não Conforme
+        </label>
+        <label style="display:flex;align-items:center;gap:6px;cursor:pointer">
+          <input type="radio" name="aloja-resultado" value="conforme_ressalvas"> Conforme com Ressalvas
+        </label>
+      </div>
+      <div class="field"><label>Prazo para Regularização das Não Conformidades</label><input type="date" id="aloja-prazo"></div>
+      <div class="field"><label>Observação Geral</label><textarea id="aloja-obs-geral" rows="3" style="width:100%;resize:vertical;padding:8px;border:1px solid var(--borda);border-radius:6px;font-size:13px;background:var(--fundo);color:var(--texto)" placeholder="Observações gerais sobre a vistoria..."></textarea></div>
+    </div>
+
+    <!-- PLANO DE AÇÃO -->
+    <div class="card" style="margin-bottom:16px">
+      <div class="card-title" style="display:flex;justify-content:space-between;align-items:center">
+        <span><i class="ti ti-list-check"></i>Plano de Ação (Não Conformidades)</span>
+        <button class="btn btn-outline btn-sm" onclick="alojaAddAcao()"><i class="ti ti-plus"></i>Adicionar</button>
+      </div>
+      <div id="aloja-plano-tabela">
+        <table style="width:100%;border-collapse:collapse;font-size:13px">
+          <thead>
+            <tr style="background:var(--primario);color:#fff">
+              <th style="padding:8px;text-align:left;width:70px">Nº NC</th>
+              <th style="padding:8px;text-align:left">Descrição</th>
+              <th style="padding:8px;text-align:left;width:150px">Responsável</th>
+              <th style="padding:8px;text-align:left;width:120px">Prazo</th>
+              <th style="padding:8px;text-align:left;width:120px">Status</th>
+              <th style="padding:8px;width:40px"></th>
+            </tr>
+          </thead>
+          <tbody id="aloja-plano-body"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- ASSINATURAS -->
+    <div class="card" style="margin-bottom:16px">
+      <div class="card-title"><i class="ti ti-writing"></i>Assinaturas</div>
+      <div class="grid2" style="gap:16px">
+        <div>
+          <div style="font-weight:600;margin-bottom:8px;color:var(--texto2);font-size:12px">RESPONSÁVEL PELA VISTORIA</div>
+          <div class="field"><label>Nome</label><input type="text" id="aloja-sig-resp-nome" placeholder="Nome completo"></div>
+          <div class="field"><label>Cargo</label><input type="text" id="aloja-sig-resp-cargo" placeholder="Cargo"></div>
+          <div style="margin-top:24px;border-top:1px solid var(--borda);padding-top:4px;font-size:11px;color:var(--texto2);text-align:center">Assinatura</div>
+        </div>
+        <div>
+          <div style="font-weight:600;margin-bottom:8px;color:var(--texto2);font-size:12px">ENCARREGADO / REPRESENTANTE</div>
+          <div class="field"><label>Nome</label><input type="text" id="aloja-sig-enc-nome" placeholder="Nome completo"></div>
+          <div class="field"><label>Cargo</label><input type="text" id="aloja-sig-enc-cargo" placeholder="Cargo"></div>
+          <div style="margin-top:24px;border-top:1px solid var(--borda);padding-top:4px;font-size:11px;color:var(--texto2);text-align:center">Assinatura</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- BOTÕES SALVAR/PDF -->
+    <div style="display:flex;gap:12px;justify-content:flex-end;margin-bottom:24px">
+      <div id="aloja-save-result" style="font-size:13px;color:var(--verde);align-self:center"></div>
+      <button class="btn btn-outline" onclick="alojaNovaVistoria()"><i class="ti ti-refresh"></i>Limpar</button>
+      <button id="aloja-btn-pdf" class="btn btn-outline btn-sm" style="display:none" onclick="alojaGerarPDF()"><i class="ti ti-file-type-pdf"></i>Gerar PDF</button>
+      <button class="btn btn-primary" onclick="alojaSalvar()"><i class="ti ti-device-floppy"></i>Salvar Vistoria</button>
+    </div>
+  </div>
+
+  <!-- Painel Histórico -->
+  <div id="aloja-panel-historico" style="display:none">
+    <div id="aloja-hist-lista"></div>
+  </div>
+</div><!-- fecha panel-alojamentos -->
+
 <!-- ── ADMINISTRAÇÃO ── -->
 <div class="panel" id="panel-admin">
   <div class="page-header">
@@ -1199,6 +1369,7 @@ const MODULOS = [
   { id:'ordem-servico', label:'Ordem de Serviço' },
   { id:'historico',     label:'Histórico' },
   { id:'diario-obra',   label:'Diário de Obra' },
+  { id:'alojamentos',   label:'Alojamentos' },
 ];
 
 let _authToken = null;
@@ -1463,6 +1634,7 @@ function irPara(aba) {
   if (aba==='ordem-servico') carregarOSCargos();
   if (aba==='historico')     carregarHistorico();
   if (aba==='diario-obra')   doInit();
+  if (aba==='alojamentos')   alojaInit();
   if (aba==='admin')         carregarAdmin();
   // Scroll para o topo e fecha sidebar mobile
   const mainEl = document.querySelector('main.main');
@@ -1967,6 +2139,35 @@ function limparSelEpiFunc() {
   epiFuncSel = null;
   document.getElementById('epi-func-selecionado').style.display = 'none';
   document.getElementById('epi-ind-resultado').innerHTML = '';
+}
+
+function mascaraCpf(input) {
+  let v = input.value.replace(/\D/g,'').slice(0,11);
+  if (v.length > 9) v = v.replace(/(\d{3})(\d{3})(\d{3})(\d{0,2})/,'$1.$2.$3-$4');
+  else if (v.length > 6) v = v.replace(/(\d{3})(\d{3})(\d{0,3})/,'$1.$2.$3');
+  else if (v.length > 3) v = v.replace(/(\d{3})(\d{0,3})/,'$1.$2');
+  input.value = v;
+}
+
+function abrirCadastroRapidoEpi() {
+  document.getElementById('cr-nome').value = '';
+  document.getElementById('cr-cpf').value = '';
+  document.getElementById('cr-cargo').value = '';
+  document.getElementById('cr-erro').style.display = 'none';
+  abrirModal('modal-cadastro-rapido-epi');
+}
+
+function confirmarCadastroRapidoEpi() {
+  const nome  = document.getElementById('cr-nome').value.trim().toUpperCase();
+  const cpf   = document.getElementById('cr-cpf').value.trim();
+  const cargo = document.getElementById('cr-cargo').value.trim().toUpperCase() || 'NÃO INFORMADO';
+  const erroEl = document.getElementById('cr-erro');
+  if (!nome) { erroEl.textContent = 'Nome é obrigatório.'; erroEl.style.display=''; return; }
+  if (!cpf)  { erroEl.textContent = 'CPF é obrigatório.'; erroEl.style.display=''; return; }
+  erroEl.style.display = 'none';
+  const funcTemp = { id: null, nome, cpf, cargo, lotacao: '', admissao: '', celular: '', email: '', matricula: cpf };
+  fecharModal('modal-cadastro-rapido-epi');
+  selecionarFuncEpi(funcTemp);
 }
 
 async function enviarEpiIndividual() {
@@ -2747,8 +2948,10 @@ async function histBaixarPDF(envioId, btn) {
     if (!res || !res.ok) {
       let msg = 'Sem resposta do servidor';
       if (res) {
-        try { const j = await res.json(); msg = j.detail || JSON.stringify(j); }
-        catch { msg = await res.text(); }
+        try {
+          const txt = await res.text();
+          try { msg = JSON.parse(txt).detail || txt; } catch { msg = txt; }
+        } catch { /* body unreadable */ }
       }
       alert('Erro ao baixar PDF: ' + msg);
       btn.innerHTML = orig;
@@ -2876,6 +3079,17 @@ function osAba(aba) {
   if (aba === 'envio') carregarOSFuncs();
 }
 
+async function importarPGR() {
+  if (!confirm('Isso importará os riscos e EPIs do PGR para todos os cargos cadastrados no sistema. Dados já existentes serão atualizados.\n\nDeseja continuar?')) return;
+  const res = await apiFetch('/api/pgr/seed', {method:'POST'});
+  const data = await res.json();
+  if (data.ok) {
+    alert(`PGR importado com sucesso! ${data.total} cargos atualizados.\n\nAgora ao selecionar um cargo, os riscos serão preenchidos automaticamente.`);
+  } else {
+    alert('Erro ao importar PGR.');
+  }
+}
+
 async function carregarOSCargos() {
   try {
     const [configList, epis] = await Promise.all([
@@ -2903,19 +3117,36 @@ async function selecionarOSCargo(cargo) {
   document.getElementById('os-salvar-status').style.display = 'none';
 
   try {
-    const data = await apiFetch(`/api/os/config/${encodeURIComponent(cargo)}`).then(r=>r.json());
+    const [data, pgr] = await Promise.all([
+      apiFetch(`/api/os/config/${encodeURIComponent(cargo)}`).then(r=>r.json()),
+      apiFetch(`/api/pgr/cargo/${encodeURIComponent(cargo)}`).then(r=>r.json()).catch(()=>({}))
+    ]);
     document.getElementById('os-cbo-codigo').value    = data.cbo?.cbo_codigo || '';
     document.getElementById('os-cbo-titulo').value    = data.cbo?.cbo_titulo || '';
     document.getElementById('os-cbo-descricao').value = data.cbo?.cbo_descricao || '';
 
-    // Preview EPIs
+    // Preenche riscos do PGR
+    const riscosEl = document.getElementById('os-riscos');
+    const pgrBadge = document.getElementById('os-pgr-badge');
+    if (pgr && pgr.riscos) {
+      riscosEl.value = pgr.riscos;
+      pgrBadge.style.display = '';
+    } else {
+      if (!riscosEl.value) riscosEl.value = '';
+      pgrBadge.style.display = 'none';
+    }
+
+    // Preview EPIs (do cadastro + PGR)
     const epis = data.epis || [];
-    document.getElementById('os-epis-preview').innerHTML = epis.length
+    const episPgr = pgr?.epis ? pgr.epis.split(';').map(s=>s.trim()).filter(Boolean) : [];
+    const episHtml = epis.length
       ? epis.map(e=>`<div>• ${e.descricao}${e.ca?' (C.A: '+e.ca+')':''} — Qtd: ${e.quantidade}</div>`).join('')
-      : '<em>Nenhum EPI configurado para este cargo</em>';
+      : episPgr.length
+        ? episPgr.map(e=>`<div>• ${e} <em style="color:var(--verde);font-size:10px">(PGR)</em></div>`).join('')
+        : '<em>Nenhum EPI configurado para este cargo</em>';
+    document.getElementById('os-epis-preview').innerHTML = episHtml;
   } catch(e) {}
 
-  // Refresh lista para destacar cargo selecionado
   carregarOSCargos();
 }
 
@@ -3036,6 +3267,7 @@ async function salvarOSConfig() {
       cbo_codigo:    document.getElementById('os-cbo-codigo').value.trim(),
       cbo_titulo:    document.getElementById('os-cbo-titulo').value.trim(),
       cbo_descricao: document.getElementById('os-cbo-descricao').value.trim(),
+      riscos:        document.getElementById('os-riscos').value.trim(),
     };
     const r = await apiFetch(`/api/os/config/${encodeURIComponent(osCargoAtual)}`, {
       method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload)
@@ -3575,6 +3807,413 @@ function doNovoRelatorio() {
   document.getElementById('do-mes').value = '';
   doRenderFotos();
   doStep(0);
+}
+
+// ══════════════════════════════════════════════════════
+//  ALOJAMENTOS
+// ══════════════════════════════════════════════════════
+
+const ALOJA_BLOCOS = [
+  { num: 1, nome: 'DORMITÓRIOS (NR-24, item 24.7.2 e 24.7.3)', itens: [
+    { id:'1.1', desc:'Condições de conservação, higiene e limpeza adequadas' },
+    { id:'1.2', desc:'Separação por sexo' },
+    { id:'1.3', desc:'Capacidade máxima de 8 trabalhadores por quarto' },
+    { id:'1.4', desc:'Área mínima: 3,00 m² por cama simples ou 4,50 m² por beliche (inclui circulação e armário)' },
+    { id:'1.5', desc:'Vedado uso de 3 ou mais camas na mesma vertical' },
+    { id:'1.6', desc:'Camas/beliches sem rebarbas ou arestas cortantes; com resistência e dimensões compatíveis' },
+    { id:'1.7', desc:'Beliches com proteção lateral e escada fixas na estrutura' },
+    { id:'1.8', desc:'Colchões certificados pelo INMETRO' },
+    { id:'1.9', desc:'Colchões, lençóis, fronhas, cobertores e travesseiros limpos e adequados ao clima' },
+    { id:'1.10', desc:'Armários com sistema de trancamento e dimensões para guarda de roupas e enxoval' },
+    { id:'1.11', desc:'Ventilação natural presente (complementada por artificial quando necessário)' },
+    { id:'1.12', desc:'Conforto acústico compatível com NR-17' },
+    { id:'1.13', desc:'Trabalhadores do mesmo quarto pertencem preferencialmente ao mesmo turno' },
+    { id:'1.14', desc:'Pisos impermeáveis e laváveis' },
+  ]},
+  { num: 2, nome: 'INSTALAÇÕES SANITÁRIAS (NR-18, item 18.5.3 / NR-24, item 24.7.2)', itens: [
+    { id:'2.1', desc:'Proporção mínima: 1 chuveiro para cada 10 trabalhadores alojados ou fração' },
+    { id:'2.2', desc:'Proporção mínima: 1 conjunto (lavatório + bacia + mictório) para cada 20 trabalhadores ou fração' },
+    { id:'2.3', desc:'Distância máxima de 50 m dos dormitórios, se não integradas; interligadas por piso coberto e lavável' },
+    { id:'2.4', desc:'Sanitários higienizados diariamente' },
+    { id:'2.5', desc:'Instalações em bom estado de conservação (sem vazamentos, entupimentos, peças quebradas)' },
+    { id:'2.6', desc:'Separação por sexo quando aplicável' },
+  ]},
+  { num: 3, nome: 'REFEITÓRIO / LOCAL DE REFEIÇÕES (NR-18, item 18.5.4 / NR-24, item 24.5)', itens: [
+    { id:'3.1', desc:'Local para refeições disponível e em condições adequadas de higiene' },
+    { id:'3.2', desc:'Vedado o preparo de alimentos nos quartos' },
+    { id:'3.3', desc:'Quando o refeitório não integra o alojamento: transporte garantido aos trabalhadores' },
+    { id:'3.4', desc:'Cozinha disponível, quando houver preparo de refeições no local' },
+  ]},
+  { num: 4, nome: 'LAVANDERIA (NR-18, item 18.5.4 / NR-24, item 24.7.6)', itens: [
+    { id:'4.1', desc:'Infraestrutura para lavagem e secagem de roupas pessoais disponível, ou serviço de lavanderia fornecido' },
+    { id:'4.2', desc:'Área de lavanderia dotada de meios adequados para higienização e passagem das roupas' },
+  ]},
+  { num: 5, nome: 'ÁREA DE LAZER (NR-18, item 18.5.4)', itens: [
+    { id:'5.1', desc:'Área de lazer disponível para recreação dos alojados (pode ser o próprio refeitório)' },
+  ]},
+  { num: 6, nome: 'ABASTECIMENTO DE ÁGUA (NR-18, item 18.5.6)', itens: [
+    { id:'6.1', desc:'Água potável, filtrada e fresca disponível' },
+    { id:'6.2', desc:'Proporção mínima: 1 bebedouro para cada 25 trabalhadores ou fração' },
+    { id:'6.3', desc:'Vedado o uso de copos coletivos' },
+    { id:'6.4', desc:'Distância do posto de trabalho ao bebedouro: máx. 100 m horizontal / 15 m vertical' },
+  ]},
+  { num: 7, nome: 'HIGIENE E CONSERVAÇÃO GERAL (NR-24, items 24.7.8 e 24.7.9)', itens: [
+    { id:'7.1', desc:'Coleta de lixo realizada diariamente' },
+    { id:'7.2', desc:'Lavagem de roupa de cama realizada regularmente' },
+    { id:'7.3', desc:'Manutenção das instalações em dia' },
+    { id:'7.4', desc:'Renovação de vestuário de camas e colchões garantida' },
+    { id:'7.5', desc:'Controle de vetores e pragas conforme legislação local' },
+    { id:'7.6', desc:'Vedada a instalação de fogão, fogareiro ou similares nos quartos' },
+  ]},
+  { num: 8, nome: 'SAÚDE E SEGURANÇA NO ALOJAMENTO (NR-24, item 24.7.10)', itens: [
+    { id:'8.1', desc:'Trabalhadores com suspeita de doença infectocontagiosa são encaminhados à avaliação médica' },
+    { id:'8.2', desc:'Extintor de incêndio disponível e dentro da validade' },
+    { id:'8.3', desc:'Saídas de emergência identificadas e desobstruídas' },
+    { id:'8.4', desc:'Iluminação adequada em todos os ambientes' },
+  ]},
+];
+
+// Estado
+let _alojaId = null;
+let _alojaFotos = [];
+let _alojaItens = {}; // itemId -> {status, obs}
+
+function alojaInit() {
+  alojaRenderBlocos();
+  alojaAba('form');
+}
+
+function alojaAba(aba) {
+  document.getElementById('aloja-panel-form').style.display      = aba==='form' ? '' : 'none';
+  document.getElementById('aloja-panel-historico').style.display = aba==='historico' ? '' : 'none';
+  document.getElementById('aloja-tab-form').style.cssText      = aba==='form'
+    ? 'padding:8px 18px;border:none;background:none;cursor:pointer;font-weight:600;color:var(--primario);border-bottom:2px solid var(--primario);margin-bottom:-2px'
+    : 'padding:8px 18px;border:none;background:none;cursor:pointer;color:var(--texto2)';
+  document.getElementById('aloja-tab-historico').style.cssText = aba==='historico'
+    ? 'padding:8px 18px;border:none;background:none;cursor:pointer;font-weight:600;color:var(--primario);border-bottom:2px solid var(--primario);margin-bottom:-2px'
+    : 'padding:8px 18px;border:none;background:none;cursor:pointer;color:var(--texto2)';
+  if (aba==='historico') alojaCarregarHistorico();
+}
+
+function alojaRenderBlocos() {
+  const container = document.getElementById('aloja-blocos');
+  if (!container) return;
+  container.innerHTML = ALOJA_BLOCOS.map(bloco => `
+    <div class="card" style="margin-bottom:16px">
+      <div class="card-title"><i class="ti ti-clipboard-list"></i>Bloco ${bloco.num} — ${bloco.nome}</div>
+      <table style="width:100%;border-collapse:collapse;font-size:13px">
+        <thead>
+          <tr style="background:var(--primario);color:#fff">
+            <th style="padding:8px;width:50px;text-align:left">Nº</th>
+            <th style="padding:8px;text-align:left">Item verificado</th>
+            <th style="padding:8px;width:160px;text-align:center">Status</th>
+            <th style="padding:8px;width:200px;text-align:left">Observação</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${bloco.itens.map(item => `
+            <tr style="border-bottom:1px solid var(--borda)" id="aloja-row-${item.id}">
+              <td style="padding:8px;color:var(--texto2);font-size:12px">${item.id}</td>
+              <td style="padding:8px;font-size:13px">${item.desc}</td>
+              <td style="padding:8px;text-align:center">
+                <div style="display:flex;gap:4px;justify-content:center">
+                  <button onclick="alojaMarcar('${item.id}','c')" id="aloja-btn-c-${item.id}"
+                    style="padding:3px 10px;border-radius:5px;border:1px solid #bbf7d0;background:#f0fdf4;color:#16a34a;cursor:pointer;font-weight:600;font-size:12px">C</button>
+                  <button onclick="alojaMarcar('${item.id}','nc')" id="aloja-btn-nc-${item.id}"
+                    style="padding:3px 10px;border-radius:5px;border:1px solid #fecaca;background:#fef2f2;color:#dc2626;cursor:pointer;font-weight:600;font-size:12px">NC</button>
+                  <button onclick="alojaMarcar('${item.id}','na')" id="aloja-btn-na-${item.id}"
+                    style="padding:3px 10px;border-radius:5px;border:1px solid #e2e8f0;background:#f8fafc;color:#64748b;cursor:pointer;font-weight:600;font-size:12px">N/A</button>
+                </div>
+              </td>
+              <td style="padding:6px">
+                <textarea id="aloja-obs-${item.id}" rows="1"
+                  style="width:100%;resize:vertical;padding:4px 6px;border:1px solid var(--borda);border-radius:4px;font-size:12px;background:var(--fundo);color:var(--texto)"
+                  placeholder="Observação..." oninput="alojaSetObs('${item.id}',this.value)"></textarea>
+              </td>
+            </tr>
+          `).join('')}
+        </tbody>
+      </table>
+    </div>
+  `).join('');
+
+  // Inicializa estado
+  _alojaItens = {};
+  ALOJA_BLOCOS.forEach(b => b.itens.forEach(i => { _alojaItens[i.id] = {status:'na', obs:'', desc:i.desc, bloco:b.num}; }));
+}
+
+function alojaMarcar(itemId, status) {
+  if (!_alojaItens[itemId]) return;
+  _alojaItens[itemId].status = status;
+  // Update button styles
+  const styles = {
+    c:  { c:'background:#16a34a;color:#fff;border-color:#16a34a', nc:'background:#fef2f2;color:#dc2626;border-color:#fecaca', na:'background:#f8fafc;color:#64748b;border-color:#e2e8f0' },
+    nc: { c:'background:#f0fdf4;color:#16a34a;border-color:#bbf7d0', nc:'background:#dc2626;color:#fff;border-color:#dc2626', na:'background:#f8fafc;color:#64748b;border-color:#e2e8f0' },
+    na: { c:'background:#f0fdf4;color:#16a34a;border-color:#bbf7d0', nc:'background:#fef2f2;color:#dc2626;border-color:#fecaca', na:'background:#64748b;color:#fff;border-color:#64748b' },
+  };
+  const s = styles[status];
+  ['c','nc','na'].forEach(k => {
+    const btn = document.getElementById(`aloja-btn-${k}-${itemId}`);
+    if (btn) btn.style.cssText = `padding:3px 10px;border-radius:5px;border:1px solid;cursor:pointer;font-weight:600;font-size:12px;${s[k]}`;
+  });
+  // Highlight row
+  const row = document.getElementById(`aloja-row-${itemId}`);
+  if (row) row.style.background = status==='c' ? '#f0fdf4' : status==='nc' ? '#fef2f2' : '';
+}
+
+function alojaSetObs(itemId, val) {
+  if (_alojaItens[itemId]) _alojaItens[itemId].obs = val;
+}
+
+function alojaAdicionarFotos(input) {
+  Array.from(input.files).forEach(file => {
+    const reader = new FileReader();
+    reader.onload = e => {
+      _alojaFotos.push({ nome_arquivo: file.name, dados_base64: e.target.result });
+      alojaRenderFotos();
+    };
+    reader.readAsDataURL(file);
+  });
+  input.value = '';
+}
+
+function alojaRenderFotos() {
+  const container = document.getElementById('aloja-fotos-preview');
+  if (!container) return;
+  container.innerHTML = _alojaFotos.map((f, i) => `
+    <div style="position:relative;display:inline-block">
+      <img src="${f.dados_base64}" style="width:100px;height:80px;object-fit:cover;border-radius:6px;border:1px solid var(--borda)">
+      <button onclick="alojaRemoverFoto(${i})" style="position:absolute;top:2px;right:2px;background:rgba(0,0,0,.6);color:#fff;border:none;border-radius:50%;width:18px;height:18px;cursor:pointer;font-size:11px;line-height:1;padding:0">×</button>
+      <div style="font-size:10px;color:var(--texto2);text-align:center;max-width:100px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${f.nome_arquivo}</div>
+    </div>
+  `).join('');
+}
+
+function alojaRemoverFoto(idx) {
+  _alojaFotos.splice(idx, 1);
+  alojaRenderFotos();
+}
+
+function alojaAddAcao() {
+  const tbody = document.getElementById('aloja-plano-body');
+  if (!tbody) return;
+  const idx = tbody.children.length;
+  const tr = document.createElement('tr');
+  tr.style.borderBottom = '1px solid var(--borda)';
+  tr.innerHTML = `
+    <td style="padding:6px"><input type="text" placeholder="NC-01" style="width:100%;padding:4px;border:1px solid var(--borda);border-radius:4px;font-size:12px"></td>
+    <td style="padding:6px"><input type="text" placeholder="Descrição da não conformidade" style="width:100%;padding:4px;border:1px solid var(--borda);border-radius:4px;font-size:12px"></td>
+    <td style="padding:6px"><input type="text" placeholder="Responsável" style="width:100%;padding:4px;border:1px solid var(--borda);border-radius:4px;font-size:12px"></td>
+    <td style="padding:6px"><input type="date" style="width:100%;padding:4px;border:1px solid var(--borda);border-radius:4px;font-size:12px"></td>
+    <td style="padding:6px">
+      <select style="width:100%;padding:4px;border:1px solid var(--borda);border-radius:4px;font-size:12px">
+        <option value="pendente">Pendente</option>
+        <option value="em_andamento">Em andamento</option>
+        <option value="concluido">Concluído</option>
+      </select>
+    </td>
+    <td style="padding:6px;text-align:center">
+      <button onclick="this.closest('tr').remove()" style="background:none;border:none;color:#dc2626;cursor:pointer;font-size:16px">×</button>
+    </td>
+  `;
+  tbody.appendChild(tr);
+}
+
+function alojaColetarDados() {
+  const resultado = document.querySelector('input[name="aloja-resultado"]:checked')?.value || 'conforme';
+  const itens = Object.entries(_alojaItens).map(([id, v]) => ({
+    item_num: id, bloco: v.bloco, descricao: v.desc, status: v.status, observacao: v.obs
+  }));
+  const tbody = document.getElementById('aloja-plano-body');
+  const plano = Array.from(tbody?.children || []).map(tr => {
+    const inputs = tr.querySelectorAll('input,select');
+    return { num_nc: inputs[0]?.value||'', descricao: inputs[1]?.value||'',
+             responsavel: inputs[2]?.value||'', prazo: inputs[3]?.value||'',
+             status_acao: inputs[4]?.value||'pendente' };
+  }).filter(a => a.descricao);
+
+  return {
+    id: _alojaId,
+    frente_servico: document.getElementById('aloja-frente')?.value||'',
+    contrato: '',
+    localizacao: document.getElementById('aloja-local')?.value||'',
+    data_vistoria: document.getElementById('aloja-data')?.value||'',
+    num_trabalhadores: parseInt(document.getElementById('aloja-num')?.value||0),
+    responsavel: document.getElementById('aloja-responsavel')?.value||'',
+    cargo_responsavel: document.getElementById('aloja-cargo')?.value||'',
+    encarregado: document.getElementById('aloja-encarregado')?.value||'',
+    resultado,
+    prazo_regularizacao: document.getElementById('aloja-prazo')?.value||'',
+    observacao_geral: document.getElementById('aloja-obs-geral')?.value||'',
+    assinatura_responsavel: document.getElementById('aloja-sig-resp-nome')?.value||'',
+    assinatura_encarregado: document.getElementById('aloja-sig-enc-nome')?.value||'',
+    itens, fotos: _alojaFotos, plano_acao: plano,
+  };
+}
+
+async function alojaSalvar() {
+  const dados = alojaColetarDados();
+  const res = await apiFetch('/api/alojamentos/vistorias', {
+    method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(dados)
+  });
+  if (!res || !res.ok) { alert('Erro ao salvar vistoria.'); return; }
+  const data = await res.json();
+  _alojaId = data.id;
+  const btn = document.getElementById('aloja-btn-pdf');
+  if (btn) btn.style.display = '';
+  const result = document.getElementById('aloja-save-result');
+  if (result) { result.textContent = `✓ Vistoria #${_alojaId} salva com sucesso!`; setTimeout(()=>result.textContent='', 4000); }
+}
+
+async function alojaGerarPDF() {
+  if (!_alojaId) { alert('Salve a vistoria primeiro.'); return; }
+  const btn = document.getElementById('aloja-btn-pdf');
+  const orig = btn.innerHTML;
+  btn.disabled = true;
+  btn.innerHTML = '<i class="ti ti-loader-2" style="animation:spin 1s linear infinite"></i> Gerando...';
+  try {
+    const res = await apiFetch(`/api/alojamentos/vistorias/${_alojaId}/pdf`);
+    if (!res || !res.ok) {
+      const txt = await res?.text().catch(()=>'');
+      let msg = txt; try { msg = JSON.parse(txt).detail || txt; } catch {}
+      alert('Erro ao gerar PDF: ' + msg);
+      return;
+    }
+    const blob = await res.blob();
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = `vistoria_alojamento_${_alojaId}.pdf`; a.click();
+    URL.revokeObjectURL(url);
+    btn.innerHTML = '<i class="ti ti-check"></i> Baixado!';
+    setTimeout(() => { btn.innerHTML = orig; btn.disabled = false; }, 2000);
+  } catch(e) {
+    alert('Erro: ' + e.message);
+    btn.innerHTML = orig; btn.disabled = false;
+  }
+}
+
+function alojaNovaVistoria() {
+  _alojaId = null; _alojaFotos = [];
+  document.getElementById('aloja-frente').value = '';
+  document.getElementById('aloja-local').value = '';
+  document.getElementById('aloja-data').value = '';
+  document.getElementById('aloja-num').value = '0';
+  document.getElementById('aloja-responsavel').value = '';
+  document.getElementById('aloja-cargo').value = '';
+  document.getElementById('aloja-encarregado').value = '';
+  document.getElementById('aloja-prazo').value = '';
+  document.getElementById('aloja-obs-geral').value = '';
+  document.getElementById('aloja-sig-resp-nome').value = '';
+  document.getElementById('aloja-sig-enc-nome').value = '';
+  document.querySelector('input[name="aloja-resultado"][value="conforme"]').checked = true;
+  document.getElementById('aloja-plano-body').innerHTML = '';
+  document.getElementById('aloja-btn-pdf').style.display = 'none';
+  document.getElementById('aloja-save-result').textContent = '';
+  alojaRenderFotos();
+  alojaRenderBlocos();
+}
+
+async function alojaCarregarHistorico() {
+  const div = document.getElementById('aloja-hist-lista');
+  if (!div) return;
+  div.innerHTML = '<p style="color:var(--texto2)">Carregando...</p>';
+  const res = await apiFetch('/api/alojamentos/vistorias');
+  if (!res || !res.ok) { div.innerHTML = '<p style="color:red">Erro ao carregar histórico.</p>'; return; }
+  const lista = await res.json();
+  if (!lista.length) { div.innerHTML = '<p style="color:var(--texto2);text-align:center;padding:24px">Nenhuma vistoria registrada.</p>'; return; }
+  const badges = { conforme:'#dcfce7|#16a34a|Conforme', nao_conforme:'#fee2e2|#dc2626|Não Conforme', conforme_ressalvas:'#fef9c3|#d97706|Com Ressalvas' };
+  div.innerHTML = `<table style="width:100%;border-collapse:collapse;font-size:13px">
+    <thead><tr style="background:var(--primario);color:#fff">
+      <th style="padding:10px;text-align:left">Data</th>
+      <th style="padding:10px;text-align:left">Frente / Contrato</th>
+      <th style="padding:10px;text-align:left">Localização</th>
+      <th style="padding:10px;text-align:left">Responsável</th>
+      <th style="padding:10px;text-align:center">Resultado</th>
+      <th style="padding:10px;text-align:center">Ações</th>
+    </tr></thead>
+    <tbody>
+    ${lista.map(v => {
+      const [bg,color,label] = (badges[v.resultado]||'#f1f5f9|#64748b|—').split('|');
+      return `<tr style="border-bottom:1px solid var(--borda)">
+        <td style="padding:10px">${v.data_vistoria||'—'}</td>
+        <td style="padding:10px;font-weight:600">${v.frente_servico||'—'}</td>
+        <td style="padding:10px;color:var(--texto2)">${v.localizacao||'—'}</td>
+        <td style="padding:10px">${v.responsavel||'—'}</td>
+        <td style="padding:10px;text-align:center"><span style="padding:3px 10px;border-radius:20px;background:${bg};color:${color};font-size:12px;font-weight:600">${label}</span></td>
+        <td style="padding:10px;text-align:center;white-space:nowrap">
+          <button onclick="alojaAbrirVistoria(${v.id})" style="padding:4px 10px;border-radius:6px;border:1px solid var(--borda);background:var(--fundo);cursor:pointer;font-size:12px;margin:2px" title="Editar"><i class="ti ti-edit"></i></button>
+          <button onclick="alojaGerarPDFHist(${v.id})" style="padding:4px 10px;border-radius:6px;border:1px solid #bbf7d0;background:#f0fdf4;color:#16a34a;cursor:pointer;font-size:12px;margin:2px" title="Baixar PDF"><i class="ti ti-file-type-pdf"></i></button>
+          <button onclick="alojaDeletar(${v.id})" style="padding:4px 10px;border-radius:6px;border:1px solid #fecaca;background:#fef2f2;color:#dc2626;cursor:pointer;font-size:12px;margin:2px" title="Excluir"><i class="ti ti-trash"></i></button>
+        </td>
+      </tr>`;
+    }).join('')}
+    </tbody>
+  </table>`;
+}
+
+async function alojaAbrirVistoria(id) {
+  const res = await apiFetch(`/api/alojamentos/vistorias/${id}`);
+  if (!res || !res.ok) { alert('Erro ao carregar vistoria.'); return; }
+  const v = await res.json();
+  _alojaId = v.id;
+  _alojaFotos = v.fotos || [];
+  alojaAba('form');
+  document.getElementById('aloja-frente').value = v.frente_servico||'';
+  document.getElementById('aloja-local').value = v.localizacao||'';
+  document.getElementById('aloja-data').value = v.data_vistoria||'';
+  document.getElementById('aloja-num').value = v.num_trabalhadores||0;
+  document.getElementById('aloja-responsavel').value = v.responsavel||'';
+  document.getElementById('aloja-cargo').value = v.cargo_responsavel||'';
+  document.getElementById('aloja-encarregado').value = v.encarregado||'';
+  document.getElementById('aloja-prazo').value = v.prazo_regularizacao||'';
+  document.getElementById('aloja-obs-geral').value = v.observacao_geral||'';
+  document.getElementById('aloja-sig-resp-nome').value = v.assinatura_responsavel||'';
+  document.getElementById('aloja-sig-enc-nome').value = v.assinatura_encarregado||'';
+  const radRes = document.querySelector(`input[name="aloja-resultado"][value="${v.resultado||'conforme'}"]`);
+  if (radRes) radRes.checked = true;
+  // Preencher itens
+  alojaRenderBlocos();
+  (v.itens||[]).forEach(item => {
+    if (_alojaItens[item.item_num]) {
+      _alojaItens[item.item_num].status = item.status||'na';
+      _alojaItens[item.item_num].obs = item.observacao||'';
+      alojaMarcar(item.item_num, item.status||'na');
+      const obsEl = document.getElementById(`aloja-obs-${item.item_num}`);
+      if (obsEl) obsEl.value = item.observacao||'';
+    }
+  });
+  // Plano de ação
+  document.getElementById('aloja-plano-body').innerHTML = '';
+  (v.plano_acao||[]).forEach(a => {
+    alojaAddAcao();
+    const rows = document.getElementById('aloja-plano-body').children;
+    const last = rows[rows.length-1];
+    const inputs = last.querySelectorAll('input,select');
+    inputs[0].value = a.num_nc||'';
+    inputs[1].value = a.descricao||'';
+    inputs[2].value = a.responsavel||'';
+    inputs[3].value = a.prazo||'';
+    inputs[4].value = a.status_acao||'pendente';
+  });
+  alojaRenderFotos();
+  document.getElementById('aloja-btn-pdf').style.display = '';
+  window.scrollTo(0,0);
+}
+
+async function alojaGerarPDFHist(id) {
+  const res = await apiFetch(`/api/alojamentos/vistorias/${id}/pdf`);
+  if (!res || !res.ok) { alert('Erro ao gerar PDF.'); return; }
+  const blob = await res.blob();
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a'); a.href=url; a.download=`vistoria_${id}.pdf`; a.click();
+  URL.revokeObjectURL(url);
+}
+
+async function alojaDeletar(id) {
+  if (!confirm('Excluir esta vistoria permanentemente?')) return;
+  const res = await apiFetch(`/api/alojamentos/vistorias/${id}`, {method:'DELETE'});
+  if (!res || !res.ok) { alert('Erro ao excluir.'); return; }
+  alojaCarregarHistorico();
 }
 </script>
 </body>

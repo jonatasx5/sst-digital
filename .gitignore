@@ -3,7 +3,7 @@
 *.env
 
 # Banco local
-sst.db
+*.db
 
 # Arquivos gerados
 output/
@@ -15,3 +15,4 @@ __pycache__/
 *.pyo
 .venv/
 venv/
+.claude/

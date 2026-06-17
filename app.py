@@ -368,6 +368,162 @@ async def deletar_modelo(doc_id: str, cargo: str = None, _=Depends(verificar_ace
     return {"ok": True}
 
 # ══════════════════════════════════════════════════════════
+#  PGR - INVENTÁRIO DE RISCOS
+# ══════════════════════════════════════════════════════════
+
+PGR_SEED = [
+    {"cargo":"ADMINISTRADOR","cbo":"411005","ambiente":"ADMINISTRATIVO","atividades":"Documentos administrativos diversos, emissão de N.F, verificar recebimentos e lançamento no sistema, atendimento ao cliente via telefone.","riscos":"Ergonômicos: Biomecânicos - Postura sentada por longos períodos","epis":"","epcs":"VENTILAÇÃO ARTIFICIAL, EXTINTOR DE INCÊNDIO"},
+    {"cargo":"AJUDANTE","cbo":"717020","ambiente":"OPERACIONAL/OBRA","atividades":"","riscos":"Ergonômicos: Biomecânicos - Postura em pé por longos períodos. Químicos: Particulados (insolúveis ou de baixa solubilidade) não especiﬁcados de outra maneira (PNOS) - Fração Respirável","epis":"BOTINA DE SEGURANÇA; RUÍDO; LUVA PARA PROTEÇÃO CONTRA AGENTES MECÂNICOS; AVENTAL DE RASPA; LUVA DE PROTEÇÃO CONTRA AGENTES QUÍMICOS","epcs":""},
+    {"cargo":"AJUDANTE (OP ROÇADEIRA COSTAL)","cbo":"717020","ambiente":"OPERACIONAL/OBRA","atividades":"","riscos":"Acidentes / Mecânicos: PROJEÇÃO DE PARTÍCULAS. Ergonômicos: Biomecânicos - Postura em pé por longos períodos. Químicos: Particulados (insolúveis ou de baixa solubilidade) não especiﬁcados de outra maneira (PNOS) - Fração Respirável","epis":"AVENTAL DE RASPA; PROJEÇÃO DE PARTÍCULAS; LUVA DE PROTEÇÃO CONTRA AGENTES QUÍMICOS; PROTETOR FACIAL; ÓCULOS; LUVA VAQUETA","epcs":""},
+    {"cargo":"AJUDANTE A","cbo":"717020","ambiente":"OPERACIONAL/OBRA","atividades":"Auxiliar os profissionais nas montagens efetuando transportes e recolhimento de materiais, limpeza do local da obra, transporte e recolhimento de ferramentas e qualquer atividade de auxílio ao bom andamento da obra.","riscos":"Ergonômicos: Biomecânicos - Postura em pé por longos períodos. Químicos: POEIRA MINERAL","epis":"BOTINA DE SEGURANÇA; RUÍDO; LUVA PARA PROTEÇÃO CONTRA AGENTES MECÂNICOS; AVENTAL DE RASPA; LUVA DE PROTEÇÃO CONTRA AGENTES QUÍMICOS","epcs":""},
+    {"cargo":"ALMOXARIFADO","cbo":"414105","ambiente":"OPERACIONAL/OBRA","atividades":"Recepcionam, conferem e armazenam produtos e materiais. Fazem lançamentos de movimentação de entradas e saídas e controlam estoques. Distribuem produtos e materiais. Organizam o almoxarifado. Controle de entrada e saída de materiais, recebimento de materiais na obra.","riscos":"Ergonômicos: Biomecânicos - Postura em pé por longos períodos","epis":"","epcs":""},
+    {"cargo":"ANALISTA CONTÁBIL","cbo":"413110","ambiente":"ADMINISTRATIVO","atividades":"","riscos":"Ergonômicos: Biomecânicos - Postura sentada por longos períodos","epis":"","epcs":"VENTILAÇÃO ARTIFICIAL, EXTINTOR DE INCÊNDIO"},
+    {"cargo":"ANALISTA DE CONTROLADORIA","cbo":"252405","ambiente":"ADMINISTRATIVO","atividades":"Responsável pela folha de pagamento, registro de ponto, recrutamento e seleção de funcionários.","riscos":"Ergonômicos: Biomecânicos - Postura sentada por longos períodos","epis":"","epcs":"VENTILAÇÃO ARTIFICIAL, EXTINTOR DE INCÊNDIO"},
+    {"cargo":"ANALISTA DE DEPARTAMENTO PESSOAL","cbo":"252405","ambiente":"ADMINISTRATIVO","atividades":"Responsável pela folha de pagamento, registro de ponto, recrutamento e seleção de funcionários.","riscos":"Ergonômicos: Biomecânicos - Postura sentada por longos períodos","epis":"","epcs":"VENTILAÇÃO ARTIFICIAL, EXTINTOR DE INCÊNDIO"},
+    {"cargo":"ANALISTA DE DEPARTAMENTO PESSOAL NV I","cbo":"252405","ambiente":"ADMINISTRATIVO","atividades":"","riscos":"Ergonômicos: Biomecânicos - Postura sentada por longos períodos","epis":"","epcs":"VENTILAÇÃO ARTIFICIAL, EXTINTOR DE INCÊNDIO"},
+    {"cargo":"ANALISTA FINANCEIRA","cbo":"252405","ambiente":"ADMINISTRATIVO","atividades":"Responsável pela folha de pagamento, registro de ponto, recrutamento e seleção de funcionários.","riscos":"Ergonômicos: Biomecânicos - Postura sentada por longos períodos","epis":"","epcs":"VENTILAÇÃO ARTIFICIAL, EXTINTOR DE INCÊNDIO"},
+    {"cargo":"ANALISTA FISCAL","cbo":"251225","ambiente":"ADMINISTRATIVO","atividades":"Presta assistência na área administrativa; auxilia o administrador em suas atividades rotineiras e no controle de gestão financeira, administração, organização de arquivos, gerência de informações, contratações; revisão de documentos; emissão de notas.","riscos":"Ergonômicos: Biomecânicos - Postura sentada por longos períodos","epis":"","epcs":"VENTILAÇÃO ARTIFICIAL, EXTINTOR DE INCÊNDIO"},
+    {"cargo":"ANALISTA FISCAL II","cbo":"251225","ambiente":"ADMINISTRATIVO","atividades":"","riscos":"Ergonômicos: Biomecânicos - Postura sentada por longos períodos","epis":"","epcs":"VENTILAÇÃO ARTIFICIAL, EXTINTOR DE INCÊNDIO"},
+    {"cargo":"APONTADOR","cbo":"414210","ambiente":"OPERACIONAL/OBRA","atividades":"","riscos":"Ergonômicos: Biomecânicos - Postura em pé por longos períodos. Físicos: RADIAÇÃO NÃO IONIZANTE","epis":"BOTINA DE COURO; LUVA PIGMENTADA (AGENTES MECÂNICOS); PROTETOR AURICULAR TIPO PLUG; RUÍDO","epcs":""},
+    {"cargo":"ASSISTENTE ADMINISTRATIVO","cbo":"411005","ambiente":"ADMINISTRATIVO","atividades":"Documentos administrativos diversos, emissão de N.F, verificar recebimentos e lançamento no sistema, atendimento ao cliente via telefone.","riscos":"Ergonômicos: Biomecânicos - Postura sentada por longos períodos","epis":"","epcs":"VENTILAÇÃO ARTIFICIAL, EXTINTOR DE INCÊNDIO"},
+    {"cargo":"ASSISTENTE DEPARTAMENTO PESSOAL","cbo":"411005","ambiente":"ADMINISTRATIVO","atividades":"Documentos administrativos diversos, emissão de N.F, verificar recebimentos e lançamento no sistema, atendimento ao cliente via telefone.","riscos":"Ergonômicos: Biomecânicos - Postura sentada por longos períodos","epis":"","epcs":"VENTILAÇÃO ARTIFICIAL, EXTINTOR DE INCÊNDIO"},
+    {"cargo":"ASSISTENTE FINANCEIRO","cbo":"411005","ambiente":"ADMINISTRATIVO","atividades":"Responsável por auxiliar nas atividades financeiras da organização: controle de contas a pagar e a receber, conciliação bancária, emissão de relatórios financeiros.","riscos":"Ergonômicos: Biomecânicos - Postura sentada por longos períodos","epis":"","epcs":"VENTILAÇÃO ARTIFICIAL, EXTINTOR DE INCÊNDIO"},
+    {"cargo":"ASSISTENTE FINANCEIRO III","cbo":"411005","ambiente":"ADMINISTRATIVO","atividades":"","riscos":"Ergonômicos: Biomecânicos - Postura sentada por longos períodos","epis":"","epcs":"VENTILAÇÃO ARTIFICIAL, EXTINTOR DE INCÊNDIO"},
+    {"cargo":"AUXILIAR ADMINISTRATIVO","cbo":"411005","ambiente":"ADMINISTRATIVO","atividades":"Documentos administrativos diversos, emissão de N.F, verificar recebimentos e lançamento no sistema, atendimento ao cliente via telefone.","riscos":"Ergonômicos: Biomecânicos - Postura sentada por longos períodos","epis":"","epcs":"VENTILAÇÃO ARTIFICIAL, EXTINTOR DE INCÊNDIO"},
+    {"cargo":"AUXILIAR ADMINISTRATIVO NIVEL I","cbo":"411005","ambiente":"ADMINISTRATIVO","atividades":"","riscos":"Ergonômicos: Biomecânicos - Postura sentada por longos períodos","epis":"","epcs":"VENTILAÇÃO ARTIFICIAL, EXTINTOR DE INCÊNDIO"},
+    {"cargo":"AUXILIAR ADMINISTRATIVO NIVEL III","cbo":"411005","ambiente":"ADMINISTRATIVO","atividades":"","riscos":"Ergonômicos: Biomecânicos - Postura sentada por longos períodos","epis":"","epcs":"VENTILAÇÃO ARTIFICIAL, EXTINTOR DE INCÊNDIO"},
+    {"cargo":"AUXILIAR CONTÁBIL","cbo":"413110","ambiente":"ADMINISTRATIVO","atividades":"Rotinas contábeis, garantindo que as operações financeiras sejam registradas corretamente dentro das normas contábeis e tributárias. Realiza diversas tarefas administrativas e auxilia no suporte à equipe contábil.","riscos":"Ergonômicos: Biomecânicos - Postura sentada por longos períodos","epis":"","epcs":"VENTILAÇÃO ARTIFICIAL, EXTINTOR DE INCÊNDIO"},
+    {"cargo":"AUXILIAR DE ALMOXARIFADO","cbo":"414105","ambiente":"OPERACIONAL/OBRA","atividades":"","riscos":"Ergonômicos: Biomecânicos - Postura em pé por longos períodos","epis":"","epcs":""},
+    {"cargo":"AUXILIAR DE DP","cbo":"411005","ambiente":"ADMINISTRATIVO","atividades":"Documentos administrativos diversos, emissão de N.F, verificar recebimentos e lançamento no sistema, atendimento ao cliente via telefone.","riscos":"Ergonômicos: Biomecânicos - Postura sentada por longos períodos","epis":"","epcs":"VENTILAÇÃO ARTIFICIAL, EXTINTOR DE INCÊNDIO"},
+    {"cargo":"AUXILIAR DE GESTÃO DE FROTA","cbo":"141605","ambiente":"OPERACIONAL/OBRA","atividades":"","riscos":"Ergonômicos: Biomecânicos - Postura sentada por longos períodos","epis":"","epcs":""},
+    {"cargo":"AUXILIAR DE LABORATÓRIO","cbo":"301105","ambiente":"OPERACIONAL/OBRA","atividades":"","riscos":"Ergonômicos: Organizacionais - Necessidade de manter ritmos intensos de trabalho. Químicos: FUMOS DE ASFALTO","epis":"BOTINA DE COURO; COLETE REFLETIVO; PROTETOR AURICULAR TIPO PLUG; RUÍDO; FUMOS DE ASFALTO","epcs":""},
+    {"cargo":"AUXILIAR DE LIMPEZA","cbo":"514320","ambiente":"LIMPEZA","atividades":"Cuida da limpeza do escritório, mantendo sempre limpo e organizado.","riscos":"Acidentes / Mecânicos: Queda de mesmo nível, tropeços, escorregões, arranhões, cortes e ferimentos. Biológicos: Agentes biológicos infecciosos e infectocontagiosos ( bactérias, vírus, protozoários, fungos, príons, parasitas e outros). Ergonômicos: Biomecânicos - Postura em pé por longos períodos. Químicos: PRODUTOS QUÍMICOS (DOMISSANITÁRIOS)","epis":"PRODUTOS QUÍMICOS (DOMISSANITÁRIOS); CALÇADO TIPO BOTA - BORRACHA; LUVA LATEX","epcs":""},
+    {"cargo":"AUXILIAR DE LIMPEZA (OBRA)","cbo":"514320","ambiente":"LIMPEZA","atividades":"","riscos":"Acidentes / Mecânicos: Queda de mesmo nível, tropeços, escorregões, arranhões, cortes e ferimentos. Biológicos: Agentes biológicos infecciosos e infectocontagiosos ( bactérias, vírus, protozoários, fungos, príons, parasitas e outros). Ergonômicos: Biomecânicos - Postura em pé por longos períodos. Químicos: PRODUTOS QUÍMICOS (DOMISSANITÁRIOS)","epis":"PRODUTOS QUÍMICOS (DOMISSANITÁRIOS); CALÇADO TIPO BOTA - BORRACHA; LUVA LATEX","epcs":""},
+    {"cargo":"AUXILIAR DE MECÂNICO","cbo":"725205","ambiente":"OPERACIONAL/OBRA","atividades":"","riscos":"Ergonômicos: Biomecânicos - Postura em pé por longos períodos","epis":"BOTINA DE COURO; RUÍDO; PROTETOR AURICULAR TIPO PLUG; LUVA DE PROTEÇÃO CONTRA AGENTES QUÍMICOS; CREME PROTETOR; BENZENO","epcs":""},
+    {"cargo":"AUXILIAR DE MECÂNICO NIVEL I","cbo":"725205","ambiente":"OPERACIONAL/OBRA","atividades":"Realiza manutenção mecânica preventiva e corretiva de veículos, monta e troca peças, lubrifica motor, regula mecanismos e alinha equipamentos. Verifica quanto à substituição e aproveitamento de componentes.","riscos":"Ergonômicos: Biomecânicos - Postura em pé por longos períodos","epis":"BOTINA DE COURO; RUÍDO; PROTETOR AURICULAR TIPO PLUG; LUVA DE PROTEÇÃO CONTRA AGENTES QUÍMICOS; CREME PROTETOR; BENZENO","epcs":""},
+    {"cargo":"AUXILIAR DE MECÂNICO NIVEL II","cbo":"725205","ambiente":"OPERACIONAL/OBRA","atividades":"Realiza manutenção mecânica preventiva e corretiva de veículos, monta e troca peças, lubrifica motor, regula mecanismos e alinha equipamentos. Verifica quanto à substituição e aproveitamento de componentes.","riscos":"Ergonômicos: Biomecânicos - Postura em pé por longos períodos","epis":"BOTINA DE COURO; RUÍDO; PROTETOR AURICULAR TIPO PLUG; LUVA DE PROTEÇÃO CONTRA AGENTES QUÍMICOS; CREME PROTETOR; BENZENO","epcs":""},
+    {"cargo":"AUXILIAR DE RH","cbo":"411005","ambiente":"ADMINISTRATIVO","atividades":"Executam serviços de apoio nas áreas de recursos humanos e administração, atendem fornecedores e clientes, fornecendo e recebendo informações sobre produtos e serviços.","riscos":"Ergonômicos: Biomecânicos - Postura sentada por longos períodos","epis":"","epcs":"VENTILAÇÃO ARTIFICIAL, EXTINTOR DE INCÊNDIO"},
+    {"cargo":"AUXILIAR DE SERVIÇOS GERAIS","cbo":"514320","ambiente":"LIMPEZA","atividades":"","riscos":"Ergonômicos: Biomecânicos - Postura em pé por longos períodos. Químicos: PRODUTOS QUÍMICOS (DOMISSANITÁRIOS)","epis":"LUVA LATEX; PRODUTOS QUÍMICOS (DOMISSANITÁRIOS)","epcs":""},
+    {"cargo":"AUXILIAR DE TOPOGRAFIA","cbo":"312320","ambiente":"OPERACIONAL/OBRA","atividades":"","riscos":"Ergonômicos: Biomecânicos - Postura em pé por longos períodos. Físicos: Radiação Não Ionizante (Exposição ao sol)","epis":"BOTINA DE COURO; RUÍDO; CAPACETE CLASSE B; PROTETOR AURICULAR TIPO PLUG","epcs":"EXTINTORES DE INCENDIO"},
+    {"cargo":"COMPRADOR","cbo":"354205","ambiente":"ADMINISTRATIVO","atividades":"","riscos":"Ergonômicos: Biomecânicos - Postura sentada por longos períodos","epis":"","epcs":"VENTILAÇÃO ARTIFICIAL, EXTINTOR DE INCÊNDIO"},
+    {"cargo":"COMPRADORA JUNIOR","cbo":"354205","ambiente":"ADMINISTRATIVO","atividades":"Recebem requisições de compras, executam processo de cotação e concretizam a compra de serviços, produtos e equipamentos. Acompanham o fluxo de entregas, desenvolvem fornecedores, supervisionam equipe e processos de compra.","riscos":"Ergonômicos: Biomecânicos - Postura sentada por longos períodos","epis":"","epcs":"VENTILAÇÃO ARTIFICIAL, EXTINTOR DE INCÊNDIO"},
+    {"cargo":"CONTROLADOR DE MANUTENÇÃO","cbo":"391135","ambiente":"OPERACIONAL/OBRA","atividades":"","riscos":"Ergonômicos: Biomecânicos - Postura sentada por longos períodos","epis":"BOTINA DE COURO","epcs":""},
+    {"cargo":"ENCARREGADO","cbo":"710205","ambiente":"OPERACIONAL/OBRA","atividades":"","riscos":"Ergonômicos: Organizacionais - Necessidade de manter ritmos intensos de trabalho","epis":"BOTINA DE SEGURANÇA","epcs":""},
+    {"cargo":"ENCARREGADO ADMINISTRATIVO","cbo":"411005","ambiente":"ADMINISTRATIVO","atividades":"","riscos":"Ergonômicos: Biomecânicos - Postura sentada por longos períodos","epis":"","epcs":"VENTILAÇÃO ARTIFICIAL, EXTINTOR DE INCÊNDIO"},
+    {"cargo":"ENCARREGADO DE EQUIPE","cbo":"710205","ambiente":"OPERACIONAL/OBRA","atividades":"","riscos":"Ergonômicos: Organizacionais - Necessidade de manter ritmos intensos de trabalho","epis":"BOTINA DE COURO","epcs":""},
+    {"cargo":"ENCARREGADO DE LABORATORIO","cbo":"411005","ambiente":"OPERACIONAL/OBRA","atividades":"","riscos":"Ergonômicos: Biomecânicos - Postura sentada por longos períodos","epis":"PROTETOR AURICULAR TIPO PLUG; RUÍDO","epcs":"VENTILAÇÃO ARTIFICIAL, EXTINTOR DE INCÊNDIO"},
+    {"cargo":"ENCARREGADO DE OBRAS","cbo":"710205","ambiente":"OPERACIONAL/OBRA","atividades":"","riscos":"Ergonômicos: Organizacionais - Necessidade de manter ritmos intensos de trabalho","epis":"BOTINA DE COURO","epcs":""},
+    {"cargo":"ENCARREGADO DE OBRAS NIVEL I","cbo":"710205","ambiente":"OPERACIONAL/OBRA","atividades":"","riscos":"Ergonômicos: Organizacionais - Necessidade de manter ritmos intensos de trabalho","epis":"BOTINA DE COURO","epcs":""},
+    {"cargo":"ENCARREGADO DE OBRAS NIVEL II","cbo":"710205","ambiente":"OPERACIONAL/OBRA","atividades":"","riscos":"Ergonômicos: Organizacionais - Necessidade de manter ritmos intensos de trabalho","epis":"BOTINA DE COURO","epcs":""},
+    {"cargo":"ENCARREGADO DE OBRAS NIVEL III","cbo":"710205","ambiente":"OPERACIONAL/OBRA","atividades":"","riscos":"Ergonômicos: Organizacionais - Necessidade de manter ritmos intensos de trabalho","epis":"BOTINA DE COURO","epcs":""},
+    {"cargo":"ENCARREGADO DE OBRAS NIVEL IV","cbo":"710205","ambiente":"OPERACIONAL/OBRA","atividades":"","riscos":"Ergonômicos: Organizacionais - Necessidade de manter ritmos intensos de trabalho","epis":"BOTINA DE COURO","epcs":""},
+    {"cargo":"ENCARREGADO DE RECURSOS HUMANOS","cbo":"252405","ambiente":"ADMINISTRATIVO","atividades":"Responsável pela folha de pagamento, registro de ponto, recrutamento e seleção de funcionários. Administram pessoal e plano de cargos e salários; promovem ações de treinamento e desenvolvimento de pessoal.","riscos":"Ergonômicos: Biomecânicos - Postura sentada por longos períodos","epis":"","epcs":"VENTILAÇÃO ARTIFICIAL, EXTINTOR DE INCÊNDIO"},
+    {"cargo":"ENCARREGADO DE TOPOGRAFIA","cbo":"312320","ambiente":"OPERACIONAL/OBRA","atividades":"","riscos":"Ergonômicos: Biomecânicos - Postura em pé por longos períodos. Físicos: Radiação Não Ionizante (Exposição ao sol)","epis":"BOTINA DE COURO; RUÍDO; CAPACETE CLASSE B; PROTETOR AURICULAR TIPO PLUG","epcs":"EXTINTORES DE INCENDIO"},
+    {"cargo":"ENCARREGADO DE USINA","cbo":"715420","ambiente":"OPERACIONAL/OBRA","atividades":"","riscos":"Acidentes / Mecânicos: ACIDENTES DE TRÂNSITO. Ergonômicos: Organizacionais - Necessidade de manter ritmos intensos de trabalho. Químicos: CIMENTO ASFÁLTICO DE PETRÓLEO","epis":"BOTINA DE COURO; CIMENTO ASFÁLTICO DE PETRÓLEO; RUÍDO; PROTETOR AURICULAR TIPO PLUG; ÓCULOS DE PROTEÇÃO INCOLOR","epcs":"PLACAS DE TRÂNSITO, CONES REFLETIVOS"},
+    {"cargo":"ENCARREGADO GERAL DE OBRAS","cbo":"710205","ambiente":"OPERACIONAL/OBRA","atividades":"","riscos":"Ergonômicos: Organizacionais - Necessidade de manter ritmos intensos de trabalho","epis":"BOTINA DE SEGURANÇA","epcs":""},
+    {"cargo":"ENCARREGADO NIVEL 1","cbo":"710205","ambiente":"OPERACIONAL/OBRA","atividades":"","riscos":"Ergonômicos: Organizacionais - Necessidade de manter ritmos intensos de trabalho","epis":"BOTINA DE SEGURANÇA","epcs":""},
+    {"cargo":"ENGENHEIRO CIVIL","cbo":"214205","ambiente":"ADMINISTRATIVO","atividades":"","riscos":"Acidentes / Mecânicos: Outras situações de risco que poderão contribuir para ocorrer acidente. Ergonômicos: Biomecânicos - Postura sentada por longos períodos. Físicos: RUÍDO CONTÍNUO OU INTERMITENTE","epis":"BOTINA DE COURO; CAPACETE COM JUGULAR; PROTETOR AURICULAR TIPO PLUG; RUÍDO CONTÍNUO OU INTERMITENTE","epcs":""},
+    {"cargo":"GERENTE FINANCEIRO","cbo":"142115","ambiente":"ADMINISTRATIVO","atividades":"Exerce a gerência das operações financeiras da empresa, como previsão de receita, financiamentos, orçamento, créditos e outras, planejando, organizando e controlando os programas e sua execução.","riscos":"Ergonômicos: Biomecânicos - Postura sentada por longos períodos","epis":"","epcs":"VENTILAÇÃO ARTIFICIAL, EXTINTOR DE INCÊNDIO"},
+    {"cargo":"GESTOR DE CONTRATO","cbo":"710205","ambiente":"ADMINISTRATIVO","atividades":"","riscos":"Acidentes / Mecânicos: Outras situações de risco que poderão contribuir para ocorrer acidente. Ergonômicos: Organizacionais - Necessidade de manter ritmos intensos de trabalho","epis":"BOTINA DE COURO; CAPACETE COM JUGULAR; COLETE REFLETIVO","epcs":"EXTINTOR DE INCÊNDIO"},
+    {"cargo":"LABORATORISTA","cbo":"301105","ambiente":"OPERACIONAL/OBRA","atividades":"","riscos":"Ergonômicos: Organizacionais - Necessidade de manter ritmos intensos de trabalho. Químicos: FUMOS DE ASFALTO","epis":"BOTINA DE COURO; COLETE REFLETIVO; PROTETOR AURICULAR TIPO PLUG; RUÍDO; FUMOS DE ASFALTO","epcs":""},
+    {"cargo":"MECÂNICO","cbo":"725205","ambiente":"OPERACIONAL/OBRA","atividades":"","riscos":"Ergonômicos: Biomecânicos - Postura em pé por longos períodos","epis":"BOTINA DE COURO; RUÍDO; PROTETOR AURICULAR TIPO PLUG; LUVA DE PROTEÇÃO CONTRA AGENTES QUÍMICOS; CREME PROTETOR; BENZENO","epcs":""},
+    {"cargo":"MECÂNICO NIVEL I","cbo":"725205","ambiente":"OPERACIONAL/OBRA","atividades":"","riscos":"Ergonômicos: Biomecânicos - Postura em pé por longos períodos","epis":"BOTINA DE COURO; RUÍDO; PROTETOR AURICULAR TIPO PLUG; LUVA DE PROTEÇÃO CONTRA AGENTES QUÍMICOS; CREME PROTETOR; BENZENO","epcs":""},
+    {"cargo":"MECÂNICO NIVEL II","cbo":"725205","ambiente":"OPERACIONAL/OBRA","atividades":"","riscos":"Ergonômicos: Biomecânicos - Postura em pé por longos períodos","epis":"BOTINA DE COURO; RUÍDO; PROTETOR AURICULAR TIPO PLUG; LUVA DE PROTEÇÃO CONTRA AGENTES QUÍMICOS; CREME PROTETOR; BENZENO","epcs":""},
+    {"cargo":"MESISTA","cbo":"715140","ambiente":"OPERACIONAL/OBRA","atividades":"","riscos":"Acidentes / Mecânicos: ACIDENTES DE TRÂNSITO. Ergonômicos: Organizacionais - Necessidade de manter ritmos intensos de trabalho. Químicos: CIMENTO ASFÁLTICO DE PETRÓLEO","epis":"BOTINA DE COURO; CIMENTO ASFÁLTICO DE PETRÓLEO; RUÍDO; PROTETOR AURICULAR TIPO PLUG; ÓCULOS DE PROTEÇÃO INCOLOR","epcs":"PLACAS DE TRÂNSITO, CONES REFLETIVOS"},
+    {"cargo":"MESITA DE VIBROACABADORA","cbo":"715140","ambiente":"OPERACIONAL/OBRA","atividades":"","riscos":"Acidentes / Mecânicos: ACIDENTES DE TRÂNSITO. Ergonômicos: Organizacionais - Necessidade de manter ritmos intensos de trabalho. Químicos: CIMENTO ASFÁLTICO DE PETRÓLEO","epis":"BOTINA DE COURO; CIMENTO ASFÁLTICO DE PETRÓLEO; RUÍDO; PROTETOR AURICULAR TIPO PLUG; ÓCULOS DE PROTEÇÃO INCOLOR","epcs":"PLACAS DE TRÂNSITO, CONES REFLETIVOS"},
+    {"cargo":"MOTOQUEIRO","cbo":"782310","ambiente":"OPERACIONAL/OBRA","atividades":"","riscos":"Acidentes / Mecânicos: CONDUÇÃO DE VEÍCULOS DE QUALQUER NATUREZA EM VIAS PÚBLICAS. Ergonômicos: Exposição a fatores psicossociais - Pressão temporal","epis":"","epcs":""},
+    {"cargo":"MOTORISTA","cbo":"782510","ambiente":"OPERACIONAL/OBRA","atividades":"","riscos":"Acidentes / Mecânicos: Outras situações de risco que poderão contribuir para ocorrer acidente. Ergonômicos: Exposição a fatores psicossociais - Pressão temporal","epis":"BOTINA DE SEGURANÇA; LUVA PIGMENTADA (AGENTES MECÂNICOS); PROTETOR AURICULAR TIPO PLUG; RUÍDO","epcs":""},
+    {"cargo":"MOTORISTA CARRETEIRO","cbo":"782510","ambiente":"OPERACIONAL/OBRA","atividades":"","riscos":"Acidentes / Mecânicos: Outras situações de risco que poderão contribuir para ocorrer acidente. Ergonômicos: Exposição a fatores psicossociais - Pressão temporal","epis":"BOTINA DE SEGURANÇA; LUVA PIGMENTADA (AGENTES MECÂNICOS); PROTETOR AURICULAR TIPO PLUG; RUÍDO","epcs":""},
+    {"cargo":"MOTORISTA DE CAMINHÃO","cbo":"782510","ambiente":"OPERACIONAL/OBRA","atividades":"Serviço de transporte de materiais em caminhão caçamba.","riscos":"Acidentes / Mecânicos: Outras situações de risco que poderão contribuir para ocorrer acidente. Ergonômicos: Exposição a fatores psicossociais - Pressão temporal","epis":"BOTINA DE SEGURANÇA; LUVA PIGMENTADA (AGENTES MECÂNICOS); PROTETOR AURICULAR TIPO PLUG; RUÍDO","epcs":""},
+    {"cargo":"MOTORISTA DE CAMINHÃO PIPA","cbo":"782510","ambiente":"OPERACIONAL/OBRA","atividades":"","riscos":"Acidentes / Mecânicos: Outras situações de risco que poderão contribuir para ocorrer acidente. Ergonômicos: Exposição a fatores psicossociais - Pressão temporal","epis":"BOTINA DE SEGURANÇA; LUVA PIGMENTADA (AGENTES MECÂNICOS); PROTETOR AURICULAR TIPO PLUG; RUÍDO","epcs":""},
+    {"cargo":"MOTORISTA DE USINA","cbo":"782510","ambiente":"OPERACIONAL/OBRA","atividades":"","riscos":"Acidentes / Mecânicos: Outras situações de risco que poderão contribuir para ocorrer acidente. Ergonômicos: Exposição a fatores psicossociais - Pressão temporal","epis":"BOTINA DE SEGURANÇA; LUVA VAQUETA; RUÍDO; LUVA PIGMENTADA (AGENTES MECÂNICOS); PROTETOR AURICULAR TIPO PLUG","epcs":""},
+    {"cargo":"OPERADOR DE BOBCAT","cbo":"711210","ambiente":"OPERACIONAL/OBRA","atividades":"","riscos":"Acidentes / Mecânicos: Outras situações de risco que poderão contribuir para ocorrer acidente. Ergonômicos: Biomecânicos - Postura em pé por longos períodos. Químicos: Particulados (insolúveis ou de baixa solubilidade) não especiﬁcados de outra maneira (PNOS) - Fração Respirável","epis":"BOTINA DE COURO; LUVA PIGMENTADA (AGENTES MECÂNICOS); PROTETOR AURICULAR TIPO PLUG; PROTETOR AURCULAR TIPO CONCHA; RUÍDO","epcs":""},
+    {"cargo":"OPERADOR DE ESCAVADEIRA","cbo":"715115","ambiente":"OPERACIONAL/OBRA","atividades":"","riscos":"Acidentes / Mecânicos: Outras situações de risco que poderão contribuir para ocorrer acidente. Ergonômicos: Biomecânicos - Postura sentada por longos períodos","epis":"BOTINA DE COURO; LUVA PIGMENTADA (AGENTES MECÂNICOS); PROTETOR AURICULAR TIPO PLUG; PROTETOR AURCULAR TIPO CONCHA; RUÍDO","epcs":""},
+    {"cargo":"OPERADOR DE ESCAVADEIRA HIDRAULICA","cbo":"715115","ambiente":"OPERACIONAL/OBRA","atividades":"","riscos":"Acidentes / Mecânicos: Outras situações de risco que poderão contribuir para ocorrer acidente. Ergonômicos: Biomecânicos - Postura sentada por longos períodos","epis":"BOTINA DE COURO; LUVA PIGMENTADA (AGENTES MECÂNICOS); PROTETOR AURICULAR TIPO PLUG; PROTETOR AURCULAR TIPO CONCHA; RUÍDO","epcs":""},
+    {"cargo":"OPERADOR DE ESPARGIDOR","cbo":"715140","ambiente":"OPERACIONAL/OBRA","atividades":"","riscos":"Acidentes / Mecânicos: ACIDENTES DE TRÂNSITO. Ergonômicos: Organizacionais - Necessidade de manter ritmos intensos de trabalho. Químicos: CIMENTO ASFÁLTICO DE PETRÓLEO","epis":"BOTINA DE COURO; CIMENTO ASFÁLTICO DE PETRÓLEO; RUÍDO; PROTETOR AURICULAR TIPO PLUG; ÓCULOS DE PROTEÇÃO INCOLOR","epcs":"PLACAS DE TRÂNSITO, CONES REFLETIVOS"},
+    {"cargo":"OPERADOR DE ESPARGIDOR NÍVEL II","cbo":"715140","ambiente":"OPERACIONAL/OBRA","atividades":"","riscos":"Acidentes / Mecânicos: ACIDENTES DE TRÂNSITO. Ergonômicos: Organizacionais - Necessidade de manter ritmos intensos de trabalho. Químicos: CIMENTO ASFÁLTICO DE PETRÓLEO","epis":"BOTINA DE COURO; CIMENTO ASFÁLTICO DE PETRÓLEO; RUÍDO; PROTETOR AURICULAR TIPO PLUG; ÓCULOS DE PROTEÇÃO INCOLOR","epcs":"PLACAS DE TRÂNSITO, CONES REFLETIVOS"},
+    {"cargo":"OPERADOR DE MESA VIBROACABADORA","cbo":"715140","ambiente":"OPERACIONAL/OBRA","atividades":"","riscos":"Acidentes / Mecânicos: ACIDENTES DE TRÂNSITO. Ergonômicos: Organizacionais - Necessidade de manter ritmos intensos de trabalho. Químicos: CIMENTO ASFÁLTICO DE PETRÓLEO","epis":"BOTINA DE COURO; CIMENTO ASFÁLTICO DE PETRÓLEO; RUÍDO; PROTETOR AURICULAR TIPO PLUG; ÓCULOS DE PROTEÇÃO INCOLOR","epcs":"PLACAS DE TRÂNSITO, CONES REFLETIVOS"},
+    {"cargo":"OPERADOR DE MINI CARREGADEIRA","cbo":"711210","ambiente":"OPERACIONAL/OBRA","atividades":"","riscos":"Acidentes / Mecânicos: Outras situações de risco que poderão contribuir para ocorrer acidente. Ergonômicos: Biomecânicos - Postura sentada por longos períodos","epis":"BOTINA DE COURO; LUVA PIGMENTADA (AGENTES MECÂNICOS); PROTETOR AURICULAR TIPO PLUG; PROTETOR AURCULAR TIPO CONCHA; RUÍDO","epcs":""},
+    {"cargo":"OPERADOR DE MOTONIVELADORA","cbo":"715125","ambiente":"OPERACIONAL/OBRA","atividades":"","riscos":"Acidentes / Mecânicos: Outras situações de risco que poderão contribuir para ocorrer acidente. Ergonômicos: Biomecânicos - Postura sentada por longos períodos","epis":"BOTINA DE COURO; LUVA PIGMENTADA (AGENTES MECÂNICOS); PROTETOR AURICULAR TIPO PLUG; PROTETOR AURCULAR TIPO CONCHA; RUÍDO","epcs":""},
+    {"cargo":"OPERADOR DE PÁ CARREGADEIRA","cbo":"711210","ambiente":"OPERACIONAL/OBRA","atividades":"","riscos":"Acidentes / Mecânicos: Outras situações de risco que poderão contribuir para ocorrer acidente. Ergonômicos: Biomecânicos - Postura sentada por longos períodos","epis":"BOTINA DE COURO; LUVA PIGMENTADA (AGENTES MECÂNICOS); PROTETOR AURICULAR TIPO PLUG; PROTETOR AURCULAR TIPO CONCHA; RUÍDO","epcs":""},
+    {"cargo":"OPERADOR DE RETROESCAVADEIRA","cbo":"711210","ambiente":"OPERACIONAL/OBRA","atividades":"","riscos":"Acidentes / Mecânicos: Outras situações de risco que poderão contribuir para ocorrer acidente. Ergonômicos: Biomecânicos - Postura sentada por longos períodos","epis":"BOTINA DE COURO; LUVA PIGMENTADA (AGENTES MECÂNICOS); PROTETOR AURICULAR TIPO PLUG; PROTETOR AURCULAR TIPO CONCHA; RUÍDO","epcs":""},
+    {"cargo":"OPERADOR DE RETROESCAVADEIRA NIVEL III","cbo":"711210","ambiente":"OPERACIONAL/OBRA","atividades":"","riscos":"Acidentes / Mecânicos: Outras situações de risco que poderão contribuir para ocorrer acidente. Ergonômicos: Biomecânicos - Postura sentada por longos períodos","epis":"BOTINA DE COURO; LUVA PIGMENTADA (AGENTES MECÂNICOS); PROTETOR AURICULAR TIPO PLUG; PROTETOR AURCULAR TIPO CONCHA; RUÍDO","epcs":""},
+    {"cargo":"OPERADOR DE ROLO COMPACTADOR","cbo":"715110","ambiente":"OPERACIONAL/OBRA","atividades":"","riscos":"Acidentes / Mecânicos: Outras situações de risco que poderão contribuir para ocorrer acidente. Ergonômicos: Biomecânicos - Postura sentada por longos períodos","epis":"BOTINA DE COURO; LUVA PIGMENTADA (AGENTES MECÂNICOS); PROTETOR AURICULAR TIPO PLUG; PROTETOR AURCULAR TIPO CONCHA; RUÍDO","epcs":""},
+    {"cargo":"OPERADOR DE ROLO COMPACTADOR NÍVEL I","cbo":"715110","ambiente":"OPERACIONAL/OBRA","atividades":"","riscos":"Acidentes / Mecânicos: Outras situações de risco que poderão contribuir para ocorrer acidente. Ergonômicos: Biomecânicos - Postura sentada por longos períodos","epis":"BOTINA DE COURO; LUVA PIGMENTADA (AGENTES MECÂNICOS); PROTETOR AURICULAR TIPO PLUG; PROTETOR AURCULAR TIPO CONCHA; RUÍDO","epcs":""},
+    {"cargo":"OPERADOR DE ROLO COMPACTADOR NÍVEL II","cbo":"715110","ambiente":"OPERACIONAL/OBRA","atividades":"","riscos":"Acidentes / Mecânicos: Outras situações de risco que poderão contribuir para ocorrer acidente. Ergonômicos: Biomecânicos - Postura sentada por longos períodos","epis":"BOTINA DE COURO; LUVA PIGMENTADA (AGENTES MECÂNICOS); PROTETOR AURICULAR TIPO PLUG; PROTETOR AURCULAR TIPO CONCHA; RUÍDO","epcs":""},
+    {"cargo":"OPERADOR DE ROLO COMPACTADOR NÍVEL III","cbo":"715110","ambiente":"OPERACIONAL/OBRA","atividades":"","riscos":"Acidentes / Mecânicos: Outras situações de risco que poderão contribuir para ocorrer acidente. Ergonômicos: Biomecânicos - Postura sentada por longos períodos","epis":"BOTINA DE COURO; LUVA PIGMENTADA (AGENTES MECÂNICOS); PROTETOR AURICULAR TIPO PLUG; PROTETOR AURCULAR TIPO CONCHA; RUÍDO","epcs":""},
+    {"cargo":"OPERADOR DE TRATOR","cbo":"715125","ambiente":"OPERACIONAL/OBRA","atividades":"","riscos":"Acidentes / Mecânicos: Outras situações de risco que poderão contribuir para ocorrer acidente. Ergonômicos: Biomecânicos - Postura sentada por longos períodos","epis":"BOTINA DE COURO; LUVA VAQUETA; LUVA PIGMENTADA (AGENTES MECÂNICOS)","epcs":""},
+    {"cargo":"OPERADOR DE USINA","cbo":"715420","ambiente":"OPERACIONAL/OBRA","atividades":"","riscos":"Acidentes / Mecânicos: ACIDENTES DE TRÂNSITO. Ergonômicos: Organizacionais - Necessidade de manter ritmos intensos de trabalho. Químicos: CIMENTO ASFÁLTICO DE PETRÓLEO","epis":"BOTINA DE COURO; CIMENTO ASFÁLTICO DE PETRÓLEO; RUÍDO; PROTETOR AURICULAR TIPO PLUG; ÓCULOS DE PROTEÇÃO INCOLOR","epcs":"PLACAS DE TRÂNSITO, CONES REFLETIVOS"},
+    {"cargo":"OPERADOR DE VIBROACABADORA","cbo":"715140","ambiente":"OPERACIONAL/OBRA","atividades":"","riscos":"Acidentes / Mecânicos: ACIDENTES DE TRÂNSITO. Ergonômicos: Organizacionais - Necessidade de manter ritmos intensos de trabalho. Químicos: CIMENTO ASFÁLTICO DE PETRÓLEO","epis":"BOTINA DE COURO; CIMENTO ASFÁLTICO DE PETRÓLEO; RUÍDO; PROTETOR AURICULAR TIPO PLUG; ÓCULOS DE PROTEÇÃO INCOLOR","epcs":"PLACAS DE TRÂNSITO, CONES REFLETIVOS"},
+    {"cargo":"PEDREIRO","cbo":"715210","ambiente":"OPERACIONAL/OBRA","atividades":"","riscos":"Acidentes / Mecânicos: CONTATO COM PERFURO CORTANTES. Ergonômicos: Biomecânicos - Postura em pé por longos períodos. Físicos: RUÍDO CONTÍNUO OU INTERMITENTE. Químicos: Particulados (insolúveis ou de baixa solubilidade) não especiﬁcados de outra maneira (PNOS) - Fração Respirável","epis":"LUVA PARA PROTEÇÃO CONTRA AGENTES MECÂNICOS; CONTATO COM PERFURO CORTANTES","epcs":""},
+    {"cargo":"RASTELEIRO","cbo":"717020","ambiente":"OPERACIONAL/OBRA","atividades":"","riscos":"Acidentes / Mecânicos: ACIDENTES DE TRÂNSITO. Ergonômicos: Organizacionais - Necessidade de manter ritmos intensos de trabalho. Químicos: CIMENTO ASFÁLTICO DE PETRÓLEO","epis":"BOTINA DE COURO; CIMENTO ASFÁLTICO DE PETRÓLEO; RUÍDO; PROTETOR AURICULAR TIPO PLUG; ÓCULOS DE PROTEÇÃO INCOLOR","epcs":"PLACAS DE TRÂNSITO, CONES REFLETIVOS"},
+    {"cargo":"RASTELEIRO NIVEL II","cbo":"717020","ambiente":"OPERACIONAL/OBRA","atividades":"","riscos":"Acidentes / Mecânicos: ACIDENTES DE TRÂNSITO. Ergonômicos: Organizacionais - Necessidade de manter ritmos intensos de trabalho. Químicos: CIMENTO ASFÁLTICO DE PETRÓLEO","epis":"BOTINA DE COURO; CIMENTO ASFÁLTICO DE PETRÓLEO; RUÍDO; PROTETOR AURICULAR TIPO PLUG; ÓCULOS DE PROTEÇÃO INCOLOR","epcs":"PLACAS DE TRÂNSITO, CONES REFLETIVOS"},
+    {"cargo":"RASTELEIRO NIVEL III","cbo":"717020","ambiente":"OPERACIONAL/OBRA","atividades":"","riscos":"Acidentes / Mecânicos: ACIDENTES DE TRÂNSITO. Ergonômicos: Organizacionais - Necessidade de manter ritmos intensos de trabalho. Químicos: CIMENTO ASFÁLTICO DE PETRÓLEO","epis":"BOTINA DE COURO; CIMENTO ASFÁLTICO DE PETRÓLEO; RUÍDO; PROTETOR AURICULAR TIPO PLUG; ÓCULOS DE PROTEÇÃO INCOLOR","epcs":"PLACAS DE TRÂNSITO, CONES REFLETIVOS"},
+    {"cargo":"RASTELEIRO NÍVEL I","cbo":"717020","ambiente":"OPERACIONAL/OBRA","atividades":"","riscos":"Acidentes / Mecânicos: ACIDENTES DE TRÂNSITO. Ergonômicos: Organizacionais - Necessidade de manter ritmos intensos de trabalho. Químicos: CIMENTO ASFÁLTICO DE PETRÓLEO","epis":"BOTINA DE COURO; CIMENTO ASFÁLTICO DE PETRÓLEO; RUÍDO; PROTETOR AURICULAR TIPO PLUG; ÓCULOS DE PROTEÇÃO INCOLOR","epcs":"PLACAS DE TRÂNSITO, CONES REFLETIVOS"},
+    {"cargo":"RECEPCIONISTA","cbo":"422105","ambiente":"ADMINISTRATIVO","atividades":"Atendimento ao cliente presencial e por telefone, direcionamento de cliente ao departamento desejado.","riscos":"Ergonômicos: Biomecânicos - Postura sentada por longos períodos","epis":"","epcs":""},
+    {"cargo":"SERVENTE","cbo":"717020","ambiente":"OPERACIONAL/OBRA","atividades":"","riscos":"Acidentes / Mecânicos: CONTATO COM PERFURO CORTANTES. Ergonômicos: Biomecânicos - Postura em pé por longos períodos. Físicos: RUÍDO CONTÍNUO OU INTERMITENTE","epis":"PROTETOR AURICULAR TIPO PLUG; RUÍDO CONTÍNUO OU INTERMITENTE","epcs":""},
+    {"cargo":"SERVIÇOS GERAIS","cbo":"514320","ambiente":"LIMPEZA","atividades":"","riscos":"Ergonômicos: Biomecânicos - Postura em pé por longos períodos. Químicos: PRODUTOS QUÍMICOS (DOMISSANITÁRIOS)","epis":"LUVA LATEX; PRODUTOS QUÍMICOS (DOMISSANITÁRIOS)","epcs":""},
+    {"cargo":"SOLDADOR","cbo":"724315","ambiente":"OPERACIONAL/OBRA","atividades":"","riscos":"Acidentes / Mecânicos: Objetos cortantes e/ou perfurocortantes. Ergonômicos: Biomecânicos - Postura em pé por longos períodos. Químicos: Manganês e seus compostos, fumos","epis":"BOTINA DE COURO; LUVA PARA PROTEÇÃO CONTRA AGENTES MECÂNICOS; ÓCULOS DE PROTEÇÃO INCOLOR; AVENTAL DE RASPA","epcs":"PROTEÇÃO DE PARTES MÓVEIS DE EQUIPAMENTOS"},
+    {"cargo":"SOLDADOR NIVEL II","cbo":"724315","ambiente":"OPERACIONAL/OBRA","atividades":"Faz corte de peças metálicas, solda em aço carbono e aço inox, furos, chapas e equipamentos, utilizando processos de soldagem e corte: eletrodo revestido, TIG, MIG, MAG, oxigás, arco submerso, brasagem e plasma.","riscos":"Acidentes / Mecânicos: Objetos cortantes e/ou perfurocortantes. Ergonômicos: Biomecânicos - Postura em pé por longos períodos. Químicos: Manganês e seus compostos, fumos","epis":"BOTINA DE COURO; LUVA PARA PROTEÇÃO CONTRA AGENTES MECÂNICOS; ÓCULOS DE PROTEÇÃO INCOLOR; AVENTAL DE RASPA","epcs":"PROTEÇÃO DE PARTES MÓVEIS DE EQUIPAMENTOS"},
+    {"cargo":"SUPERVISOR DE MANUTENÇAO FROTA","cbo":"141605","ambiente":"ADMINISTRATIVO","atividades":"","riscos":"Ergonômicos: Biomecânicos - Postura sentada por longos períodos","epis":"","epcs":""},
+    {"cargo":"TECNICO EM CONSTRUÇÃO CIVIL","cbo":"710205","ambiente":"OPERACIONAL/OBRA","atividades":"","riscos":"Ergonômicos: Organizacionais - Necessidade de manter ritmos intensos de trabalho","epis":"PROTETOR AURICULAR TIPO PLUG; RUÍDO","epcs":""},
+    {"cargo":"TECNICO EM SEGURANÇA DO TRABALHO","cbo":"351605","ambiente":"OPERACIONAL/OBRA","atividades":"","riscos":"Acidentes / Mecânicos: Outras situações de risco que poderão contribuir para a ocorrência de acidentes (Quedas, tropeções, escorregões, incisões, perfurações, atropelamento). Ergonômicos: Organizacionais - Necessidade de manter ritmos intensos de trabalho","epis":"BOTINA DE COURO; CAPACETE COM JUGULAR; PROTETOR AURICULAR TIPO PLUG","epcs":""},
+    {"cargo":"TOPÓGRAFO","cbo":"312320","ambiente":"ADMINISTRATIVO","atividades":"","riscos":"Ergonômicos: Biomecânicos - Postura em pé por longos períodos. Físicos: Radiação Não Ionizante (Exposição ao sol)","epis":"RUÍDO; BOTINA DE COURO; CAPACETE CLASSE B; PROTETOR AURICULAR TIPO PLUG","epcs":"EXTINTORES DE INCENDIO"},
+    {"cargo":"VIGIA NOTURNO","cbo":"517420","ambiente":"OPERACIONAL/OBRA","atividades":"","riscos":"Ergonômicos: Trabalho com necessidade de variação de turnos","epis":"","epcs":""},
+    {"cargo":"AJUDANTE B","cbo":"717020","ambiente":"OPERACIONAL/OBRA","atividades":"","riscos":"Ergonômicos: Biomecânicos - Postura em pé por longos períodos. Químicos: POEIRA MINERAL","epis":"BOTINA DE SEGURANÇA; RUÍDO; LUVA PARA PROTEÇÃO CONTRA AGENTES MECÂNICOS; AVENTAL DE RASPA; LUVA DE PROTEÇÃO CONTRA AGENTES QUÍMICOS","epcs":""},  # mapeado de: AJUDANTE A
+    {"cargo":"ANALISTA DE DEPARTAMENTO PESSOAL NIVEL I","cbo":"252405","ambiente":"ADMINISTRATIVO","atividades":"","riscos":"Ergonômicos: Biomecânicos - Postura sentada por longos períodos","epis":"","epcs":"VENTILAÇÃO ARTIFICIAL, EXTINTOR DE INCÊNDIO"},  # mapeado de: ANALISTA DE DEPARTAMENTO PESSOAL
+    {"cargo":"ANALISTA DE INTEGRIDADE","cbo":"252405","ambiente":"ADMINISTRATIVO","atividades":"","riscos":"Ergonômicos: Biomecânicos - Postura sentada por longos períodos","epis":"","epcs":"VENTILAÇÃO ARTIFICIAL, EXTINTOR DE INCÊNDIO"},  # mapeado de: ANALISTA DE CONTROLADORIA
+    {"cargo":"ANALISTA FINANCEIRO","cbo":"252405","ambiente":"ADMINISTRATIVO","atividades":"","riscos":"Ergonômicos: Biomecânicos - Postura sentada por longos períodos","epis":"","epcs":"VENTILAÇÃO ARTIFICIAL, EXTINTOR DE INCÊNDIO"},  # mapeado de: ANALISTA FINANCEIRA
+    {"cargo":"APONTADOR A","cbo":"414210","ambiente":"OPERACIONAL/OBRA","atividades":"","riscos":"Ergonômicos: Biomecânicos - Postura em pé por longos períodos. Físicos: RADIAÇÃO NÃO IONIZANTE","epis":"BOTINA DE COURO; LUVA PIGMENTADA (AGENTES MECÂNICOS); PROTETOR AURICULAR TIPO PLUG; RUÍDO","epcs":""},  # mapeado de: APONTADOR
+    {"cargo":"ARMADOR","cbo":"715210","ambiente":"OPERACIONAL/OBRA","atividades":"","riscos":"Acidentes / Mecânicos: CONTATO COM PERFURO CORTANTES. Ergonômicos: Biomecânicos - Postura em pé por longos períodos. Físicos: RUÍDO CONTÍNUO OU INTERMITENTE. Químicos: Particulados (insolúveis ou de baixa solubilidade) não especiﬁcados de outra maneira (PNOS) - Fração Respirável","epis":"LUVA PARA PROTEÇÃO CONTRA AGENTES MECÂNICOS; CONTATO COM PERFURO CORTANTES","epcs":""},  # mapeado de: PEDREIRO
+    {"cargo":"ASSISTENTE DE DEPARTAMENTO PESSOAL","cbo":"411005","ambiente":"ADMINISTRATIVO","atividades":"","riscos":"Ergonômicos: Biomecânicos - Postura sentada por longos períodos","epis":"","epcs":"VENTILAÇÃO ARTIFICIAL, EXTINTOR DE INCÊNDIO"},  # mapeado de: ASSISTENTE DEPARTAMENTO PESSOAL
+    {"cargo":"ASSISTENTE DE ENGENHARIA","cbo":"411005","ambiente":"ADMINISTRATIVO","atividades":"","riscos":"Ergonômicos: Biomecânicos - Postura sentada por longos períodos","epis":"","epcs":"VENTILAÇÃO ARTIFICIAL, EXTINTOR DE INCÊNDIO"},  # mapeado de: ASSISTENTE ADMINISTRATIVO
+    {"cargo":"AUXILIAR DE MECANICO III","cbo":"725205","ambiente":"OPERACIONAL/OBRA","atividades":"","riscos":"Ergonômicos: Biomecânicos - Postura em pé por longos períodos","epis":"BOTINA DE COURO; RUÍDO; PROTETOR AURICULAR TIPO PLUG; LUVA DE PROTEÇÃO CONTRA AGENTES QUÍMICOS; CREME PROTETOR; BENZENO","epcs":""},  # mapeado de: AUXILIAR DE MECÂNICO NIVEL II
+    {"cargo":"ENCARREGADA DE RECURSOS HUMANOS","cbo":"252405","ambiente":"OPERACIONAL/OBRA","atividades":"","riscos":"Ergonômicos: Biomecânicos - Postura sentada por longos períodos","epis":"","epcs":"VENTILAÇÃO ARTIFICIAL, EXTINTOR DE INCÊNDIO"},  # mapeado de: ENCARREGADO DE RECURSOS HUMANOS
+    {"cargo":"MECANICO NIVEL II","cbo":"725205","ambiente":"OPERACIONAL/OBRA","atividades":"","riscos":"Ergonômicos: Biomecânicos - Postura em pé por longos períodos","epis":"BOTINA DE COURO; RUÍDO; PROTETOR AURICULAR TIPO PLUG; LUVA DE PROTEÇÃO CONTRA AGENTES QUÍMICOS; CREME PROTETOR; BENZENO","epcs":""},  # mapeado de: MECÂNICO NIVEL II
+    {"cargo":"MECANICO NIVEL III","cbo":"725205","ambiente":"OPERACIONAL/OBRA","atividades":"","riscos":"Ergonômicos: Biomecânicos - Postura em pé por longos períodos","epis":"BOTINA DE COURO; RUÍDO; PROTETOR AURICULAR TIPO PLUG; LUVA DE PROTEÇÃO CONTRA AGENTES QUÍMICOS; CREME PROTETOR; BENZENO","epcs":""},  # mapeado de: MECÂNICO NIVEL II
+    {"cargo":"MESISTA  VIBROACABADORA","cbo":"715140","ambiente":"OPERACIONAL/OBRA","atividades":"","riscos":"Acidentes / Mecânicos: ACIDENTES DE TRÂNSITO. Ergonômicos: Organizacionais - Necessidade de manter ritmos intensos de trabalho. Químicos: CIMENTO ASFÁLTICO DE PETRÓLEO","epis":"BOTINA DE COURO; CIMENTO ASFÁLTICO DE PETRÓLEO; RUÍDO; PROTETOR AURICULAR TIPO PLUG; ÓCULOS DE PROTEÇÃO INCOLOR","epcs":"PLACAS DE TRÂNSITO, CONES REFLETIVOS"},  # mapeado de: MESITA DE VIBROACABADORA
+    {"cargo":"MOTORISTA DE ESPAGIDOR","cbo":"782510","ambiente":"OPERACIONAL/OBRA","atividades":"","riscos":"Acidentes / Mecânicos: Outras situações de risco que poderão contribuir para ocorrer acidente. Ergonômicos: Exposição a fatores psicossociais - Pressão temporal","epis":"BOTINA DE SEGURANÇA; LUVA PIGMENTADA (AGENTES MECÂNICOS); PROTETOR AURICULAR TIPO PLUG; RUÍDO","epcs":""},  # mapeado de: MOTORISTA DE CAMINHÃO
+    {"cargo":"OPERADOR DE CALDEIRA","cbo":"715420","ambiente":"OPERACIONAL/OBRA","atividades":"","riscos":"Acidentes / Mecânicos: ACIDENTES DE TRÂNSITO. Ergonômicos: Organizacionais - Necessidade de manter ritmos intensos de trabalho. Químicos: CIMENTO ASFÁLTICO DE PETRÓLEO","epis":"BOTINA DE COURO; CIMENTO ASFÁLTICO DE PETRÓLEO; RUÍDO; PROTETOR AURICULAR TIPO PLUG; ÓCULOS DE PROTEÇÃO INCOLOR","epcs":"PLACAS DE TRÂNSITO, CONES REFLETIVOS"},  # mapeado de: OPERADOR DE USINA
+    {"cargo":"OPERADOR DE ESPAGIDOR NIVEL II","cbo":"715140","ambiente":"OPERACIONAL/OBRA","atividades":"","riscos":"Acidentes / Mecânicos: ACIDENTES DE TRÂNSITO. Ergonômicos: Organizacionais - Necessidade de manter ritmos intensos de trabalho. Químicos: CIMENTO ASFÁLTICO DE PETRÓLEO","epis":"BOTINA DE COURO; CIMENTO ASFÁLTICO DE PETRÓLEO; RUÍDO; PROTETOR AURICULAR TIPO PLUG; ÓCULOS DE PROTEÇÃO INCOLOR","epcs":"PLACAS DE TRÂNSITO, CONES REFLETIVOS"},  # mapeado de: OPERADOR DE ESPARGIDOR NÍVEL II
+    {"cargo":"OPERADOR DE PA CARREGADEIRA NIVEL II","cbo":"711210","ambiente":"OPERACIONAL/OBRA","atividades":"","riscos":"Acidentes / Mecânicos: Outras situações de risco que poderão contribuir para ocorrer acidente. Ergonômicos: Biomecânicos - Postura sentada por longos períodos","epis":"BOTINA DE COURO; LUVA PIGMENTADA (AGENTES MECÂNICOS); PROTETOR AURICULAR TIPO PLUG; PROTETOR AURCULAR TIPO CONCHA; RUÍDO","epcs":""},  # mapeado de: OPERADOR DE PÁ CARREGADEIRA
+    {"cargo":"OPERADOR DE RETROESCAVADEIRA NIVEL II","cbo":"711210","ambiente":"OPERACIONAL/OBRA","atividades":"","riscos":"Acidentes / Mecânicos: Outras situações de risco que poderão contribuir para ocorrer acidente. Ergonômicos: Biomecânicos - Postura sentada por longos períodos","epis":"BOTINA DE COURO; LUVA PIGMENTADA (AGENTES MECÂNICOS); PROTETOR AURICULAR TIPO PLUG; PROTETOR AURCULAR TIPO CONCHA; RUÍDO","epcs":""},  # mapeado de: OPERADOR DE RETROESCAVADEIRA
+    {"cargo":"OPERADOR DE USINA NIVEL II","cbo":"715420","ambiente":"OPERACIONAL/OBRA","atividades":"","riscos":"Acidentes / Mecânicos: ACIDENTES DE TRÂNSITO. Ergonômicos: Organizacionais - Necessidade de manter ritmos intensos de trabalho. Químicos: CIMENTO ASFÁLTICO DE PETRÓLEO","epis":"BOTINA DE COURO; CIMENTO ASFÁLTICO DE PETRÓLEO; RUÍDO; PROTETOR AURICULAR TIPO PLUG; ÓCULOS DE PROTEÇÃO INCOLOR","epcs":"PLACAS DE TRÂNSITO, CONES REFLETIVOS"},  # mapeado de: OPERADOR DE USINA
+    {"cargo":"PEDREIRO NIVEL II","cbo":"715210","ambiente":"OPERACIONAL/OBRA","atividades":"","riscos":"Acidentes / Mecânicos: CONTATO COM PERFURO CORTANTES. Ergonômicos: Biomecânicos - Postura em pé por longos períodos. Físicos: RUÍDO CONTÍNUO OU INTERMITENTE. Químicos: Particulados (insolúveis ou de baixa solubilidade) não especiﬁcados de outra maneira (PNOS) - Fração Respirável","epis":"LUVA PARA PROTEÇÃO CONTRA AGENTES MECÂNICOS; CONTATO COM PERFURO CORTANTES","epcs":""},  # mapeado de: PEDREIRO
+    {"cargo":"TEC. SEGURANÇA DO TRABALHO","cbo":"351605","ambiente":"OPERACIONAL/OBRA","atividades":"","riscos":"Acidentes / Mecânicos: Outras situações de risco que poderão contribuir para a ocorrência de acidentes (Quedas, tropeções, escorregões, incisões, perfurações, atropelamento). Ergonômicos: Organizacionais - Necessidade de manter ritmos intensos de trabalho","epis":"BOTINA DE COURO; CAPACETE COM JUGULAR; PROTETOR AURICULAR TIPO PLUG","epcs":""},  # mapeado de: TECNICO EM SEGURANÇA DO TRABALHO
+    {"cargo":"TECNICO SEGURANCA DO TRABALHO","cbo":"351605","ambiente":"OPERACIONAL/OBRA","atividades":"","riscos":"Acidentes / Mecânicos: Outras situações de risco que poderão contribuir para a ocorrência de acidentes (Quedas, tropeções, escorregões, incisões, perfurações, atropelamento). Ergonômicos: Organizacionais - Necessidade de manter ritmos intensos de trabalho","epis":"BOTINA DE COURO; CAPACETE COM JUGULAR; PROTETOR AURICULAR TIPO PLUG","epcs":""},  # mapeado de: TECNICO EM SEGURANÇA DO TRABALHO
+]
+
+@app.get("/api/pgr")
+async def listar_pgr(_=Depends(verificar_acesso)):
+    return banco.listar_pgr()
+
+@app.get("/api/pgr/cargo/{cargo}")
+async def buscar_pgr_cargo(cargo: str, _=Depends(verificar_acesso)):
+    dados = banco.buscar_pgr_cargo(cargo)
+    return dados if dados else {}
+
+@app.post("/api/pgr/seed")
+async def seed_pgr(_=Depends(verificar_acesso)):
+    """Importa todos os dados do PGR para o banco."""
+    for item in PGR_SEED:
+        banco.salvar_pgr_cargo(**item)
+    return {"ok": True, "total": len(PGR_SEED)}
+
+@app.post("/api/pgr/cargo/{cargo}")
+async def salvar_pgr_cargo(cargo: str, dados: dict, _=Depends(verificar_acesso)):
+    banco.salvar_pgr_cargo(
+        cargo=cargo,
+        cbo=dados.get("cbo",""),
+        ambiente=dados.get("ambiente",""),
+        atividades=dados.get("atividades",""),
+        riscos=dados.get("riscos",""),
+        epis=dados.get("epis",""),
+        epcs=dados.get("epcs",""),
+    )
+    return {"ok": True}
+
+# ══════════════════════════════════════════════════════════
 #  CATÁLOGO DE EPIs
 # ══════════════════════════════════════════════════════════
 
@@ -753,11 +909,25 @@ async def get_os_config_cargo(cargo: str, _=Depends(verificar_acesso)):
 @app.post("/api/os/config/{cargo}")
 async def salvar_os_config_cargo(cargo: str, dados: dict, _=Depends(verificar_acesso)):
     """Salva configuração de CBO para um cargo e gera a OS modelo."""
-    cbo_codigo   = dados.get("cbo_codigo", "")
-    cbo_titulo   = dados.get("cbo_titulo", "")
+    cbo_codigo    = dados.get("cbo_codigo", "")
+    cbo_titulo    = dados.get("cbo_titulo", "")
     cbo_descricao = dados.get("cbo_descricao", "")
+    riscos        = dados.get("riscos", "")
 
     banco.salvar_cargo_cbo(cargo, cbo_codigo, cbo_titulo, cbo_descricao)
+
+    # Salva riscos no PGR se informado
+    if riscos:
+        pgr_atual = banco.buscar_pgr_cargo(cargo)
+        banco.salvar_pgr_cargo(
+            cargo=cargo,
+            cbo=pgr_atual.get("cbo", cbo_codigo),
+            ambiente=pgr_atual.get("ambiente", ""),
+            atividades=pgr_atual.get("atividades", cbo_descricao),
+            riscos=riscos,
+            epis=pgr_atual.get("epis", ""),
+            epcs=pgr_atual.get("epcs", ""),
+        )
 
     # Gera a OS modelo para o cargo (sem funcionário — com placeholders)
     modelo_base = banco.buscar_modelo("03_os_base")
@@ -775,7 +945,7 @@ async def salvar_os_config_cargo(cargo: str, dados: dict, _=Depends(verificar_ac
         "rg": "{{RG}}",
     }
     docx_bytes = processador.preencher_os_dinamica(
-        func_template, cbo_descricao, epis_texto, modelo_base
+        func_template, cbo_descricao, epis_texto, modelo_base, riscos_texto=riscos
     )
     banco.salvar_modelo(OS_DOC_ID, "Ordem de Serviço", docx_bytes, cargo=cargo)
 
@@ -834,7 +1004,10 @@ async def enviar_os(dados: dict, _=Depends(verificar_acesso)):
         epis = banco.listar_epis_do_cargo(f["cargo"])
         epis_texto = _formatar_epis_texto(epis)
 
-        docx_bytes = processador.preencher_os_dinamica(f, cbo_descricao, epis_texto, modelo_bytes)
+        pgr = banco.buscar_pgr_cargo(f["cargo"])
+        riscos_texto = pgr.get("riscos", "") if pgr else ""
+
+        docx_bytes = processador.preencher_os_dinamica(f, cbo_descricao, epis_texto, modelo_bytes, riscos_texto=riscos_texto)
 
         import re as _re
         nome_seguro = _re.sub(r"[^\w\s-]", "", f["nome"])
@@ -1276,6 +1449,256 @@ async def download_pdf_assinado(envio_id: int):
         media_type="application/pdf",
         headers={"Content-Disposition": f'attachment; filename="{nome_arquivo}"'}
     )
+
+
+# ── ALOJAMENTOS ───────────────────────────────────────────────────────────────
+
+@app.post("/api/alojamentos/vistorias")
+async def criar_vistoria_alojamento(dados: dict, req: Request, _=Depends(verificar_acesso)):
+    usuario = getattr(req.state, 'usuario', '')
+    itens = dados.pop('itens', [])
+    fotos = dados.pop('fotos', [])
+    plano = dados.pop('plano_acao', [])
+    vid = banco.salvar_vistoria_alojamento(dados, usuario)
+    banco.salvar_itens_vistoria(vid, itens)
+    banco.salvar_fotos_vistoria(vid, fotos)
+    banco.salvar_plano_acao_vistoria(vid, plano)
+    return {"ok": True, "id": vid}
+
+
+@app.get("/api/alojamentos/vistorias")
+async def listar_vistorias_alojamento(_=Depends(verificar_acesso)):
+    return banco.listar_vistorias_alojamento()
+
+
+@app.get("/api/alojamentos/vistorias/{vid}")
+async def buscar_vistoria_alojamento(vid: int, _=Depends(verificar_acesso)):
+    v = banco.buscar_vistoria_alojamento(vid)
+    if not v:
+        raise HTTPException(404, "Vistoria não encontrada")
+    return v
+
+
+@app.delete("/api/alojamentos/vistorias/{vid}")
+async def deletar_vistoria_alojamento(vid: int, _=Depends(verificar_acesso)):
+    banco.deletar_vistoria_alojamento(vid)
+    return {"ok": True}
+
+
+@app.get("/api/alojamentos/vistorias/{vid}/pdf")
+async def gerar_pdf_vistoria(vid: int, _=Depends(verificar_acesso)):
+    v = banco.buscar_vistoria_alojamento(vid)
+    if not v:
+        raise HTTPException(404, "Vistoria não encontrada")
+
+    try:
+        from reportlab.lib.pagesizes import A4
+        from reportlab.lib import colors
+        from reportlab.lib.units import cm
+        from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer, Image as RLImage
+        from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+        from reportlab.lib.enums import TA_CENTER, TA_LEFT
+        import io, base64
+        from PIL import Image as PILImage
+
+        buf = io.BytesIO()
+        doc = SimpleDocTemplate(buf, pagesize=A4, leftMargin=1.5*cm, rightMargin=1.5*cm,
+                                topMargin=1.5*cm, bottomMargin=1.5*cm)
+        styles = getSampleStyleSheet()
+        W = A4[0] - 3*cm
+
+        title_style = ParagraphStyle('title', fontSize=13, fontName='Helvetica-Bold', alignment=TA_CENTER, spaceAfter=4)
+        sub_style   = ParagraphStyle('sub',   fontSize=10, fontName='Helvetica',      alignment=TA_CENTER, spaceAfter=8)
+        sec_style   = ParagraphStyle('sec',   fontSize=10, fontName='Helvetica-Bold', spaceAfter=4, spaceBefore=8,
+                                     backColor=colors.HexColor('#1F4E79'), textColor=colors.white, leftIndent=4)
+        body_style  = ParagraphStyle('body',  fontSize=9,  fontName='Helvetica', spaceAfter=3)
+        small_style = ParagraphStyle('small', fontSize=8,  fontName='Helvetica', textColor=colors.grey)
+
+        story = []
+
+        # Cabeçalho
+        story.append(Paragraph("RELATÓRIO DE VISTORIA DE ALOJAMENTO", title_style))
+        story.append(Paragraph("JS Construtora e Locadora Ltda — CNPJ: 16.910.656/0001-81 | CNAE: 4211-1/01 | GR: 4", sub_style))
+
+        resultado_map = {'conforme': 'CONFORME', 'nao_conforme': 'NÃO CONFORME', 'conforme_ressalvas': 'CONFORME COM RESSALVAS'}
+        res_label = resultado_map.get(v.get('resultado','conforme'), v.get('resultado',''))
+        res_color = {'CONFORME': colors.HexColor('#16a34a'), 'NÃO CONFORME': colors.HexColor('#dc2626'),
+                     'CONFORME COM RESSALVAS': colors.HexColor('#d97706')}.get(res_label, colors.black)
+
+        # Identificação
+        story.append(Paragraph("IDENTIFICAÇÃO", sec_style))
+        id_data = [
+            ["Frente / Contrato:", v.get('frente_servico','') + (' — ' + v.get('contrato','') if v.get('contrato') else ''),
+             "Data:", v.get('data_vistoria','')],
+            ["Localização:", v.get('localizacao',''), "Nº Trabalhadores:", str(v.get('num_trabalhadores',''))],
+            ["Responsável:", v.get('responsavel',''), "Cargo:", v.get('cargo_responsavel','')],
+            ["Encarregado:", v.get('encarregado',''), "", ""],
+        ]
+        id_table = Table(id_data, colWidths=[3.5*cm, 8*cm, 3*cm, 4*cm])
+        id_table.setStyle(TableStyle([
+            ('FONTNAME', (0,0), (-1,-1), 'Helvetica'),
+            ('FONTNAME', (0,0), (0,-1), 'Helvetica-Bold'),
+            ('FONTNAME', (2,0), (2,-1), 'Helvetica-Bold'),
+            ('FONTSIZE', (0,0), (-1,-1), 9),
+            ('GRID', (0,0), (-1,-1), 0.3, colors.lightgrey),
+            ('BACKGROUND', (0,0), (0,-1), colors.HexColor('#f1f5f9')),
+            ('BACKGROUND', (2,0), (2,-1), colors.HexColor('#f1f5f9')),
+            ('PADDING', (0,0), (-1,-1), 4),
+        ]))
+        story.append(id_table)
+        story.append(Spacer(1, 8))
+
+        # Blocos
+        BLOCOS = [
+            (1, "DORMITÓRIOS (NR-24, item 24.7.2 e 24.7.3)", [
+                "1.1","1.2","1.3","1.4","1.5","1.6","1.7","1.8","1.9","1.10","1.11","1.12","1.13","1.14"]),
+            (2, "INSTALAÇÕES SANITÁRIAS (NR-18 / NR-24)", ["2.1","2.2","2.3","2.4","2.5","2.6"]),
+            (3, "REFEITÓRIO / LOCAL DE REFEIÇÕES", ["3.1","3.2","3.3","3.4"]),
+            (4, "LAVANDERIA (NR-18 / NR-24)", ["4.1","4.2"]),
+            (5, "ÁREA DE LAZER (NR-18)", ["5.1"]),
+            (6, "ABASTECIMENTO DE ÁGUA (NR-18)", ["6.1","6.2","6.3","6.4"]),
+            (7, "HIGIENE E CONSERVAÇÃO GERAL (NR-24)", ["7.1","7.2","7.3","7.4","7.5","7.6"]),
+            (8, "SAÚDE E SEGURANÇA NO ALOJAMENTO (NR-24)", ["8.1","8.2","8.3","8.4"]),
+        ]
+
+        itens_map = {i['item_num']: i for i in (v.get('itens') or [])}
+        status_labels = {'c': 'C', 'nc': 'NC', 'na': 'N/A', '': 'N/A'}
+        status_colors = {'c': colors.HexColor('#dcfce7'), 'nc': colors.HexColor('#fee2e2'),
+                         'na': colors.HexColor('#f1f5f9'), '': colors.HexColor('#f1f5f9')}
+
+        for bloco_num, bloco_nome, item_nums in BLOCOS:
+            story.append(Paragraph(f"BLOCO {bloco_num} — {bloco_nome}", sec_style))
+            tdata = [["Nº", "Item verificado", "Status", "Observação"]]
+            for num in item_nums:
+                item = itens_map.get(num, {})
+                st = item.get('status', 'na')
+                tdata.append([num, Paragraph(item.get('descricao', num), body_style),
+                               status_labels.get(st, 'N/A'), Paragraph(item.get('observacao',''), small_style)])
+
+            t = Table(tdata, colWidths=[1.2*cm, 10*cm, 1.5*cm, W-12.7*cm])
+            ts = TableStyle([
+                ('FONTNAME', (0,0), (-1,0), 'Helvetica-Bold'),
+                ('FONTSIZE', (0,0), (-1,-1), 8),
+                ('BACKGROUND', (0,0), (-1,0), colors.HexColor('#1F4E79')),
+                ('TEXTCOLOR', (0,0), (-1,0), colors.white),
+                ('GRID', (0,0), (-1,-1), 0.3, colors.lightgrey),
+                ('ALIGN', (2,0), (2,-1), 'CENTER'),
+                ('VALIGN', (0,0), (-1,-1), 'MIDDLE'),
+                ('PADDING', (0,0), (-1,-1), 4),
+            ])
+            for row_i, num in enumerate(item_nums, 1):
+                item = itens_map.get(num, {})
+                st = item.get('status','na')
+                ts.add('BACKGROUND', (2, row_i), (2, row_i), status_colors.get(st, colors.white))
+            t.setStyle(ts)
+            story.append(t)
+            story.append(Spacer(1, 4))
+
+        # Resultado
+        story.append(Spacer(1, 6))
+        story.append(Paragraph("RESULTADO DA VISTORIA", sec_style))
+        res_data = [["Resultado:", Paragraph(f'<font color="#{res_color.hexval()[1:] if hasattr(res_color,"hexval") else "000000"}"><b>{res_label}</b></font>', body_style),
+                     "Prazo regularização:", v.get('prazo_regularizacao','')]]
+        rt = Table(res_data, colWidths=[4*cm, 6*cm, 4*cm, W-14*cm])
+        rt.setStyle(TableStyle([
+            ('FONTNAME',(0,0),(0,-1),'Helvetica-Bold'),('FONTNAME',(2,0),(2,-1),'Helvetica-Bold'),
+            ('FONTSIZE',(0,0),(-1,-1),9),('GRID',(0,0),(-1,-1),0.3,colors.lightgrey),
+            ('BACKGROUND',(0,0),(0,-1),colors.HexColor('#f1f5f9')),
+            ('BACKGROUND',(2,0),(2,-1),colors.HexColor('#f1f5f9')),
+            ('PADDING',(0,0),(-1,-1),5),
+        ]))
+        story.append(rt)
+
+        # Observação geral
+        if v.get('observacao_geral'):
+            story.append(Spacer(1, 6))
+            story.append(Paragraph("OBSERVAÇÃO GERAL", sec_style))
+            story.append(Paragraph(v['observacao_geral'], body_style))
+
+        # Plano de ação
+        plano = v.get('plano_acao') or []
+        if plano:
+            story.append(Spacer(1, 6))
+            story.append(Paragraph("PLANO DE AÇÃO (não conformidades)", sec_style))
+            pa_data = [["Nº NC","Descrição","Responsável","Prazo","Status"]]
+            for a in plano:
+                pa_data.append([a.get('num_nc',''), Paragraph(a.get('descricao',''), body_style),
+                                 a.get('responsavel',''), a.get('prazo',''), a.get('status_acao','')])
+            pat = Table(pa_data, colWidths=[1.5*cm, 7*cm, 3.5*cm, 2.5*cm, 2.5*cm])
+            pat.setStyle(TableStyle([
+                ('FONTNAME',(0,0),(-1,0),'Helvetica-Bold'),('FONTSIZE',(0,0),(-1,-1),8),
+                ('BACKGROUND',(0,0),(-1,0),colors.HexColor('#1F4E79')),
+                ('TEXTCOLOR',(0,0),(-1,0),colors.white),
+                ('GRID',(0,0),(-1,-1),0.3,colors.lightgrey),
+                ('PADDING',(0,0),(-1,-1),4),
+            ]))
+            story.append(pat)
+
+        # Assinaturas
+        story.append(Spacer(1, 16))
+        story.append(Paragraph("ASSINATURAS", sec_style))
+        sig_data = [
+            ["Responsável pela vistoria", "", "Encarregado / Representante"],
+            [f"Nome: {v.get('responsavel','')}", "", f"Nome: {v.get('encarregado','')}"],
+            [f"Cargo: {v.get('cargo_responsavel','')}", "", "Cargo: ___________________________"],
+            [f"Data: {v.get('data_vistoria','')}", "", f"Data: {v.get('data_vistoria','')}"],
+            ["Assinatura: ______________________", "", "Assinatura: ______________________"],
+        ]
+        sigt = Table(sig_data, colWidths=[(W/2-0.5*cm), 1*cm, (W/2-0.5*cm)])
+        sigt.setStyle(TableStyle([
+            ('FONTNAME',(0,0),(-1,-1),'Helvetica'),('FONTSIZE',(0,0),(-1,-1),9),
+            ('FONTNAME',(0,0),(-1,0),'Helvetica-Bold'),
+            ('ALIGN',(0,0),(-1,-1),'CENTER'),('VALIGN',(0,0),(-1,-1),'MIDDLE'),
+            ('LINEBELOW',(0,0),(0,0),0.5,colors.black),('LINEBELOW',(2,0),(2,0),0.5,colors.black),
+            ('PADDING',(0,0),(-1,-1),4),
+        ]))
+        story.append(sigt)
+
+        # Fotos
+        fotos = v.get('fotos') or []
+        if fotos:
+            story.append(Spacer(1, 10))
+            story.append(Paragraph("REGISTRO FOTOGRÁFICO", sec_style))
+            foto_row = []
+            for foto in fotos:
+                try:
+                    b64 = foto.get('dados_base64','')
+                    if ',' in b64:
+                        b64 = b64.split(',', 1)[1]
+                    img_bytes = base64.b64decode(b64)
+                    img_buf = io.BytesIO(img_bytes)
+                    pil = PILImage.open(img_buf)
+                    pil.thumbnail((400, 300))
+                    out = io.BytesIO()
+                    pil.save(out, format='JPEG')
+                    out.seek(0)
+                    rl_img = RLImage(out, width=8*cm, height=6*cm)
+                    foto_row.append(rl_img)
+                    if len(foto_row) == 2:
+                        ft = Table([foto_row], colWidths=[9*cm, 9*cm])
+                        ft.setStyle(TableStyle([('ALIGN',(0,0),(-1,-1),'CENTER'),('PADDING',(0,0),(-1,-1),4)]))
+                        story.append(ft)
+                        story.append(Spacer(1,4))
+                        foto_row = []
+                except Exception:
+                    pass
+            if foto_row:
+                while len(foto_row) < 2:
+                    foto_row.append('')
+                ft = Table([foto_row], colWidths=[9*cm, 9*cm])
+                ft.setStyle(TableStyle([('ALIGN',(0,0),(-1,-1),'CENTER'),('PADDING',(0,0),(-1,-1),4)]))
+                story.append(ft)
+
+        doc.build(story)
+        buf.seek(0)
+        fname = f"vistoria_alojamento_{vid}_{v.get('data_vistoria','').replace('/','')}.pdf"
+        return StreamingResponse(buf, media_type="application/pdf",
+                                 headers={"Content-Disposition": f'attachment; filename="{fname}"'})
+
+    except ImportError:
+        raise HTTPException(500, "Biblioteca reportlab não instalada no servidor")
+    except Exception as e:
+        raise HTTPException(500, f"Erro ao gerar PDF: {e}")
 
 
 if __name__ == "__main__":

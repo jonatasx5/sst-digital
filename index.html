@@ -2821,8 +2821,10 @@ async function histBaixarPDF(envioId, btn) {
     if (!res || !res.ok) {
       let msg = 'Sem resposta do servidor';
       if (res) {
-        try { const j = await res.json(); msg = j.detail || JSON.stringify(j); }
-        catch { msg = await res.text(); }
+        try {
+          const txt = await res.text();
+          try { msg = JSON.parse(txt).detail || txt; } catch { msg = txt; }
+        } catch { /* body unreadable */ }
       }
       alert('Erro ao baixar PDF: ' + msg);
       btn.innerHTML = orig;

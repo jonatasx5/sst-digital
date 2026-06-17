@@ -1940,7 +1940,7 @@ async def enviar_vistoria_assinatura(vid: int, dados: dict = {}, _=Depends(verif
         funcionario_enc = {
             "nome":    encarregado_nome,
             "email":   dados.get("email_encarregado", ""),
-            "celular": dados.get("celular_encarregado", ""),
+            "celular": dados.get("celular_encarregado", "") or v.get("cel_encarregado", ""),
             "cpf":     "",
         }
         ret = zapsign.enviar_documento(

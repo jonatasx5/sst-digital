@@ -1157,6 +1157,7 @@ tr:hover td { background:#F9FAFB; }
         <div class="field"><label>Responsável pela Vistoria</label><input type="text" id="aloja-responsavel" placeholder="Nome completo" value="JONATAS DA COSTA XAVIER"></div>
         <div class="field"><label>Cargo / Registro</label><input type="text" id="aloja-cargo" placeholder="Ex: Técnico em Segurança do Trabalho" value="TÉCNICO DE SEGURANÇA DO TRABALHO"></div>
         <div class="field" style="grid-column:1/-1"><label>Encarregado Presente</label><input type="text" id="aloja-encarregado" placeholder="Nome do encarregado presente"></div>
+        <div class="field"><label>Celular do Encarregado (com DDD)</label><input type="tel" id="aloja-cel-encarregado" placeholder="Ex: 11987654321"></div>
       </div>
     </div>
 
@@ -1235,13 +1236,12 @@ tr:hover td { background:#F9FAFB; }
     </div>
 
     <!-- BOTÕES SALVAR/PDF -->
-    <div style="display:flex;gap:12px;justify-content:flex-end;margin-bottom:24px">
-      <div id="aloja-save-result" style="font-size:13px;color:var(--verde);align-self:center"></div>
+    <div style="display:flex;gap:12px;justify-content:flex-end;flex-wrap:wrap;margin-bottom:12px">
       <button class="btn btn-outline" onclick="alojaNovaVistoria()"><i class="ti ti-refresh"></i>Limpar</button>
       <button id="aloja-btn-pdf" class="btn btn-outline btn-sm" style="display:none" onclick="alojaGerarPDF()"><i class="ti ti-file-type-pdf"></i>Gerar PDF</button>
-      <button id="aloja-btn-enviar" class="btn btn-outline btn-sm" style="display:none;border-color:#16a34a;color:#16a34a" onclick="alojaEnviarAssinatura()"><i class="ti ti-signature"></i>Enviar para Assinatura</button>
-      <button class="btn btn-primary" onclick="alojaSalvar()"><i class="ti ti-device-floppy"></i>Salvar Vistoria</button>
+      <button id="aloja-btn-salvar" class="btn btn-primary" onclick="alojaSalvar()"><i class="ti ti-device-floppy"></i>Salvar e Gerar Link</button>
     </div>
+    <div id="aloja-save-result" style="font-size:13px;margin-bottom:24px"></div>
   </div>
 
   <!-- Painel Histórico -->
@@ -4056,6 +4056,7 @@ function alojaColetarDados() {
     responsavel: document.getElementById('aloja-responsavel')?.value||'',
     cargo_responsavel: document.getElementById('aloja-cargo')?.value||'',
     encarregado: document.getElementById('aloja-encarregado')?.value||'',
+    cel_encarregado: document.getElementById('aloja-cel-encarregado')?.value||'',
     resultado,
     prazo_regularizacao: document.getElementById('aloja-prazo')?.value||'',
     observacao_geral: document.getElementById('aloja-obs-geral')?.value||'',
@@ -4067,18 +4068,66 @@ function alojaColetarDados() {
 
 async function alojaSalvar() {
   const dados = alojaColetarDados();
+  const btnSalvar = document.getElementById('aloja-btn-salvar');
+  const origBtnTxt = btnSalvar?.innerHTML;
+  if (btnSalvar) { btnSalvar.disabled = true; btnSalvar.innerHTML = '<i class="ti ti-loader-2" style="animation:spin 1s linear infinite"></i> Salvando...'; }
+
+  const result = document.getElementById('aloja-save-result');
+
+  // 1. Salvar vistoria
   const res = await apiFetch('/api/alojamentos/vistorias', {
     method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(dados)
   });
-  if (!res || !res.ok) { alert('Erro ao salvar vistoria.'); return; }
+  if (!res || !res.ok) {
+    alert('Erro ao salvar vistoria.');
+    if (btnSalvar) { btnSalvar.disabled = false; btnSalvar.innerHTML = origBtnTxt; }
+    return;
+  }
   const data = await res.json();
   _alojaId = data.id;
-  const btn = document.getElementById('aloja-btn-pdf');
-  if (btn) btn.style.display = '';
-  const btnEnviar = document.getElementById('aloja-btn-enviar');
-  if (btnEnviar) btnEnviar.style.display = '';
-  const result = document.getElementById('aloja-save-result');
-  if (result) { result.textContent = `✓ Vistoria #${_alojaId} salva com sucesso!`; setTimeout(()=>result.textContent='', 4000); }
+  const btnPdf = document.getElementById('aloja-btn-pdf');
+  if (btnPdf) btnPdf.style.display = '';
+
+  // 2. Enviar para ZapSign (se houver celular do encarregado)
+  const encNome = document.getElementById('aloja-encarregado')?.value?.trim() || '';
+  const encCel  = document.getElementById('aloja-cel-encarregado')?.value?.trim() || '';
+
+  if (encNome && encCel) {
+    if (btnSalvar) btnSalvar.innerHTML = '<i class="ti ti-loader-2" style="animation:spin 1s linear infinite"></i> Gerando link...';
+    try {
+      const resEnv = await apiFetch(`/api/alojamentos/vistorias/${_alojaId}/enviar`, {
+        method: 'POST',
+        headers: {'Content-Type':'application/json'},
+        body: JSON.stringify({ celular_encarregado: encCel })
+      });
+      if (resEnv && resEnv.ok) {
+        const envData = await resEnv.json();
+        const link = envData.link_assinatura || '';
+        const celNum = encCel.replace(/\D/g,'');
+        const frente = document.getElementById('aloja-frente')?.value?.trim() || 'Alojamento';
+        const msgWA = encodeURIComponent(
+          `Olá ${encNome}, segue o link para assinar o Relatório de Vistoria de Alojamento — ${frente}:\n\n${link}`
+        );
+        if (result) result.innerHTML = `
+          <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;padding:12px 16px">
+            <div style="font-weight:600;color:#16a34a;margin-bottom:8px"><i class="ti ti-check"></i> Vistoria #${_alojaId} salva e link gerado!</div>
+            <div style="font-size:12px;color:#374151;margin-bottom:10px;word-break:break-all">${link}</div>
+            <div style="display:flex;gap:8px;flex-wrap:wrap">
+              <button onclick="navigator.clipboard.writeText('${link}').then(()=>this.textContent='✓ Copiado!')" style="padding:6px 14px;border-radius:6px;border:1px solid #16a34a;background:#fff;color:#16a34a;cursor:pointer;font-size:13px">Copiar link</button>
+              <a href="https://wa.me/${celNum}?text=${msgWA}" target="_blank" style="padding:6px 14px;border-radius:6px;background:#25d366;color:#fff;font-weight:600;font-size:13px;text-decoration:none;display:inline-flex;align-items:center;gap:6px"><i class="ti ti-brand-whatsapp"></i> Enviar no WhatsApp</a>
+            </div>
+          </div>`;
+      } else {
+        if (result) result.innerHTML = `<span style="color:#16a34a">✓ Vistoria #${_alojaId} salva!</span> <span style="color:#dc2626;font-size:12px">(Falha ao gerar link — verifique o celular do encarregado)</span>`;
+      }
+    } catch(e) {
+      if (result) result.innerHTML = `<span style="color:#16a34a">✓ Vistoria #${_alojaId} salva!</span> <span style="color:#dc2626;font-size:12px">(Erro: ${e.message})</span>`;
+    }
+  } else {
+    if (result) result.innerHTML = `<span style="color:#16a34a">✓ Vistoria #${_alojaId} salva!</span>${!encCel ? ' <span style="color:#92400e;font-size:12px">(Informe o celular do encarregado para gerar o link de assinatura)</span>' : ''}`;
+  }
+
+  if (btnSalvar) { btnSalvar.disabled = false; btnSalvar.innerHTML = origBtnTxt; }
 }
 
 async function alojaGerarPDF() {
@@ -4157,6 +4206,7 @@ function alojaNovaVistoria() {
   document.getElementById('aloja-responsavel').value = 'JONATAS DA COSTA XAVIER';
   document.getElementById('aloja-cargo').value = 'TÉCNICO DE SEGURANÇA DO TRABALHO';
   document.getElementById('aloja-encarregado').value = '';
+  document.getElementById('aloja-cel-encarregado').value = '';
   document.getElementById('aloja-prazo').value = '';
   document.getElementById('aloja-obs-geral').value = '';
   document.getElementById('aloja-sig-resp-nome').value = '';
@@ -4164,8 +4214,7 @@ function alojaNovaVistoria() {
   document.querySelector('input[name="aloja-resultado"][value="conforme"]').checked = true;
   document.getElementById('aloja-plano-body').innerHTML = '';
   document.getElementById('aloja-btn-pdf').style.display = 'none';
-  document.getElementById('aloja-btn-enviar').style.display = 'none';
-  document.getElementById('aloja-save-result').textContent = '';
+  document.getElementById('aloja-save-result').innerHTML = '';
   alojaRenderFotos();
   alojaRenderBlocos();
 }
@@ -4224,6 +4273,7 @@ async function alojaAbrirVistoria(id) {
   document.getElementById('aloja-responsavel').value = v.responsavel||'';
   document.getElementById('aloja-cargo').value = v.cargo_responsavel||'';
   document.getElementById('aloja-encarregado').value = v.encarregado||'';
+  document.getElementById('aloja-cel-encarregado').value = v.cel_encarregado||'';
   document.getElementById('aloja-prazo').value = v.prazo_regularizacao||'';
   document.getElementById('aloja-obs-geral').value = v.observacao_geral||'';
   document.getElementById('aloja-sig-resp-nome').value = v.assinatura_responsavel||'';

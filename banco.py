@@ -332,6 +332,7 @@ def criar_banco():
                     responsavel TEXT DEFAULT '',
                     cargo_responsavel TEXT DEFAULT '',
                     encarregado TEXT DEFAULT '',
+                    cel_encarregado TEXT DEFAULT '',
                     resultado TEXT DEFAULT 'conforme',
                     prazo_regularizacao TEXT DEFAULT '',
                     observacao_geral TEXT DEFAULT '',
@@ -385,6 +386,7 @@ def criar_banco():
                 responsavel TEXT DEFAULT '',
                 cargo_responsavel TEXT DEFAULT '',
                 encarregado TEXT DEFAULT '',
+                cel_encarregado TEXT DEFAULT '',
                 resultado TEXT DEFAULT 'conforme',
                 prazo_regularizacao TEXT DEFAULT '',
                 observacao_geral TEXT DEFAULT '',
@@ -419,14 +421,14 @@ def criar_banco():
 
         # Migrações: adiciona colunas novas se ainda não existirem
         if USE_POSTGRES:
-            for col, defval in [('link_assinatura', "''"), ('zapsign_token', "''")]:
+            for col, defval in [('cel_encarregado', "''"), ('link_assinatura', "''"), ('zapsign_token', "''")]:
                 try:
                     cur.execute(f"ALTER TABLE alojamento_vistorias ADD COLUMN {col} TEXT DEFAULT {defval}")
                 except Exception:
                     pass  # coluna já existe
         else:
             cols_existentes = [r[1] for r in cur.execute("PRAGMA table_info(alojamento_vistorias)").fetchall()]
-            for col, defval in [('link_assinatura', "''"), ('zapsign_token', "''")]:
+            for col, defval in [('cel_encarregado', "''"), ('link_assinatura', "''"), ('zapsign_token', "''")]:
                 if col not in cols_existentes:
                     cur.execute(f"ALTER TABLE alojamento_vistorias ADD COLUMN {col} TEXT DEFAULT {defval}")
 
@@ -1288,7 +1290,7 @@ def contar_admins() -> int:
 
 def salvar_vistoria_alojamento(dados: dict, usuario: str = '') -> int:
     campos = ['frente_servico','contrato','localizacao','data_vistoria','num_trabalhadores',
-              'responsavel','cargo_responsavel','encarregado','resultado','prazo_regularizacao',
+              'responsavel','cargo_responsavel','encarregado','cel_encarregado','resultado','prazo_regularizacao',
               'observacao_geral','assinatura_responsavel','assinatura_encarregado']
     vals = [dados.get(c, '') for c in campos]
     vid = dados.get('id')

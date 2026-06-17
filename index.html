@@ -3967,12 +3967,25 @@ function alojaSetObs(itemId, val) {
 
 function alojaAdicionarFotos(input) {
   Array.from(input.files).forEach(file => {
-    const reader = new FileReader();
-    reader.onload = e => {
-      _alojaFotos.push({ nome_arquivo: file.name, dados_base64: e.target.result });
+    const img = new Image();
+    const url = URL.createObjectURL(file);
+    img.onload = () => {
+      // Comprimir para max 1200px e qualidade 80%
+      const MAX = 1200;
+      let w = img.width, h = img.height;
+      if (w > MAX || h > MAX) {
+        if (w > h) { h = Math.round(h * MAX / w); w = MAX; }
+        else { w = Math.round(w * MAX / h); h = MAX; }
+      }
+      const canvas = document.createElement('canvas');
+      canvas.width = w; canvas.height = h;
+      canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+      const b64 = canvas.toDataURL('image/jpeg', 0.80);
+      URL.revokeObjectURL(url);
+      _alojaFotos.push({ nome_arquivo: file.name.replace(/\.[^.]+$/, '.jpg'), dados_base64: b64 });
       alojaRenderFotos();
     };
-    reader.readAsDataURL(file);
+    img.src = url;
   });
   input.value = '';
 }

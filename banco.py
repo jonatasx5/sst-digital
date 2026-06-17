@@ -1295,9 +1295,20 @@ def salvar_vistoria_alojamento(dados: dict, usuario: str = '') -> int:
     vals = [dados.get(c, '') for c in campos]
     vid = dados.get('id')
     if vid:
-        sets = ', '.join(f'{c}=?' for c in campos)
-        executar(f'UPDATE alojamento_vistorias SET {sets} WHERE id=?', vals + [vid], commit=True)
-        return vid
+        # Tenta UPDATE com todos os campos; se alguma coluna não existir, retenta sem ela
+        def _try_update(cols, values):
+            sets = ', '.join(f'{c}=?' for c in cols)
+            executar(f'UPDATE alojamento_vistorias SET {sets} WHERE id=?', list(values) + [vid], commit=True)
+
+        try:
+            _try_update(campos, vals)
+        except Exception as e:
+            err = str(e).lower()
+            # Remove colunas inexistentes e tenta novamente
+            campos_ok = [c for c in campos if c not in ('cel_encarregado',)] if 'cel_encarregado' in err or 'column' in err else campos
+            vals_ok = [dados.get(c, '') for c in campos_ok]
+            _try_update(campos_ok, vals_ok)
+        return int(vid)
     else:
         cols = ', '.join(campos) + ', criado_por'
         placeholders = ', '.join(['?'] * (len(campos) + 1))

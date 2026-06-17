@@ -4077,7 +4077,12 @@ async function alojaSalvar() {
     method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(dados)
   });
   if (btnSalvar) { btnSalvar.disabled = false; btnSalvar.innerHTML = origTxt; }
-  if (!res || !res.ok) { alert('Erro ao salvar vistoria.'); return; }
+  if (!res || !res.ok) {
+    const txt = await res?.text().catch(()=>'');
+    let msg = txt; try { msg = JSON.parse(txt).detail || txt; } catch {}
+    alert('Erro ao salvar vistoria: ' + msg);
+    return;
+  }
 
   const data = await res.json();
   _alojaId = data.id;

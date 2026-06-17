@@ -1236,10 +1236,11 @@ tr:hover td { background:#F9FAFB; }
     </div>
 
     <!-- BOTÕES SALVAR/PDF -->
-    <div style="display:flex;gap:12px;justify-content:flex-end;flex-wrap:wrap;margin-bottom:12px">
-      <button class="btn btn-outline" onclick="alojaNovaVistoria()"><i class="ti ti-refresh"></i>Limpar</button>
-      <button id="aloja-btn-pdf" class="btn btn-outline btn-sm" style="display:none" onclick="alojaGerarPDF()"><i class="ti ti-file-type-pdf"></i>Gerar PDF</button>
-      <button id="aloja-btn-salvar" class="btn btn-primary" onclick="alojaSalvar()"><i class="ti ti-device-floppy"></i>Salvar e Gerar Link</button>
+    <div style="display:flex;gap:12px;justify-content:flex-end;flex-wrap:wrap;margin-bottom:8px">
+      <button class="btn btn-outline" onclick="alojaNovaVistoria()"><i class="ti ti-refresh"></i>Nova Vistoria</button>
+      <button id="aloja-btn-pdf" class="btn btn-outline" style="display:none" onclick="alojaGerarPDF()"><i class="ti ti-file-type-pdf"></i>Baixar PDF</button>
+      <button id="aloja-btn-link" class="btn btn-outline" style="display:none;border-color:#16a34a;color:#16a34a" onclick="alojaGerarLink()"><i class="ti ti-signature"></i>Gerar Link Assinatura</button>
+      <button id="aloja-btn-salvar" class="btn btn-primary" onclick="alojaSalvar()"><i class="ti ti-device-floppy"></i>Salvar Vistoria</button>
     </div>
     <div id="aloja-save-result" style="font-size:13px;margin-bottom:24px"></div>
   </div>
@@ -4069,65 +4070,68 @@ function alojaColetarDados() {
 async function alojaSalvar() {
   const dados = alojaColetarDados();
   const btnSalvar = document.getElementById('aloja-btn-salvar');
-  const origBtnTxt = btnSalvar?.innerHTML;
+  const origTxt = btnSalvar?.innerHTML;
   if (btnSalvar) { btnSalvar.disabled = true; btnSalvar.innerHTML = '<i class="ti ti-loader-2" style="animation:spin 1s linear infinite"></i> Salvando...'; }
 
-  const result = document.getElementById('aloja-save-result');
-
-  // 1. Salvar vistoria
   const res = await apiFetch('/api/alojamentos/vistorias', {
     method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(dados)
   });
-  if (!res || !res.ok) {
-    alert('Erro ao salvar vistoria.');
-    if (btnSalvar) { btnSalvar.disabled = false; btnSalvar.innerHTML = origBtnTxt; }
-    return;
-  }
+  if (btnSalvar) { btnSalvar.disabled = false; btnSalvar.innerHTML = origTxt; }
+  if (!res || !res.ok) { alert('Erro ao salvar vistoria.'); return; }
+
   const data = await res.json();
   _alojaId = data.id;
-  const btnPdf = document.getElementById('aloja-btn-pdf');
-  if (btnPdf) btnPdf.style.display = '';
+  document.getElementById('aloja-btn-pdf').style.display = '';
+  document.getElementById('aloja-btn-link').style.display = '';
+  const result = document.getElementById('aloja-save-result');
+  if (result) result.innerHTML = `<span style="color:var(--verde)">✓ Vistoria #${_alojaId} salva com sucesso!</span>`;
+}
 
-  // 2. Enviar para ZapSign (se houver celular do encarregado)
+async function alojaGerarLink() {
+  if (!_alojaId) { alert('Salve a vistoria primeiro.'); return; }
   const encNome = document.getElementById('aloja-encarregado')?.value?.trim() || '';
   const encCel  = document.getElementById('aloja-cel-encarregado')?.value?.trim() || '';
+  if (!encNome) { alert('Informe o nome do encarregado antes de gerar o link.'); return; }
+  if (!encCel)  { alert('Informe o celular do encarregado antes de gerar o link.'); return; }
 
-  if (encNome && encCel) {
-    if (btnSalvar) btnSalvar.innerHTML = '<i class="ti ti-loader-2" style="animation:spin 1s linear infinite"></i> Gerando link...';
-    try {
-      const resEnv = await apiFetch(`/api/alojamentos/vistorias/${_alojaId}/enviar`, {
-        method: 'POST',
-        headers: {'Content-Type':'application/json'},
-        body: JSON.stringify({ celular_encarregado: encCel })
-      });
-      if (resEnv && resEnv.ok) {
-        const envData = await resEnv.json();
-        const link = envData.link_assinatura || '';
-        const celNum = encCel.replace(/\D/g,'');
-        const frente = document.getElementById('aloja-frente')?.value?.trim() || 'Alojamento';
-        const msgWA = encodeURIComponent(
-          `Olá ${encNome}, segue o link para assinar o Relatório de Vistoria de Alojamento — ${frente}:\n\n${link}`
-        );
-        if (result) result.innerHTML = `
-          <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;padding:12px 16px">
-            <div style="font-weight:600;color:#16a34a;margin-bottom:8px"><i class="ti ti-check"></i> Vistoria #${_alojaId} salva e link gerado!</div>
-            <div style="font-size:12px;color:#374151;margin-bottom:10px;word-break:break-all">${link}</div>
-            <div style="display:flex;gap:8px;flex-wrap:wrap">
-              <button onclick="navigator.clipboard.writeText('${link}').then(()=>this.textContent='✓ Copiado!')" style="padding:6px 14px;border-radius:6px;border:1px solid #16a34a;background:#fff;color:#16a34a;cursor:pointer;font-size:13px">Copiar link</button>
-              <a href="https://wa.me/${celNum}?text=${msgWA}" target="_blank" style="padding:6px 14px;border-radius:6px;background:#25d366;color:#fff;font-weight:600;font-size:13px;text-decoration:none;display:inline-flex;align-items:center;gap:6px"><i class="ti ti-brand-whatsapp"></i> Enviar no WhatsApp</a>
-            </div>
-          </div>`;
-      } else {
-        if (result) result.innerHTML = `<span style="color:#16a34a">✓ Vistoria #${_alojaId} salva!</span> <span style="color:#dc2626;font-size:12px">(Falha ao gerar link — verifique o celular do encarregado)</span>`;
-      }
-    } catch(e) {
-      if (result) result.innerHTML = `<span style="color:#16a34a">✓ Vistoria #${_alojaId} salva!</span> <span style="color:#dc2626;font-size:12px">(Erro: ${e.message})</span>`;
+  const btn = document.getElementById('aloja-btn-link');
+  const origTxt = btn?.innerHTML;
+  if (btn) { btn.disabled = true; btn.innerHTML = '<i class="ti ti-loader-2" style="animation:spin 1s linear infinite"></i> Gerando...'; }
+
+  try {
+    const res = await apiFetch(`/api/alojamentos/vistorias/${_alojaId}/enviar`, {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({ celular_encarregado: encCel })
+    });
+
+    if (!res || !res.ok) {
+      const txt = await res?.text().catch(()=>'');
+      let msg = txt; try { msg = JSON.parse(txt).detail || txt; } catch {}
+      alert('Erro ao gerar link: ' + msg);
+      return;
     }
-  } else {
-    if (result) result.innerHTML = `<span style="color:#16a34a">✓ Vistoria #${_alojaId} salva!</span>${!encCel ? ' <span style="color:#92400e;font-size:12px">(Informe o celular do encarregado para gerar o link de assinatura)</span>' : ''}`;
-  }
 
-  if (btnSalvar) { btnSalvar.disabled = false; btnSalvar.innerHTML = origBtnTxt; }
+    const envData = await res.json();
+    const link = envData.link_assinatura || '';
+    const celNum = encCel.replace(/\D/g,'');
+    const frente = document.getElementById('aloja-frente')?.value?.trim() || 'Alojamento';
+    const msgWA = encodeURIComponent(`Olá ${encNome}, segue o link para assinar o Relatório de Vistoria de Alojamento — ${frente}:\n\n${link}`);
+    const result = document.getElementById('aloja-save-result');
+    if (result) result.innerHTML = `
+      <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;padding:12px 16px;margin-top:8px">
+        <div style="font-weight:600;color:#16a34a;margin-bottom:6px"><i class="ti ti-check"></i> Link de assinatura gerado!</div>
+        <div style="font-size:12px;color:#374151;margin-bottom:10px;word-break:break-all">${link}</div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <button onclick="navigator.clipboard.writeText('${link}').then(()=>this.textContent='✓ Copiado!')" style="padding:6px 14px;border-radius:6px;border:1px solid #16a34a;background:#fff;color:#16a34a;cursor:pointer;font-size:13px">Copiar link</button>
+          <a href="https://wa.me/${celNum}?text=${msgWA}" target="_blank" style="padding:6px 14px;border-radius:6px;background:#25d366;color:#fff;font-weight:600;font-size:13px;text-decoration:none;display:inline-flex;align-items:center;gap:6px"><i class="ti ti-brand-whatsapp"></i> Enviar no WhatsApp</a>
+        </div>
+      </div>`;
+  } catch(e) {
+    alert('Erro: ' + e.message);
+  } finally {
+    if (btn) { btn.disabled = false; btn.innerHTML = origTxt; }
+  }
 }
 
 async function alojaGerarPDF() {
@@ -4214,6 +4218,7 @@ function alojaNovaVistoria() {
   document.querySelector('input[name="aloja-resultado"][value="conforme"]').checked = true;
   document.getElementById('aloja-plano-body').innerHTML = '';
   document.getElementById('aloja-btn-pdf').style.display = 'none';
+  document.getElementById('aloja-btn-link').style.display = 'none';
   document.getElementById('aloja-save-result').innerHTML = '';
   alojaRenderFotos();
   alojaRenderBlocos();
@@ -4306,6 +4311,10 @@ async function alojaAbrirVistoria(id) {
   });
   alojaRenderFotos();
   document.getElementById('aloja-btn-pdf').style.display = '';
+  document.getElementById('aloja-btn-link').style.display = '';
+  document.getElementById('aloja-save-result').innerHTML = v.link_assinatura
+    ? `<span style="color:var(--verde)">✓ Link já gerado anteriormente — <a href="${v.link_assinatura}" target="_blank" style="color:var(--verde)">ver link</a></span>`
+    : '';
   window.scrollTo(0,0);
 }
 

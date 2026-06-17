@@ -1451,6 +1451,256 @@ async def download_pdf_assinado(envio_id: int):
     )
 
 
+# ── ALOJAMENTOS ───────────────────────────────────────────────────────────────
+
+@app.post("/api/alojamentos/vistorias")
+async def criar_vistoria_alojamento(dados: dict, req: Request, _=Depends(verificar_acesso)):
+    usuario = getattr(req.state, 'usuario', '')
+    itens = dados.pop('itens', [])
+    fotos = dados.pop('fotos', [])
+    plano = dados.pop('plano_acao', [])
+    vid = banco.salvar_vistoria_alojamento(dados, usuario)
+    banco.salvar_itens_vistoria(vid, itens)
+    banco.salvar_fotos_vistoria(vid, fotos)
+    banco.salvar_plano_acao_vistoria(vid, plano)
+    return {"ok": True, "id": vid}
+
+
+@app.get("/api/alojamentos/vistorias")
+async def listar_vistorias_alojamento(_=Depends(verificar_acesso)):
+    return banco.listar_vistorias_alojamento()
+
+
+@app.get("/api/alojamentos/vistorias/{vid}")
+async def buscar_vistoria_alojamento(vid: int, _=Depends(verificar_acesso)):
+    v = banco.buscar_vistoria_alojamento(vid)
+    if not v:
+        raise HTTPException(404, "Vistoria não encontrada")
+    return v
+
+
+@app.delete("/api/alojamentos/vistorias/{vid}")
+async def deletar_vistoria_alojamento(vid: int, _=Depends(verificar_acesso)):
+    banco.deletar_vistoria_alojamento(vid)
+    return {"ok": True}
+
+
+@app.get("/api/alojamentos/vistorias/{vid}/pdf")
+async def gerar_pdf_vistoria(vid: int, _=Depends(verificar_acesso)):
+    v = banco.buscar_vistoria_alojamento(vid)
+    if not v:
+        raise HTTPException(404, "Vistoria não encontrada")
+
+    try:
+        from reportlab.lib.pagesizes import A4
+        from reportlab.lib import colors
+        from reportlab.lib.units import cm
+        from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer, Image as RLImage
+        from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+        from reportlab.lib.enums import TA_CENTER, TA_LEFT
+        import io, base64
+        from PIL import Image as PILImage
+
+        buf = io.BytesIO()
+        doc = SimpleDocTemplate(buf, pagesize=A4, leftMargin=1.5*cm, rightMargin=1.5*cm,
+                                topMargin=1.5*cm, bottomMargin=1.5*cm)
+        styles = getSampleStyleSheet()
+        W = A4[0] - 3*cm
+
+        title_style = ParagraphStyle('title', fontSize=13, fontName='Helvetica-Bold', alignment=TA_CENTER, spaceAfter=4)
+        sub_style   = ParagraphStyle('sub',   fontSize=10, fontName='Helvetica',      alignment=TA_CENTER, spaceAfter=8)
+        sec_style   = ParagraphStyle('sec',   fontSize=10, fontName='Helvetica-Bold', spaceAfter=4, spaceBefore=8,
+                                     backColor=colors.HexColor('#1F4E79'), textColor=colors.white, leftIndent=4)
+        body_style  = ParagraphStyle('body',  fontSize=9,  fontName='Helvetica', spaceAfter=3)
+        small_style = ParagraphStyle('small', fontSize=8,  fontName='Helvetica', textColor=colors.grey)
+
+        story = []
+
+        # Cabeçalho
+        story.append(Paragraph("RELATÓRIO DE VISTORIA DE ALOJAMENTO", title_style))
+        story.append(Paragraph("JS Construtora e Locadora Ltda — CNPJ: 16.910.656/0001-81 | CNAE: 4211-1/01 | GR: 4", sub_style))
+
+        resultado_map = {'conforme': 'CONFORME', 'nao_conforme': 'NÃO CONFORME', 'conforme_ressalvas': 'CONFORME COM RESSALVAS'}
+        res_label = resultado_map.get(v.get('resultado','conforme'), v.get('resultado',''))
+        res_color = {'CONFORME': colors.HexColor('#16a34a'), 'NÃO CONFORME': colors.HexColor('#dc2626'),
+                     'CONFORME COM RESSALVAS': colors.HexColor('#d97706')}.get(res_label, colors.black)
+
+        # Identificação
+        story.append(Paragraph("IDENTIFICAÇÃO", sec_style))
+        id_data = [
+            ["Frente / Contrato:", v.get('frente_servico','') + (' — ' + v.get('contrato','') if v.get('contrato') else ''),
+             "Data:", v.get('data_vistoria','')],
+            ["Localização:", v.get('localizacao',''), "Nº Trabalhadores:", str(v.get('num_trabalhadores',''))],
+            ["Responsável:", v.get('responsavel',''), "Cargo:", v.get('cargo_responsavel','')],
+            ["Encarregado:", v.get('encarregado',''), "", ""],
+        ]
+        id_table = Table(id_data, colWidths=[3.5*cm, 8*cm, 3*cm, 4*cm])
+        id_table.setStyle(TableStyle([
+            ('FONTNAME', (0,0), (-1,-1), 'Helvetica'),
+            ('FONTNAME', (0,0), (0,-1), 'Helvetica-Bold'),
+            ('FONTNAME', (2,0), (2,-1), 'Helvetica-Bold'),
+            ('FONTSIZE', (0,0), (-1,-1), 9),
+            ('GRID', (0,0), (-1,-1), 0.3, colors.lightgrey),
+            ('BACKGROUND', (0,0), (0,-1), colors.HexColor('#f1f5f9')),
+            ('BACKGROUND', (2,0), (2,-1), colors.HexColor('#f1f5f9')),
+            ('PADDING', (0,0), (-1,-1), 4),
+        ]))
+        story.append(id_table)
+        story.append(Spacer(1, 8))
+
+        # Blocos
+        BLOCOS = [
+            (1, "DORMITÓRIOS (NR-24, item 24.7.2 e 24.7.3)", [
+                "1.1","1.2","1.3","1.4","1.5","1.6","1.7","1.8","1.9","1.10","1.11","1.12","1.13","1.14"]),
+            (2, "INSTALAÇÕES SANITÁRIAS (NR-18 / NR-24)", ["2.1","2.2","2.3","2.4","2.5","2.6"]),
+            (3, "REFEITÓRIO / LOCAL DE REFEIÇÕES", ["3.1","3.2","3.3","3.4"]),
+            (4, "LAVANDERIA (NR-18 / NR-24)", ["4.1","4.2"]),
+            (5, "ÁREA DE LAZER (NR-18)", ["5.1"]),
+            (6, "ABASTECIMENTO DE ÁGUA (NR-18)", ["6.1","6.2","6.3","6.4"]),
+            (7, "HIGIENE E CONSERVAÇÃO GERAL (NR-24)", ["7.1","7.2","7.3","7.4","7.5","7.6"]),
+            (8, "SAÚDE E SEGURANÇA NO ALOJAMENTO (NR-24)", ["8.1","8.2","8.3","8.4"]),
+        ]
+
+        itens_map = {i['item_num']: i for i in (v.get('itens') or [])}
+        status_labels = {'c': 'C', 'nc': 'NC', 'na': 'N/A', '': 'N/A'}
+        status_colors = {'c': colors.HexColor('#dcfce7'), 'nc': colors.HexColor('#fee2e2'),
+                         'na': colors.HexColor('#f1f5f9'), '': colors.HexColor('#f1f5f9')}
+
+        for bloco_num, bloco_nome, item_nums in BLOCOS:
+            story.append(Paragraph(f"BLOCO {bloco_num} — {bloco_nome}", sec_style))
+            tdata = [["Nº", "Item verificado", "Status", "Observação"]]
+            for num in item_nums:
+                item = itens_map.get(num, {})
+                st = item.get('status', 'na')
+                tdata.append([num, Paragraph(item.get('descricao', num), body_style),
+                               status_labels.get(st, 'N/A'), Paragraph(item.get('observacao',''), small_style)])
+
+            t = Table(tdata, colWidths=[1.2*cm, 10*cm, 1.5*cm, W-12.7*cm])
+            ts = TableStyle([
+                ('FONTNAME', (0,0), (-1,0), 'Helvetica-Bold'),
+                ('FONTSIZE', (0,0), (-1,-1), 8),
+                ('BACKGROUND', (0,0), (-1,0), colors.HexColor('#1F4E79')),
+                ('TEXTCOLOR', (0,0), (-1,0), colors.white),
+                ('GRID', (0,0), (-1,-1), 0.3, colors.lightgrey),
+                ('ALIGN', (2,0), (2,-1), 'CENTER'),
+                ('VALIGN', (0,0), (-1,-1), 'MIDDLE'),
+                ('PADDING', (0,0), (-1,-1), 4),
+            ])
+            for row_i, num in enumerate(item_nums, 1):
+                item = itens_map.get(num, {})
+                st = item.get('status','na')
+                ts.add('BACKGROUND', (2, row_i), (2, row_i), status_colors.get(st, colors.white))
+            t.setStyle(ts)
+            story.append(t)
+            story.append(Spacer(1, 4))
+
+        # Resultado
+        story.append(Spacer(1, 6))
+        story.append(Paragraph("RESULTADO DA VISTORIA", sec_style))
+        res_data = [["Resultado:", Paragraph(f'<font color="#{res_color.hexval()[1:] if hasattr(res_color,"hexval") else "000000"}"><b>{res_label}</b></font>', body_style),
+                     "Prazo regularização:", v.get('prazo_regularizacao','')]]
+        rt = Table(res_data, colWidths=[4*cm, 6*cm, 4*cm, W-14*cm])
+        rt.setStyle(TableStyle([
+            ('FONTNAME',(0,0),(0,-1),'Helvetica-Bold'),('FONTNAME',(2,0),(2,-1),'Helvetica-Bold'),
+            ('FONTSIZE',(0,0),(-1,-1),9),('GRID',(0,0),(-1,-1),0.3,colors.lightgrey),
+            ('BACKGROUND',(0,0),(0,-1),colors.HexColor('#f1f5f9')),
+            ('BACKGROUND',(2,0),(2,-1),colors.HexColor('#f1f5f9')),
+            ('PADDING',(0,0),(-1,-1),5),
+        ]))
+        story.append(rt)
+
+        # Observação geral
+        if v.get('observacao_geral'):
+            story.append(Spacer(1, 6))
+            story.append(Paragraph("OBSERVAÇÃO GERAL", sec_style))
+            story.append(Paragraph(v['observacao_geral'], body_style))
+
+        # Plano de ação
+        plano = v.get('plano_acao') or []
+        if plano:
+            story.append(Spacer(1, 6))
+            story.append(Paragraph("PLANO DE AÇÃO (não conformidades)", sec_style))
+            pa_data = [["Nº NC","Descrição","Responsável","Prazo","Status"]]
+            for a in plano:
+                pa_data.append([a.get('num_nc',''), Paragraph(a.get('descricao',''), body_style),
+                                 a.get('responsavel',''), a.get('prazo',''), a.get('status_acao','')])
+            pat = Table(pa_data, colWidths=[1.5*cm, 7*cm, 3.5*cm, 2.5*cm, 2.5*cm])
+            pat.setStyle(TableStyle([
+                ('FONTNAME',(0,0),(-1,0),'Helvetica-Bold'),('FONTSIZE',(0,0),(-1,-1),8),
+                ('BACKGROUND',(0,0),(-1,0),colors.HexColor('#1F4E79')),
+                ('TEXTCOLOR',(0,0),(-1,0),colors.white),
+                ('GRID',(0,0),(-1,-1),0.3,colors.lightgrey),
+                ('PADDING',(0,0),(-1,-1),4),
+            ]))
+            story.append(pat)
+
+        # Assinaturas
+        story.append(Spacer(1, 16))
+        story.append(Paragraph("ASSINATURAS", sec_style))
+        sig_data = [
+            ["Responsável pela vistoria", "", "Encarregado / Representante"],
+            [f"Nome: {v.get('responsavel','')}", "", f"Nome: {v.get('encarregado','')}"],
+            [f"Cargo: {v.get('cargo_responsavel','')}", "", "Cargo: ___________________________"],
+            [f"Data: {v.get('data_vistoria','')}", "", f"Data: {v.get('data_vistoria','')}"],
+            ["Assinatura: ______________________", "", "Assinatura: ______________________"],
+        ]
+        sigt = Table(sig_data, colWidths=[(W/2-0.5*cm), 1*cm, (W/2-0.5*cm)])
+        sigt.setStyle(TableStyle([
+            ('FONTNAME',(0,0),(-1,-1),'Helvetica'),('FONTSIZE',(0,0),(-1,-1),9),
+            ('FONTNAME',(0,0),(-1,0),'Helvetica-Bold'),
+            ('ALIGN',(0,0),(-1,-1),'CENTER'),('VALIGN',(0,0),(-1,-1),'MIDDLE'),
+            ('LINEBELOW',(0,0),(0,0),0.5,colors.black),('LINEBELOW',(2,0),(2,0),0.5,colors.black),
+            ('PADDING',(0,0),(-1,-1),4),
+        ]))
+        story.append(sigt)
+
+        # Fotos
+        fotos = v.get('fotos') or []
+        if fotos:
+            story.append(Spacer(1, 10))
+            story.append(Paragraph("REGISTRO FOTOGRÁFICO", sec_style))
+            foto_row = []
+            for foto in fotos:
+                try:
+                    b64 = foto.get('dados_base64','')
+                    if ',' in b64:
+                        b64 = b64.split(',', 1)[1]
+                    img_bytes = base64.b64decode(b64)
+                    img_buf = io.BytesIO(img_bytes)
+                    pil = PILImage.open(img_buf)
+                    pil.thumbnail((400, 300))
+                    out = io.BytesIO()
+                    pil.save(out, format='JPEG')
+                    out.seek(0)
+                    rl_img = RLImage(out, width=8*cm, height=6*cm)
+                    foto_row.append(rl_img)
+                    if len(foto_row) == 2:
+                        ft = Table([foto_row], colWidths=[9*cm, 9*cm])
+                        ft.setStyle(TableStyle([('ALIGN',(0,0),(-1,-1),'CENTER'),('PADDING',(0,0),(-1,-1),4)]))
+                        story.append(ft)
+                        story.append(Spacer(1,4))
+                        foto_row = []
+                except Exception:
+                    pass
+            if foto_row:
+                while len(foto_row) < 2:
+                    foto_row.append('')
+                ft = Table([foto_row], colWidths=[9*cm, 9*cm])
+                ft.setStyle(TableStyle([('ALIGN',(0,0),(-1,-1),'CENTER'),('PADDING',(0,0),(-1,-1),4)]))
+                story.append(ft)
+
+        doc.build(story)
+        buf.seek(0)
+        fname = f"vistoria_alojamento_{vid}_{v.get('data_vistoria','').replace('/','')}.pdf"
+        return StreamingResponse(buf, media_type="application/pdf",
+                                 headers={"Content-Disposition": f'attachment; filename="{fname}"'})
+
+    except ImportError:
+        raise HTTPException(500, "Biblioteca reportlab não instalada no servidor")
+    except Exception as e:
+        raise HTTPException(500, f"Erro ao gerar PDF: {e}")
+
+
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 8000))
     uvicorn.run("app:app", host="0.0.0.0", port=port, reload=False)

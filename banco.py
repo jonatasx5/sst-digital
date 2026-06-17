@@ -319,6 +319,101 @@ def criar_banco():
                 criado_em TEXT DEFAULT (datetime('now','localtime')))""")
         conn.commit()
 
+        # Tabelas de Alojamentos
+        if USE_POSTGRES:
+            cur.execute("""
+                CREATE TABLE IF NOT EXISTS alojamento_vistorias (
+                    id SERIAL PRIMARY KEY,
+                    frente_servico TEXT DEFAULT '',
+                    contrato TEXT DEFAULT '',
+                    localizacao TEXT DEFAULT '',
+                    data_vistoria TEXT DEFAULT '',
+                    num_trabalhadores INTEGER DEFAULT 0,
+                    responsavel TEXT DEFAULT '',
+                    cargo_responsavel TEXT DEFAULT '',
+                    encarregado TEXT DEFAULT '',
+                    resultado TEXT DEFAULT 'conforme',
+                    prazo_regularizacao TEXT DEFAULT '',
+                    observacao_geral TEXT DEFAULT '',
+                    assinatura_responsavel TEXT DEFAULT '',
+                    assinatura_encarregado TEXT DEFAULT '',
+                    criado_por TEXT DEFAULT '',
+                    criado_em TIMESTAMP DEFAULT NOW()
+                )
+            """)
+            cur.execute("""
+                CREATE TABLE IF NOT EXISTS alojamento_itens (
+                    id SERIAL PRIMARY KEY,
+                    vistoria_id INTEGER REFERENCES alojamento_vistorias(id) ON DELETE CASCADE,
+                    bloco INTEGER,
+                    item_num TEXT,
+                    descricao TEXT,
+                    status TEXT DEFAULT 'na',
+                    observacao TEXT DEFAULT ''
+                )
+            """)
+            cur.execute("""
+                CREATE TABLE IF NOT EXISTS alojamento_fotos (
+                    id SERIAL PRIMARY KEY,
+                    vistoria_id INTEGER REFERENCES alojamento_vistorias(id) ON DELETE CASCADE,
+                    nome_arquivo TEXT,
+                    dados_base64 TEXT,
+                    criado_em TIMESTAMP DEFAULT NOW()
+                )
+            """)
+            cur.execute("""
+                CREATE TABLE IF NOT EXISTS alojamento_plano_acao (
+                    id SERIAL PRIMARY KEY,
+                    vistoria_id INTEGER REFERENCES alojamento_vistorias(id) ON DELETE CASCADE,
+                    num_nc TEXT DEFAULT '',
+                    descricao TEXT DEFAULT '',
+                    responsavel TEXT DEFAULT '',
+                    prazo TEXT DEFAULT '',
+                    status_acao TEXT DEFAULT 'pendente'
+                )
+            """)
+        else:
+            cur.execute("""CREATE TABLE IF NOT EXISTS alojamento_vistorias (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                frente_servico TEXT DEFAULT '',
+                contrato TEXT DEFAULT '',
+                localizacao TEXT DEFAULT '',
+                data_vistoria TEXT DEFAULT '',
+                num_trabalhadores INTEGER DEFAULT 0,
+                responsavel TEXT DEFAULT '',
+                cargo_responsavel TEXT DEFAULT '',
+                encarregado TEXT DEFAULT '',
+                resultado TEXT DEFAULT 'conforme',
+                prazo_regularizacao TEXT DEFAULT '',
+                observacao_geral TEXT DEFAULT '',
+                assinatura_responsavel TEXT DEFAULT '',
+                assinatura_encarregado TEXT DEFAULT '',
+                criado_por TEXT DEFAULT '',
+                criado_em TEXT DEFAULT (datetime('now','localtime')))""")
+            cur.execute("""CREATE TABLE IF NOT EXISTS alojamento_itens (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                vistoria_id INTEGER REFERENCES alojamento_vistorias(id),
+                bloco INTEGER,
+                item_num TEXT,
+                descricao TEXT,
+                status TEXT DEFAULT 'na',
+                observacao TEXT DEFAULT '')""")
+            cur.execute("""CREATE TABLE IF NOT EXISTS alojamento_fotos (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                vistoria_id INTEGER REFERENCES alojamento_vistorias(id),
+                nome_arquivo TEXT,
+                dados_base64 TEXT,
+                criado_em TEXT DEFAULT (datetime('now','localtime')))""")
+            cur.execute("""CREATE TABLE IF NOT EXISTS alojamento_plano_acao (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                vistoria_id INTEGER REFERENCES alojamento_vistorias(id),
+                num_nc TEXT DEFAULT '',
+                descricao TEXT DEFAULT '',
+                responsavel TEXT DEFAULT '',
+                prazo TEXT DEFAULT '',
+                status_acao TEXT DEFAULT 'pendente')""")
+        conn.commit()
+
         print(f"OK Banco criado ({'PostgreSQL' if USE_POSTGRES else 'SQLite'})")
     finally:
         conn.close()
@@ -1169,6 +1264,86 @@ def contar_admins() -> int:
         return row[0] if row else 0
     finally:
         conn.close()
+
+
+# ── ALOJAMENTOS ───────────────────────────────────────────
+
+def salvar_vistoria_alojamento(dados: dict, usuario: str = '') -> int:
+    campos = ['frente_servico','contrato','localizacao','data_vistoria','num_trabalhadores',
+              'responsavel','cargo_responsavel','encarregado','resultado','prazo_regularizacao',
+              'observacao_geral','assinatura_responsavel','assinatura_encarregado']
+    vals = [dados.get(c, '') for c in campos]
+    vid = dados.get('id')
+    if vid:
+        sets = ', '.join(f'{c}=?' for c in campos)
+        executar(f'UPDATE alojamento_vistorias SET {sets} WHERE id=?', vals + [vid], commit=True)
+        return vid
+    else:
+        cols = ', '.join(campos) + ', criado_por'
+        placeholders = ', '.join(['?'] * (len(campos) + 1))
+        if USE_POSTGRES:
+            q = f'INSERT INTO alojamento_vistorias ({cols}) VALUES ({placeholders}) RETURNING id'
+            row = executar(q, vals + [usuario], fetchone=True, commit=True)
+            return row['id']
+        else:
+            executar(f'INSERT INTO alojamento_vistorias ({cols}) VALUES ({placeholders})',
+                     vals + [usuario], commit=True)
+            conn = conectar()
+            try:
+                cur = conn.cursor()
+                cur.execute('SELECT last_insert_rowid()')
+                return cur.fetchone()[0]
+            finally:
+                conn.close()
+
+
+def salvar_itens_vistoria(vistoria_id: int, itens: list):
+    executar('DELETE FROM alojamento_itens WHERE vistoria_id=?', (vistoria_id,), commit=True)
+    for item in itens:
+        executar('INSERT INTO alojamento_itens (vistoria_id,bloco,item_num,descricao,status,observacao) VALUES (?,?,?,?,?,?)',
+                 (vistoria_id, item.get('bloco'), item.get('item_num'), item.get('descricao'),
+                  item.get('status','na'), item.get('observacao','')), commit=True)
+
+
+def salvar_fotos_vistoria(vistoria_id: int, fotos: list):
+    executar('DELETE FROM alojamento_fotos WHERE vistoria_id=?', (vistoria_id,), commit=True)
+    for f in fotos:
+        executar('INSERT INTO alojamento_fotos (vistoria_id,nome_arquivo,dados_base64) VALUES (?,?,?)',
+                 (vistoria_id, f.get('nome_arquivo','foto.jpg'), f.get('dados_base64','')), commit=True)
+
+
+def salvar_plano_acao_vistoria(vistoria_id: int, acoes: list):
+    executar('DELETE FROM alojamento_plano_acao WHERE vistoria_id=?', (vistoria_id,), commit=True)
+    for a in acoes:
+        executar('INSERT INTO alojamento_plano_acao (vistoria_id,num_nc,descricao,responsavel,prazo,status_acao) VALUES (?,?,?,?,?,?)',
+                 (vistoria_id, a.get('num_nc',''), a.get('descricao',''), a.get('responsavel',''),
+                  a.get('prazo',''), a.get('status_acao','pendente')), commit=True)
+
+
+def listar_vistorias_alojamento() -> list:
+    return executar(
+        'SELECT id,frente_servico,contrato,localizacao,data_vistoria,responsavel,resultado,criado_em FROM alojamento_vistorias ORDER BY criado_em DESC',
+        fetchall=True) or []
+
+
+def buscar_vistoria_alojamento(vistoria_id: int) -> dict:
+    v = executar('SELECT * FROM alojamento_vistorias WHERE id=?', (vistoria_id,), fetchone=True)
+    if not v:
+        return None
+    v['itens'] = executar('SELECT * FROM alojamento_itens WHERE vistoria_id=? ORDER BY bloco,item_num',
+                          (vistoria_id,), fetchall=True) or []
+    v['fotos'] = executar('SELECT id,nome_arquivo,dados_base64 FROM alojamento_fotos WHERE vistoria_id=?',
+                          (vistoria_id,), fetchall=True) or []
+    v['plano_acao'] = executar('SELECT * FROM alojamento_plano_acao WHERE vistoria_id=?',
+                               (vistoria_id,), fetchall=True) or []
+    return v
+
+
+def deletar_vistoria_alojamento(vistoria_id: int):
+    executar('DELETE FROM alojamento_plano_acao WHERE vistoria_id=?', (vistoria_id,), commit=True)
+    executar('DELETE FROM alojamento_fotos WHERE vistoria_id=?', (vistoria_id,), commit=True)
+    executar('DELETE FROM alojamento_itens WHERE vistoria_id=?', (vistoria_id,), commit=True)
+    executar('DELETE FROM alojamento_vistorias WHERE id=?', (vistoria_id,), commit=True)
 
 
 if __name__ == "__main__":

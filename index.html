@@ -1154,8 +1154,8 @@ tr:hover td { background:#F9FAFB; }
         <div class="field"><label>Localização do Alojamento</label><input type="text" id="aloja-local" placeholder="Cidade, endereço"></div>
         <div class="field"><label>Data da Vistoria</label><input type="date" id="aloja-data"></div>
         <div class="field"><label>Nº de Trabalhadores Alojados</label><input type="number" id="aloja-num" min="0" value="0"></div>
-        <div class="field"><label>Responsável pela Vistoria</label><input type="text" id="aloja-responsavel" placeholder="Nome completo"></div>
-        <div class="field"><label>Cargo / Registro</label><input type="text" id="aloja-cargo" placeholder="Ex: Técnico em Segurança do Trabalho"></div>
+        <div class="field"><label>Responsável pela Vistoria</label><input type="text" id="aloja-responsavel" placeholder="Nome completo" value="JONATAS DA COSTA XAVIER"></div>
+        <div class="field"><label>Cargo / Registro</label><input type="text" id="aloja-cargo" placeholder="Ex: Técnico em Segurança do Trabalho" value="TÉCNICO DE SEGURANÇA DO TRABALHO"></div>
         <div class="field" style="grid-column:1/-1"><label>Encarregado Presente</label><input type="text" id="aloja-encarregado" placeholder="Nome do encarregado presente"></div>
       </div>
     </div>
@@ -1170,7 +1170,7 @@ tr:hover td { background:#F9FAFB; }
       <label style="display:flex;align-items:center;gap:8px;cursor:pointer;padding:12px;border:2px dashed var(--borda);border-radius:8px;color:var(--texto2)">
         <i class="ti ti-upload" style="font-size:20px"></i>
         <span>Clique para adicionar fotos</span>
-        <input type="file" id="aloja-foto-input" accept="image/*" multiple style="display:none" onchange="alojaAdicionarFotos(this)">
+        <input type="file" id="aloja-foto-input" accept="image/*" capture="environment" multiple style="display:none" onchange="alojaAdicionarFotos(this)">
       </label>
     </div>
 
@@ -4098,8 +4098,8 @@ function alojaNovaVistoria() {
   document.getElementById('aloja-local').value = '';
   document.getElementById('aloja-data').value = '';
   document.getElementById('aloja-num').value = '0';
-  document.getElementById('aloja-responsavel').value = '';
-  document.getElementById('aloja-cargo').value = '';
+  document.getElementById('aloja-responsavel').value = 'JONATAS DA COSTA XAVIER';
+  document.getElementById('aloja-cargo').value = 'TÉCNICO DE SEGURANÇA DO TRABALHO';
   document.getElementById('aloja-encarregado').value = '';
   document.getElementById('aloja-prazo').value = '';
   document.getElementById('aloja-obs-geral').value = '';

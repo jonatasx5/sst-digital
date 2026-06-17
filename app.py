@@ -1499,7 +1499,11 @@ async def gerar_pdf_vistoria(vid: int, _=Depends(verificar_acesso)):
         from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
         from reportlab.lib.enums import TA_CENTER, TA_LEFT
         import io, base64
-        from PIL import Image as PILImage
+        try:
+            from PIL import Image as PILImage
+            _pillow_ok = True
+        except ImportError:
+            _pillow_ok = False
 
         buf = io.BytesIO()
         doc = SimpleDocTemplate(buf, pagesize=A4, leftMargin=1.5*cm, rightMargin=1.5*cm,
@@ -1597,7 +1601,7 @@ async def gerar_pdf_vistoria(vid: int, _=Depends(verificar_acesso)):
         # Resultado
         story.append(Spacer(1, 6))
         story.append(Paragraph("RESULTADO DA VISTORIA", sec_style))
-        res_data = [["Resultado:", Paragraph(f'<font color="#{res_color.hexval()[1:] if hasattr(res_color,"hexval") else "000000"}"><b>{res_label}</b></font>', body_style),
+        res_data = [["Resultado:", Paragraph(f'<b>{res_label}</b>', body_style),
                      "Prazo regularização:", v.get('prazo_regularizacao','')]]
         rt = Table(res_data, colWidths=[4*cm, 6*cm, 4*cm, W-14*cm])
         rt.setStyle(TableStyle([
@@ -1667,12 +1671,15 @@ async def gerar_pdf_vistoria(vid: int, _=Depends(verificar_acesso)):
                         b64 = b64.split(',', 1)[1]
                     img_bytes = base64.b64decode(b64)
                     img_buf = io.BytesIO(img_bytes)
-                    pil = PILImage.open(img_buf)
-                    pil.thumbnail((400, 300))
-                    out = io.BytesIO()
-                    pil.save(out, format='JPEG')
-                    out.seek(0)
-                    rl_img = RLImage(out, width=8*cm, height=6*cm)
+                    if _pillow_ok:
+                        pil = PILImage.open(img_buf)
+                        pil.thumbnail((400, 300))
+                        out = io.BytesIO()
+                        pil.save(out, format='JPEG')
+                        out.seek(0)
+                        rl_img = RLImage(out, width=8*cm, height=6*cm)
+                    else:
+                        rl_img = RLImage(img_buf, width=8*cm, height=6*cm)
                     foto_row.append(rl_img)
                     if len(foto_row) == 2:
                         ft = Table([foto_row], colWidths=[9*cm, 9*cm])

@@ -421,18 +421,20 @@ def criar_banco():
 
         # Migrações: adiciona colunas novas se ainda não existirem
         if USE_POSTGRES:
+            conn.commit()  # fecha transação anterior antes das migrações DDL
+            conn.autocommit = True
             for col, defval in [('cel_encarregado', "''"), ('link_assinatura', "''"), ('zapsign_token', "''")]:
                 try:
                     cur.execute(f"ALTER TABLE alojamento_vistorias ADD COLUMN {col} TEXT DEFAULT {defval}")
                 except Exception:
                     pass  # coluna já existe
+            conn.autocommit = False
         else:
             cols_existentes = [r[1] for r in cur.execute("PRAGMA table_info(alojamento_vistorias)").fetchall()]
             for col, defval in [('cel_encarregado', "''"), ('link_assinatura', "''"), ('zapsign_token', "''")]:
                 if col not in cols_existentes:
                     cur.execute(f"ALTER TABLE alojamento_vistorias ADD COLUMN {col} TEXT DEFAULT {defval}")
-
-        conn.commit()
+            conn.commit()
 
         print(f"OK Banco criado ({'PostgreSQL' if USE_POSTGRES else 'SQLite'})")
     finally:

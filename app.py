@@ -248,8 +248,7 @@ async def index():
 @app.get("/api/funcionarios")
 async def listar_funcionarios(busca: str = "", q: str = "", _=Depends(verificar_acesso)):
     termo = q or busca
-    lista = banco.buscar_funcionarios(termo)
-    return {"funcionarios": lista}
+    return banco.buscar_funcionarios(termo)
 
 @app.post("/api/funcionarios")
 async def salvar_funcionario(dados: dict, _=Depends(verificar_acesso)):

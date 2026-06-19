@@ -4602,13 +4602,15 @@ function acidBuscarFunc(q) {
   if (!drop) return;
   if (!q || q.length < 2) { drop.style.display='none'; return; }
   _acidBuscaTimer = setTimeout(async () => {
-    const res = await apiFetch(`/api/funcionarios?q=${encodeURIComponent(q)}`);
-    if (!res || !res.funcionarios) { drop.style.display='none'; return; }
+    const resp = await apiFetch(`/api/funcionarios?q=${encodeURIComponent(q)}`);
+    if (!resp) { drop.style.display='none'; return; }
+    const lista = await resp.json();
+    const funcionarios = Array.isArray(lista) ? lista : (lista.funcionarios || []);
     drop.innerHTML = '';
-    if (!res.funcionarios.length) {
+    if (!funcionarios.length) {
       drop.innerHTML = '<div style="padding:8px;color:var(--texto2)">Nenhum encontrado</div>';
     } else {
-      res.funcionarios.forEach(f => {
+      funcionarios.forEach(f => {
         const d = document.createElement('div');
         d.style.cssText = 'padding:8px 12px;cursor:pointer;border-bottom:1px solid #f0f0f0';
         d.textContent = `${f.nome} — ${f.cargo || f.funcao || ''}`;

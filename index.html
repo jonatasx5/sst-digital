@@ -1313,6 +1313,7 @@ tr:hover td { background:#F9FAFB; }
           </div>
         </div>
         <div class="field" id="acid-dias-wrap" style="display:none"><label>Nº de Dias Afastamento</label><input type="number" id="acid-dias" min="0" value="0"></div>
+        <div class="field" style="grid-column:1/-1"><label>Descrição do Acidente</label><textarea id="acid-descricao" rows="4" style="width:100%;padding:8px;border:1px solid var(--borda);border-radius:8px;font-size:13px;resize:vertical" placeholder="Descreva como ocorreu o acidente (o que aconteceu, onde, como, sequência dos fatos...)"></textarea></div>
         <div class="field" style="grid-column:1/-1"><label>Natureza da Lesão</label><textarea id="acid-natureza" rows="2" style="width:100%;padding:8px;border:1px solid var(--borda);border-radius:8px;font-size:13px;resize:vertical"></textarea></div>
         <div class="field" style="grid-column:1/-1"><label>Agente Causador</label><textarea id="acid-agente" rows="2" style="width:100%;padding:8px;border:1px solid var(--borda);border-radius:8px;font-size:13px;resize:vertical"></textarea></div>
         <div class="field" style="grid-column:1/-1"><label>Serviço que Executava</label><textarea id="acid-servico" rows="2" style="width:100%;padding:8px;border:1px solid var(--borda);border-radius:8px;font-size:13px;resize:vertical"></textarea></div>
@@ -1375,14 +1376,101 @@ tr:hover td { background:#F9FAFB; }
 
     <div class="card" style="margin-bottom:16px">
       <div class="card-title"><i class="ti ti-search"></i>Investigação e Análise</div>
-      <div class="grid2" style="gap:12px">
-        <div class="field"><label>Testemunha 1 — Nome</label><input type="text" id="acid-test1"></div>
-        <div class="field"><label>Testemunha 2 — Nome</label><input type="text" id="acid-test2"></div>
-        <div class="field"><label>Supervisor (Turno) — Nome</label><input type="text" id="acid-sup"></div>
-        <div class="field"><label>Técnico de Segurança do Trabalho</label><input type="text" id="acid-tecnico" value="JONATAS DA COSTA XAVIER"></div>
-        <div class="field" style="grid-column:1/-1"><label>Análise do Acidente</label>
+      <div style="display:flex;flex-direction:column;gap:12px">
+
+        <!-- Assinatura Funcionário -->
+        <div style="border:1px solid var(--borda);border-radius:8px;padding:12px;background:#f8fafc">
+          <div style="font-size:12px;font-weight:700;color:var(--texto2);margin-bottom:8px;text-transform:uppercase;letter-spacing:.5px">Assinatura do Funcionário Acidentado</div>
+          <div style="font-size:12px;color:var(--texto2);margin-bottom:8px">Celular do funcionário já preenchido acima. Salve o relatório antes de gerar o link.</div>
+          <div id="acid-func-link-wrap" style="display:none;margin-bottom:8px">
+            <div style="font-size:12px;color:var(--texto2);margin-bottom:4px">Link gerado:</div>
+            <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+              <a id="acid-func-link" href="#" target="_blank" style="font-size:12px;word-break:break-all;color:var(--primario)"></a>
+              <button onclick="acidEnviarWhats('func')" style="padding:4px 10px;background:#25d366;color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:12px"><i class="ti ti-brand-whatsapp"></i> WhatsApp</button>
+            </div>
+          </div>
+          <button onclick="acidGerarLink('func')" style="padding:5px 14px;background:none;border:1px solid var(--primario);color:var(--primario);border-radius:6px;cursor:pointer;font-size:12px"><i class="ti ti-signature"></i> Gerar Link de Assinatura</button>
+        </div>
+
+        <!-- Testemunha 1 -->
+        <div style="border:1px solid var(--borda);border-radius:8px;padding:12px;background:#f8fafc">
+          <div style="font-size:12px;font-weight:700;color:var(--texto2);margin-bottom:8px;text-transform:uppercase;letter-spacing:.5px">Testemunha 1</div>
+          <div class="grid2" style="gap:8px;margin-bottom:8px">
+            <div class="field"><label>Nome</label><input type="text" id="acid-test1" style="width:100%;padding:7px 10px;border:1px solid var(--borda);border-radius:7px;font-size:13px"></div>
+            <div class="field"><label>Celular</label><input type="text" id="acid-test1-cel" placeholder="(DDD) 99999-9999" style="width:100%;padding:7px 10px;border:1px solid var(--borda);border-radius:7px;font-size:13px"></div>
+          </div>
+          <div id="acid-test1-link-wrap" style="display:none;margin-bottom:8px">
+            <div style="font-size:12px;color:var(--texto2);margin-bottom:4px">Link gerado:</div>
+            <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+              <a id="acid-test1-link" href="#" target="_blank" style="font-size:12px;word-break:break-all;color:var(--primario)"></a>
+              <button onclick="acidEnviarWhats('test1')" style="padding:4px 10px;background:#25d366;color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:12px"><i class="ti ti-brand-whatsapp"></i> WhatsApp</button>
+            </div>
+          </div>
+          <button onclick="acidGerarLink('test1')" style="padding:5px 14px;background:none;border:1px solid var(--primario);color:var(--primario);border-radius:6px;cursor:pointer;font-size:12px"><i class="ti ti-signature"></i> Gerar Link de Assinatura</button>
+        </div>
+
+        <!-- Testemunha 2 -->
+        <div style="border:1px solid var(--borda);border-radius:8px;padding:12px;background:#f8fafc">
+          <div style="font-size:12px;font-weight:700;color:var(--texto2);margin-bottom:8px;text-transform:uppercase;letter-spacing:.5px">Testemunha 2</div>
+          <div class="grid2" style="gap:8px;margin-bottom:8px">
+            <div class="field"><label>Nome</label><input type="text" id="acid-test2" style="width:100%;padding:7px 10px;border:1px solid var(--borda);border-radius:7px;font-size:13px"></div>
+            <div class="field"><label>Celular</label><input type="text" id="acid-test2-cel" placeholder="(DDD) 99999-9999" style="width:100%;padding:7px 10px;border:1px solid var(--borda);border-radius:7px;font-size:13px"></div>
+          </div>
+          <div id="acid-test2-link-wrap" style="display:none;margin-bottom:8px">
+            <div style="font-size:12px;color:var(--texto2);margin-bottom:4px">Link gerado:</div>
+            <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+              <a id="acid-test2-link" href="#" target="_blank" style="font-size:12px;word-break:break-all;color:var(--primario)"></a>
+              <button onclick="acidEnviarWhats('test2')" style="padding:4px 10px;background:#25d366;color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:12px"><i class="ti ti-brand-whatsapp"></i> WhatsApp</button>
+            </div>
+          </div>
+          <button onclick="acidGerarLink('test2')" style="padding:5px 14px;background:none;border:1px solid var(--primario);color:var(--primario);border-radius:6px;cursor:pointer;font-size:12px"><i class="ti ti-signature"></i> Gerar Link de Assinatura</button>
+        </div>
+
+        <!-- Supervisor -->
+        <div style="border:1px solid var(--borda);border-radius:8px;padding:12px;background:#f8fafc">
+          <div style="font-size:12px;font-weight:700;color:var(--texto2);margin-bottom:8px;text-transform:uppercase;letter-spacing:.5px">Supervisor / Encarregado</div>
+          <div class="grid2" style="gap:8px;margin-bottom:8px">
+            <div class="field"><label>Nome</label><input type="text" id="acid-sup" style="width:100%;padding:7px 10px;border:1px solid var(--borda);border-radius:7px;font-size:13px"></div>
+            <div class="field"><label>Celular</label><input type="text" id="acid-sup-cel" placeholder="(DDD) 99999-9999" style="width:100%;padding:7px 10px;border:1px solid var(--borda);border-radius:7px;font-size:13px"></div>
+          </div>
+          <div id="acid-sup-link-wrap" style="display:none;margin-bottom:8px">
+            <div style="font-size:12px;color:var(--texto2);margin-bottom:4px">Link gerado:</div>
+            <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+              <a id="acid-sup-link" href="#" target="_blank" style="font-size:12px;word-break:break-all;color:var(--primario)"></a>
+              <button onclick="acidEnviarWhats('sup')" style="padding:4px 10px;background:#25d366;color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:12px"><i class="ti ti-brand-whatsapp"></i> WhatsApp</button>
+            </div>
+          </div>
+          <button onclick="acidGerarLink('sup')" style="padding:5px 14px;background:none;border:1px solid var(--primario);color:var(--primario);border-radius:6px;cursor:pointer;font-size:12px"><i class="ti ti-signature"></i> Gerar Link de Assinatura</button>
+        </div>
+
+        <!-- Técnico e Análise -->
+        <div class="grid2" style="gap:12px">
+          <div class="field"><label>Técnico de Segurança do Trabalho</label><input type="text" id="acid-tecnico" value="JONATAS DA COSTA XAVIER" style="width:100%;padding:7px 10px;border:1px solid var(--borda);border-radius:7px;font-size:13px"></div>
+        </div>
+        <div class="field"><label>Análise do Acidente (Causas e Circunstâncias)</label>
           <textarea id="acid-analise" rows="4" style="width:100%;padding:8px;border:1px solid var(--borda);border-radius:8px;font-size:13px;resize:vertical" placeholder="Descreva as causas e circunstâncias do acidente..."></textarea>
         </div>
+      </div>
+    </div>
+
+    <!-- Responsável pelo Preenchimento -->
+    <div class="card" style="margin-bottom:16px">
+      <div class="card-title"><i class="ti ti-user-check"></i>Responsável pelo Preenchimento</div>
+      <div class="grid2" style="gap:12px">
+        <div class="field"><label>Nome do Responsável</label><input type="text" id="acid-resp-nome" style="width:100%;padding:7px 10px;border:1px solid var(--borda);border-radius:7px;font-size:13px"></div>
+        <div class="field"><label>CPF</label><input type="text" id="acid-resp-cpf" placeholder="000.000.000-00" style="width:100%;padding:7px 10px;border:1px solid var(--borda);border-radius:7px;font-size:13px"></div>
+      </div>
+    </div>
+
+    <!-- Fotos -->
+    <div class="card" style="margin-bottom:16px">
+      <div class="card-title"><i class="ti ti-camera"></i>Fotos do Acidente (opcional)</div>
+      <div id="acid-fotos-preview" style="display:flex;flex-wrap:wrap;gap:10px;margin-bottom:10px"></div>
+      <div onclick="document.getElementById('acid-foto-input').click()"
+           style="border:2px dashed var(--borda);border-radius:10px;padding:16px;cursor:pointer;text-align:center;color:var(--texto2);font-size:13px">
+        <i class="ti ti-photo-plus" style="font-size:22px;display:block;margin-bottom:4px"></i>
+        Clique para adicionar fotos
+        <input type="file" id="acid-foto-input" accept="image/*" multiple style="display:none" onchange="acidAdicionarFotos(this)">
       </div>
     </div>
 
@@ -1404,6 +1492,7 @@ tr:hover td { background:#F9FAFB; }
 
     <div style="display:flex;gap:12px;justify-content:flex-end;flex-wrap:wrap;margin-bottom:8px">
       <button class="btn btn-outline" onclick="acidNovaOcorrencia()"><i class="ti ti-refresh"></i>Nova Ocorrência</button>
+      <button class="btn btn-outline" onclick="acidBaixarEmBranco()"><i class="ti ti-file-download"></i>Relatório em Branco</button>
       <button id="acid-btn-pdf" class="btn btn-outline" style="display:none" onclick="acidGerarPDF(_acidId)"><i class="ti ti-file-type-pdf"></i>Baixar PDF</button>
       <button id="acid-btn-salvar" class="btn btn-primary" onclick="acidSalvar()"><i class="ti ti-device-floppy"></i>Salvar Relatório</button>
     </div>
@@ -1417,9 +1506,9 @@ tr:hover td { background:#F9FAFB; }
           <tr style="border-bottom:2px solid var(--borda)">
             <th style="padding:10px 14px;text-align:left;color:var(--texto2)">Data</th>
             <th style="padding:10px 14px;text-align:left;color:var(--texto2)">Funcionário</th>
-            <th style="padding:10px 14px;text-align:left;color:var(--texto2)">Cargo</th>
-            <th style="padding:10px 14px;text-align:left;color:var(--texto2)">Local</th>
+            <th style="padding:10px 14px;text-align:left;color:var(--texto2)">Matrícula</th>
             <th style="padding:10px 14px;text-align:left;color:var(--texto2)">Tipo</th>
+            <th style="padding:10px 14px;text-align:left;color:var(--texto2)">Afastamento</th>
             <th style="padding:10px 14px;text-align:center;color:var(--texto2)">Ações</th>
           </tr>
         </thead>
@@ -4479,41 +4568,43 @@ async function alojaDeletar(id) {
 // ========== ACIDENTES ==========
 let _acidId = null;
 let _acidBuscaTimer = null;
+let _acidFotos = [];
 
 function acidInit() {
   const hoje = new Date().toISOString().slice(0,10);
-  const campoData = document.getElementById('acid-data-preen');
-  if (campoData && !campoData.value) campoData.value = hoje;
-  const campoDataAc = document.getElementById('acid-data-acidente');
-  if (campoDataAc && !campoDataAc.value) campoDataAc.value = hoje;
+  const dp = document.getElementById('acid-data-preen'); if(dp && !dp.value) dp.value = hoje;
+  const da = document.getElementById('acid-data-acid'); if(da && !da.value) da.value = hoje;
   acidAba('form');
 }
 
 function acidAba(aba) {
-  document.getElementById('acid-panel-form').style.display = aba === 'form' ? '' : 'none';
-  document.getElementById('acid-panel-hist').style.display = aba === 'hist' ? '' : 'none';
-  document.getElementById('acid-tab-form').style.color = aba === 'form' ? 'var(--primario)' : 'var(--texto2)';
-  document.getElementById('acid-tab-form').style.borderBottom = aba === 'form' ? '2px solid var(--primario)' : 'none';
-  document.getElementById('acid-tab-hist').style.color = aba === 'hist' ? 'var(--primario)' : 'var(--texto2)';
-  document.getElementById('acid-tab-hist').style.borderBottom = aba === 'hist' ? '2px solid var(--primario)' : 'none';
-  if (aba === 'hist') acidCarregarHistorico();
+  document.getElementById('acid-panel-form').style.display = aba==='form' ? '' : 'none';
+  document.getElementById('acid-panel-hist').style.display = aba==='hist' ? '' : 'none';
+  const tf = document.getElementById('acid-tab-form');
+  const th = document.getElementById('acid-tab-hist');
+  tf.style.color = aba==='form' ? 'var(--primario)' : 'var(--texto2)';
+  tf.style.borderBottom = aba==='form' ? '2px solid var(--primario)' : 'none';
+  th.style.color = aba==='hist' ? 'var(--primario)' : 'var(--texto2)';
+  th.style.borderBottom = aba==='hist' ? '2px solid var(--primario)' : 'none';
+  if (aba==='hist') acidCarregarHistorico();
 }
 
 function acidBuscarFunc(q) {
   clearTimeout(_acidBuscaTimer);
-  const drop = document.getElementById('acid-func-drop');
-  if (!q || q.length < 2) { drop.style.display = 'none'; return; }
+  const drop = document.getElementById('acid-func-dropdown');
+  if (!drop) return;
+  if (!q || q.length < 2) { drop.style.display='none'; return; }
   _acidBuscaTimer = setTimeout(async () => {
     const res = await apiFetch(`/api/funcionarios?q=${encodeURIComponent(q)}`);
-    if (!res || !res.funcionarios) { drop.style.display = 'none'; return; }
+    if (!res || !res.funcionarios) { drop.style.display='none'; return; }
     drop.innerHTML = '';
-    if (res.funcionarios.length === 0) {
+    if (!res.funcionarios.length) {
       drop.innerHTML = '<div style="padding:8px;color:var(--texto2)">Nenhum encontrado</div>';
     } else {
       res.funcionarios.forEach(f => {
         const d = document.createElement('div');
-        d.style.cssText = 'padding:8px 12px;cursor:pointer;';
-        d.textContent = `${f.nome} — ${f.cargo || ''}`;
+        d.style.cssText = 'padding:8px 12px;cursor:pointer;border-bottom:1px solid #f0f0f0';
+        d.textContent = `${f.nome} — ${f.cargo || f.funcao || ''}`;
         d.onmouseenter = () => d.style.background = '#f0f4ff';
         d.onmouseleave = () => d.style.background = '';
         d.onclick = () => acidSelecionarFunc(f);
@@ -4525,21 +4616,26 @@ function acidBuscarFunc(q) {
 }
 
 function acidSelecionarFunc(f) {
-  document.getElementById('acid-busca-func').value = f.nome;
-  document.getElementById('acid-func-drop').style.display = 'none';
-  document.getElementById('acid-func-nome').value = f.nome || '';
-  document.getElementById('acid-func-matricula').value = f.matricula || '';
-  document.getElementById('acid-func-cargo').value = f.cargo || '';
-  document.getElementById('acid-func-setor').value = f.setor || f.frente_servico || '';
-  document.getElementById('acid-func-contrato').value = f.contrato || '';
-  document.getElementById('acid-func-empresa').value = f.empresa || '';
-  document.getElementById('acid-func-adm').value = f.data_admissao || '';
+  const drop = document.getElementById('acid-func-dropdown');
+  if(drop) drop.style.display='none';
+  document.getElementById('acid-busca-func').value = f.nome || '';
+  const sv = (id, v) => { const el=document.getElementById(id); if(el) el.value=v||''; };
+  sv('acid-nome', f.nome);
+  sv('acid-matricula', f.matricula);
+  sv('acid-funcao', f.cargo || f.funcao);
+  sv('acid-turno', f.turno);
+  sv('acid-nasc', f.data_nasc || f.data_nascimento);
+  sv('acid-admissao', f.data_admissao);
+  sv('acid-telefone', f.celular || f.telefone);
+  sv('acid-posto', f.frente_servico || f.setor || f.lotacao);
+  sv('acid-chefia', f.encarregado || f.chefia_imediata);
+  const sexoEl = document.getElementById('acid-sexo'); if(sexoEl && f.sexo) sexoEl.value = f.sexo;
 }
 
 function acidToggleAfas() {
-  const afas = document.querySelector('input[name="acid-afastamento"]:checked');
+  const afas = document.querySelector('input[name="acid-afas"]:checked');
   const wrap = document.getElementById('acid-dias-wrap');
-  if (wrap) wrap.style.display = (afas && afas.value === 'Sim') ? '' : 'none';
+  if (wrap) wrap.style.display = (afas && afas.value==='sim') ? '' : 'none';
 }
 
 function acidAddAcao() {
@@ -4554,62 +4650,79 @@ function acidAddAcao() {
   tbody.appendChild(tr);
 }
 
+function acidAdicionarFotos(input) {
+  Array.from(input.files).forEach(file => {
+    const reader = new FileReader();
+    reader.onload = e => {
+      _acidFotos.push({ nome: file.name, base64: e.target.result });
+      acidRenderFotos();
+    };
+    reader.readAsDataURL(file);
+  });
+  input.value = '';
+}
+
+function acidRenderFotos() {
+  const prev = document.getElementById('acid-fotos-preview');
+  if (!prev) return;
+  prev.innerHTML = '';
+  _acidFotos.forEach((f, i) => {
+    const div = document.createElement('div');
+    div.style.cssText = 'position:relative;display:inline-block';
+    div.innerHTML = `<img src="${f.base64}" style="width:80px;height:80px;object-fit:cover;border-radius:6px;border:1px solid var(--borda)">
+      <button onclick="_acidFotos.splice(${i},1);acidRenderFotos()" style="position:absolute;top:-6px;right:-6px;background:#e53e3e;color:#fff;border:none;border-radius:50%;width:18px;height:18px;cursor:pointer;font-size:10px;line-height:18px;text-align:center">✕</button>`;
+    prev.appendChild(div);
+  });
+}
+
 function acidColetarDados() {
   const v = id => (document.getElementById(id)||{}).value || '';
-  const r = name => { const el = document.querySelector(`input[name="${name}"]:checked`); return el ? el.value : ''; };
-  const c = id => (document.getElementById(id)||{}).checked ? 'Sim' : '';
-
+  const r = name => { const el=document.querySelector(`input[name="${name}"]:checked`); return el?el.value:''; };
   const plano = [];
   document.querySelectorAll('#acid-plano-body tr').forEach(tr => {
     const inputs = tr.querySelectorAll('input');
-    if (inputs.length >= 4) {
-      plano.push({
-        acao: inputs[0].value,
-        responsavel: inputs[1].value,
-        prazo: inputs[2].value,
-        visto: inputs[3].checked ? 'Sim' : ''
-      });
-    }
+    if (inputs.length >= 4)
+      plano.push({ acao:inputs[0].value, responsavel:inputs[1].value, prazo:inputs[2].value, visto:inputs[3].checked?'Sim':'' });
   });
-
   return {
-    data_preenchimento: v('acid-data-preen'),
-    funcionario_nome: v('acid-func-nome'),
-    funcionario_matricula: v('acid-func-matricula'),
-    funcionario_cargo: v('acid-func-cargo'),
-    funcionario_setor: v('acid-func-setor'),
-    funcionario_contrato: v('acid-func-contrato'),
-    funcionario_empresa: v('acid-func-empresa'),
-    funcionario_data_adm: v('acid-func-adm'),
-    data_acidente: v('acid-data-acidente'),
-    hora_acidente: v('acid-hora-acidente'),
-    local_acidente: v('acid-local-acidente'),
+    funcionario_nome: v('acid-nome'),
+    matricula: v('acid-matricula'),
+    funcao: v('acid-funcao'),
+    turno: v('acid-turno'),
+    sexo: v('acid-sexo'),
+    data_nasc: v('acid-nasc'),
+    data_admissao: v('acid-admissao'),
+    telefone: v('acid-telefone'),
+    posto_trabalho: v('acid-posto'),
+    chefia_imediata: v('acid-chefia'),
     tipo_acidente: r('acid-tipo'),
-    tipo_acidente_outro: v('acid-tipo-outro'),
+    data_acidente: v('acid-data-acid'),
+    hora_acidente: v('acid-hora'),
+    data_preenchimento: v('acid-data-preen'),
+    afastamento: r('acid-afas'),
+    num_dias_afastamento: v('acid-dias'),
+    natureza_lesao: v('acid-natureza'),
+    agente_causador: v('acid-agente'),
+    servico_executava: v('acid-servico'),
     descricao_acidente: v('acid-descricao'),
-    houve_afastamento: r('acid-afastamento'),
-    dias_afastamento: v('acid-dias'),
-    parte_corpo_atingida: v('acid-parte-corpo'),
-    natureza_lesao: v('acid-natureza-lesao'),
-    testemunha1_nome: v('acid-test1-nome'),
-    testemunha1_cargo: v('acid-test1-cargo'),
-    testemunha2_nome: v('acid-test2-nome'),
-    testemunha2_cargo: v('acid-test2-cargo'),
-    epi_fornecido: c('acid-epi-fornecido'),
-    epi_adequado: c('acid-epi-adequado'),
-    epi_usando: c('acid-epi-usando'),
-    ato_inseguro: c('acid-ato-inseguro'),
-    cond_insegura: c('acid-cond-insegura'),
-    falta_epi: c('acid-falta-epi'),
-    falha_equipamento: c('acid-falha-equip'),
-    falta_sinalizacao: c('acid-falta-sinal'),
-    falta_treinamento: c('acid-falta-trein'),
-    outros_fatores: c('acid-outros-fat'),
-    outros_fatores_desc: v('acid-outros-fat-desc'),
-    causas_diretas: v('acid-causas-diretas'),
-    causas_basicas: v('acid-causas-basicas'),
-    medidas_imediatas: v('acid-medidas-imediatas'),
+    checklist_acidentes_antes: r('acid-ck1'),
+    checklist_qtd_acidentes: v('acid-ck1-qtd'),
+    checklist_acidente_semelhante: r('acid-ck1-sem'),
+    checklist_usava_epi: r('acid-ck2'),
+    checklist_epi_justificativa: v('acid-ck2-just'),
+    checklist_treinamento: r('acid-ck3'),
+    checklist_experiencia: r('acid-ck4'),
+    checklist_supervisor_presente: r('acid-ck5'),
+    testemunha1_nome: v('acid-test1'),
+    cel_testemunha1: v('acid-test1-cel'),
+    testemunha2_nome: v('acid-test2'),
+    cel_testemunha2: v('acid-test2-cel'),
+    supervisor_turno_nome: v('acid-sup'),
+    cel_supervisor: v('acid-sup-cel'),
     tecnico_seguranca: v('acid-tecnico') || 'JONATAS DA COSTA XAVIER',
+    analise_acidente: v('acid-analise'),
+    responsavel_nome: v('acid-resp-nome'),
+    responsavel_cpf: v('acid-resp-cpf'),
     plano_acao: plano
   };
 }
@@ -4626,25 +4739,70 @@ async function acidSalvar() {
   _acidId = res.id;
 
   document.getElementById('acid-btn-pdf').style.display = '';
-  document.getElementById('acid-btn-pdf').onclick = () => acidGerarPDF(_acidId);
-  alert('Relatório salvo com sucesso!');
+  const result = document.getElementById('acid-result');
+  if (result) result.innerHTML = '<span style="color:var(--verde)">✓ Relatório salvo com sucesso! Agora você pode gerar os links de assinatura.</span>';
 }
 
 async function acidGerarPDF(id) {
   try {
     const token = localStorage.getItem('token');
-    const resp = await fetch(`/api/acidentes/relatorios/${id}/pdf`, {
-      headers: { Authorization: `Bearer ${token}` }
-    });
+    const resp = await fetch(`/api/acidentes/relatorios/${id}/pdf`, { headers:{ Authorization:`Bearer ${token}` } });
     if (!resp.ok) { alert('Erro ao gerar PDF.'); return; }
     const blob = await resp.blob();
     const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `relatorio_acidente_${id}.pdf`;
-    a.click();
+    const a = document.createElement('a'); a.href=url; a.download=`relatorio_acidente_${id}.pdf`; a.click();
     URL.revokeObjectURL(url);
-  } catch(e) { alert('Erro ao baixar PDF: ' + e.message); }
+  } catch(e) { alert('Erro ao baixar PDF: '+e.message); }
+}
+
+async function acidBaixarEmBranco() {
+  try {
+    const token = localStorage.getItem('token');
+    const resp = await fetch('/api/acidentes/relatorios/branco/pdf', { headers:{ Authorization:`Bearer ${token}` } });
+    if (!resp.ok) { alert('Erro ao gerar PDF em branco.'); return; }
+    const blob = await resp.blob();
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a'); a.href=url; a.download='relatorio_acidente_BRANCO.pdf'; a.click();
+    URL.revokeObjectURL(url);
+  } catch(e) { alert('Erro: '+e.message); }
+}
+
+async function acidGerarLink(tipo) {
+  if (!_acidId) { alert('Salve o relatório primeiro antes de gerar o link de assinatura.'); return; }
+  let celular = '';
+  if (tipo==='test1') celular = (document.getElementById('acid-test1-cel')||{}).value||'';
+  else if (tipo==='test2') celular = (document.getElementById('acid-test2-cel')||{}).value||'';
+  else if (tipo==='sup') celular = (document.getElementById('acid-sup-cel')||{}).value||'';
+  else celular = (document.getElementById('acid-telefone')||{}).value||'';
+
+  if (!celular) { alert('Preencha o celular antes de gerar o link.'); return; }
+
+  const res = await apiFetch(`/api/acidentes/relatorios/${_acidId}/assinar`, {
+    method:'POST', body: JSON.stringify({ tipo, celular })
+  });
+  if (!res || !res.link_assinatura) { alert('Erro ao gerar link de assinatura.'); return; }
+
+  const link = res.link_assinatura;
+  const wrap = document.getElementById(`acid-${tipo}-link-wrap`);
+  const linkEl = document.getElementById(`acid-${tipo}-link`);
+  if (wrap) wrap.style.display = '';
+  if (linkEl) { linkEl.href = link; linkEl.textContent = link; }
+}
+
+function acidEnviarWhats(tipo) {
+  const linkEl = document.getElementById(`acid-${tipo}-link`);
+  if (!linkEl || !linkEl.textContent) return;
+  const link = linkEl.href;
+  const funcNome = (document.getElementById('acid-nome')||{}).value || 'funcionário';
+  let nomeSign = funcNome, cel = '';
+  if (tipo==='test1') { nomeSign=(document.getElementById('acid-test1')||{}).value||'Testemunha'; cel=(document.getElementById('acid-test1-cel')||{}).value||''; }
+  else if (tipo==='test2') { nomeSign=(document.getElementById('acid-test2')||{}).value||'Testemunha'; cel=(document.getElementById('acid-test2-cel')||{}).value||''; }
+  else if (tipo==='sup') { nomeSign=(document.getElementById('acid-sup')||{}).value||'Supervisor'; cel=(document.getElementById('acid-sup-cel')||{}).value||''; }
+  else { cel=(document.getElementById('acid-telefone')||{}).value||''; }
+  const msg = `Olá ${nomeSign}, segue o Relatório de Acidente de Trabalho de ${funcNome} para sua assinatura:\n\n${link}`;
+  cel = cel.replace(/\D/g,'');
+  if (!cel.startsWith('55')) cel = '55'+cel;
+  window.open(`https://wa.me/${cel}?text=${encodeURIComponent(msg)}`, '_blank');
 }
 
 async function acidCarregarHistorico() {
@@ -4652,22 +4810,23 @@ async function acidCarregarHistorico() {
   const tbody = document.getElementById('acid-hist-body');
   if (!tbody) return;
   tbody.innerHTML = '';
-  if (!res || !res.relatorios || res.relatorios.length === 0) {
+  const lista = res?.relatorios || (Array.isArray(res) ? res : []);
+  if (!lista.length) {
     tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:var(--texto2);padding:20px">Nenhum relatório encontrado.</td></tr>';
     return;
   }
-  res.relatorios.forEach(r => {
+  lista.forEach(r => {
     const tr = document.createElement('tr');
     tr.innerHTML = `
-      <td>${r.data_acidente || '-'}</td>
-      <td>${r.funcionario_nome || '-'}</td>
-      <td>${r.funcionario_cargo || '-'}</td>
-      <td>${r.local_acidente || '-'}</td>
-      <td>${r.tipo_acidente || '-'}</td>
-      <td>
-        <button class="btn btn-sm btn-outline" onclick="acidAbrirRelatorio(${r.id})" style="margin-right:4px"><i class="ti ti-edit"></i></button>
-        <button class="btn btn-sm btn-outline" onclick="acidGerarPDF(${r.id})" style="margin-right:4px"><i class="ti ti-file-type-pdf"></i></button>
-        <button class="btn btn-sm" style="background:#fee2e2;color:#e53e3e;border:none;padding:4px 8px;border-radius:4px;cursor:pointer" onclick="acidDeletar(${r.id})"><i class="ti ti-trash"></i></button>
+      <td style="padding:10px 14px">${r.data_acidente||'-'}</td>
+      <td style="padding:10px 14px">${r.funcionario_nome||'-'}</td>
+      <td style="padding:10px 14px">${r.matricula||'-'}</td>
+      <td style="padding:10px 14px">${r.tipo_acidente||'-'}</td>
+      <td style="padding:10px 14px">${r.afastamento==='sim'?'SIM':'NÃO'}</td>
+      <td style="padding:10px 14px;text-align:center">
+        <button class="btn btn-sm btn-outline" onclick="acidAbrirRelatorio(${r.id})" style="margin-right:4px" title="Editar"><i class="ti ti-edit"></i></button>
+        <button class="btn btn-sm btn-outline" onclick="acidGerarPDF(${r.id})" style="margin-right:4px" title="Baixar PDF"><i class="ti ti-file-type-pdf"></i></button>
+        <button class="btn btn-sm" style="background:#fee2e2;color:#e53e3e;border:none;padding:4px 8px;border-radius:4px;cursor:pointer" onclick="acidDeletar(${r.id})" title="Excluir"><i class="ti ti-trash"></i></button>
       </td>`;
     tbody.appendChild(tr);
   });
@@ -4675,62 +4834,47 @@ async function acidCarregarHistorico() {
 
 async function acidAbrirRelatorio(id) {
   const res = await apiFetch(`/api/acidentes/relatorios/${id}`);
-  if (!res || !res.relatorio) { alert('Erro ao carregar relatório.'); return; }
-  const r = res.relatorio;
+  if (!res) { alert('Erro ao carregar relatório.'); return; }
+  const r = res.relatorio || res;
   _acidId = id;
 
-  const sv = (elId, val) => { const el = document.getElementById(elId); if(el) el.value = val || ''; };
-  const sc = (elId, val) => { const el = document.getElementById(elId); if(el) el.checked = val === 'Sim'; };
-  const sr = (name, val) => { const el = document.querySelector(`input[name="${name}"][value="${val}"]`); if(el) el.checked = true; };
+  const sv = (elId, val) => { const el=document.getElementById(elId); if(el) el.value=val||''; };
+  const sr = (name, val) => { if(!val) return; const el=document.querySelector(`input[name="${name}"][value="${val}"]`); if(el) el.checked=true; };
 
-  sv('acid-data-preen', r.data_preenchimento);
   sv('acid-busca-func', r.funcionario_nome);
-  sv('acid-func-nome', r.funcionario_nome);
-  sv('acid-func-matricula', r.funcionario_matricula);
-  sv('acid-func-cargo', r.funcionario_cargo);
-  sv('acid-func-setor', r.funcionario_setor);
-  sv('acid-func-contrato', r.funcionario_contrato);
-  sv('acid-func-empresa', r.funcionario_empresa);
-  sv('acid-func-adm', r.funcionario_data_adm);
-  sv('acid-data-acidente', r.data_acidente);
-  sv('acid-hora-acidente', r.hora_acidente);
-  sv('acid-local-acidente', r.local_acidente);
-  if (r.tipo_acidente) sr('acid-tipo', r.tipo_acidente);
-  sv('acid-tipo-outro', r.tipo_acidente_outro);
-  sv('acid-descricao', r.descricao_acidente);
-  if (r.houve_afastamento) sr('acid-afastamento', r.houve_afastamento);
-  acidToggleAfas();
-  sv('acid-dias', r.dias_afastamento);
-  sv('acid-parte-corpo', r.parte_corpo_atingida);
-  sv('acid-natureza-lesao', r.natureza_lesao);
-  sv('acid-test1-nome', r.testemunha1_nome);
-  sv('acid-test1-cargo', r.testemunha1_cargo);
-  sv('acid-test2-nome', r.testemunha2_nome);
-  sv('acid-test2-cargo', r.testemunha2_cargo);
-  sc('acid-epi-fornecido', r.epi_fornecido);
-  sc('acid-epi-adequado', r.epi_adequado);
-  sc('acid-epi-usando', r.epi_usando);
-  sc('acid-ato-inseguro', r.ato_inseguro);
-  sc('acid-cond-insegura', r.cond_insegura);
-  sc('acid-falta-epi', r.falta_epi);
-  sc('acid-falha-equip', r.falha_equipamento);
-  sc('acid-falta-sinal', r.falta_sinalizacao);
-  sc('acid-falta-trein', r.falta_treinamento);
-  sc('acid-outros-fat', r.outros_fatores);
-  sv('acid-outros-fat-desc', r.outros_fatores_desc);
-  sv('acid-causas-diretas', r.causas_diretas);
-  sv('acid-causas-basicas', r.causas_basicas);
-  sv('acid-medidas-imediatas', r.medidas_imediatas);
-  sv('acid-tecnico', r.tecnico_seguranca);
+  sv('acid-nome', r.funcionario_nome); sv('acid-matricula', r.matricula);
+  sv('acid-funcao', r.funcao); sv('acid-turno', r.turno);
+  const sexoEl=document.getElementById('acid-sexo'); if(sexoEl) sexoEl.value=r.sexo||'';
+  sv('acid-nasc', r.data_nasc); sv('acid-admissao', r.data_admissao);
+  sv('acid-telefone', r.telefone); sv('acid-posto', r.posto_trabalho); sv('acid-chefia', r.chefia_imediata);
+  sr('acid-tipo', r.tipo_acidente);
+  sv('acid-data-acid', r.data_acidente); sv('acid-hora', r.hora_acidente);
+  sv('acid-data-preen', r.data_preenchimento);
+  sr('acid-afas', r.afastamento); acidToggleAfas();
+  sv('acid-dias', r.num_dias_afastamento);
+  sv('acid-natureza', r.natureza_lesao); sv('acid-agente', r.agente_causador);
+  sv('acid-servico', r.servico_executava); sv('acid-descricao', r.descricao_acidente);
+  sr('acid-ck1', r.checklist_acidentes_antes); sv('acid-ck1-qtd', r.checklist_qtd_acidentes);
+  sr('acid-ck1-sem', r.checklist_acidente_semelhante);
+  sr('acid-ck2', r.checklist_usava_epi); sv('acid-ck2-just', r.checklist_epi_justificativa);
+  sr('acid-ck3', r.checklist_treinamento); sr('acid-ck4', r.checklist_experiencia);
+  sr('acid-ck5', r.checklist_supervisor_presente);
+  sv('acid-test1', r.testemunha1_nome); sv('acid-test1-cel', r.cel_testemunha1);
+  sv('acid-test2', r.testemunha2_nome); sv('acid-test2-cel', r.cel_testemunha2);
+  sv('acid-sup', r.supervisor_turno_nome); sv('acid-sup-cel', r.cel_supervisor);
+  sv('acid-tecnico', r.tecnico_seguranca); sv('acid-analise', r.analise_acidente);
+  sv('acid-resp-nome', r.responsavel_nome); sv('acid-resp-cpf', r.responsavel_cpf);
 
-  // Plano de ação
+  _acidFotos = [];
+  acidRenderFotos();
+
   const tbody = document.getElementById('acid-plano-body');
   tbody.innerHTML = '';
   (r.plano_acao || []).forEach(p => {
     const tr = document.createElement('tr');
     tr.innerHTML = `
-      <td><input type="text" value="${p.acao||''}" style="width:100%;border:1px solid #ddd;padding:4px;border-radius:4px"></td>
-      <td><input type="text" value="${p.responsavel||''}" style="width:100%;border:1px solid #ddd;padding:4px;border-radius:4px"></td>
+      <td><input type="text" value="${(p.acao||'').replace(/"/g,'&quot;')}" style="width:100%;border:1px solid #ddd;padding:4px;border-radius:4px"></td>
+      <td><input type="text" value="${(p.responsavel||'').replace(/"/g,'&quot;')}" style="width:100%;border:1px solid #ddd;padding:4px;border-radius:4px"></td>
       <td><input type="date" value="${p.prazo||''}" style="width:100%;border:1px solid #ddd;padding:4px;border-radius:4px"></td>
       <td style="text-align:center"><input type="checkbox" ${p.visto==='Sim'?'checked':''}></td>
       <td style="text-align:center"><button onclick="this.closest('tr').remove()" style="background:none;border:none;cursor:pointer;color:#e53e3e;font-size:16px">✕</button></td>`;
@@ -4738,9 +4882,7 @@ async function acidAbrirRelatorio(id) {
   });
 
   document.getElementById('acid-btn-pdf').style.display = '';
-  document.getElementById('acid-btn-pdf').onclick = () => acidGerarPDF(id);
-  acidAba('form');
-  window.scrollTo(0, 0);
+  acidAba('form'); window.scrollTo(0,0);
 }
 
 async function acidDeletar(id) {
@@ -4751,27 +4893,27 @@ async function acidDeletar(id) {
 }
 
 function acidNovaOcorrencia() {
-  _acidId = null;
+  _acidId = null; _acidFotos = [];
   document.getElementById('acid-busca-func').value = '';
-  ['acid-func-nome','acid-func-matricula','acid-func-cargo','acid-func-setor',
-   'acid-func-contrato','acid-func-empresa','acid-func-adm','acid-hora-acidente',
-   'acid-local-acidente','acid-tipo-outro','acid-descricao','acid-dias',
-   'acid-parte-corpo','acid-natureza-lesao','acid-test1-nome','acid-test1-cargo',
-   'acid-test2-nome','acid-test2-cargo','acid-causas-diretas','acid-causas-basicas',
-   'acid-medidas-imediatas'].forEach(id => { const el = document.getElementById(id); if(el) el.value=''; });
-  ['acid-epi-fornecido','acid-epi-adequado','acid-epi-usando','acid-ato-inseguro',
-   'acid-cond-insegura','acid-falta-epi','acid-falha-equip','acid-falta-sinal',
-   'acid-falta-trein','acid-outros-fat'].forEach(id => { const el = document.getElementById(id); if(el) el.checked=false; });
-  document.querySelectorAll('input[name^="acid-"]').forEach(el => el.checked = false);
-  document.getElementById('acid-plano-body').innerHTML = '';
-  document.getElementById('acid-btn-pdf').style.display = 'none';
+  ['acid-nome','acid-matricula','acid-funcao','acid-turno','acid-nasc','acid-admissao',
+   'acid-telefone','acid-posto','acid-chefia','acid-hora','acid-ck1-qtd','acid-ck2-just',
+   'acid-natureza','acid-agente','acid-servico','acid-descricao','acid-dias',
+   'acid-test1','acid-test1-cel','acid-test2','acid-test2-cel','acid-sup','acid-sup-cel',
+   'acid-analise','acid-resp-nome','acid-resp-cpf'].forEach(id => { const el=document.getElementById(id); if(el) el.value=''; });
+  const sexo=document.getElementById('acid-sexo'); if(sexo) sexo.value='';
+  document.querySelectorAll('input[name^="acid-"]').forEach(el => el.checked=false);
+  document.getElementById('acid-plano-body').innerHTML='';
+  document.getElementById('acid-btn-pdf').style.display='none';
+  ['acid-func-link-wrap','acid-test1-link-wrap','acid-test2-link-wrap','acid-sup-link-wrap'].forEach(id=>{
+    const el=document.getElementById(id); if(el) el.style.display='none';
+  });
+  acidRenderFotos();
   const hoje = new Date().toISOString().slice(0,10);
-  const dp = document.getElementById('acid-data-preen'); if(dp) dp.value = hoje;
-  const da = document.getElementById('acid-data-acidente'); if(da) da.value = hoje;
-  { const el = document.getElementById('acid-tecnico'); if(el) el.value='JONATAS DA COSTA XAVIER'; }
-  acidToggleAfas();
-  acidAba('form');
-  window.scrollTo(0,0);
+  const dp=document.getElementById('acid-data-preen'); if(dp) dp.value=hoje;
+  const da=document.getElementById('acid-data-acid'); if(da) da.value=hoje;
+  const tec=document.getElementById('acid-tecnico'); if(tec) tec.value='JONATAS DA COSTA XAVIER';
+  const res=document.getElementById('acid-result'); if(res) res.innerHTML='';
+  acidToggleAfas(); acidAba('form'); window.scrollTo(0,0);
 }
 </script>
 </body>

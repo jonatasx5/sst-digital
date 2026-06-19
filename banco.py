@@ -436,6 +436,27 @@ def criar_banco():
                     cur.execute(f"ALTER TABLE alojamento_vistorias ADD COLUMN {col} TEXT DEFAULT {defval}")
             conn.commit()
 
+        # Migrações: colunas novas em acidentes_relatorios
+        _acid_new_cols = [('descricao_acidente',"''"),('cel_testemunha1',"''"),('cel_testemunha2',"''"),
+                          ('cel_supervisor',"''"),('responsavel_nome',"''"),('responsavel_cpf',"''")]
+        if USE_POSTGRES:
+            conn.autocommit = True
+            for col, defval in _acid_new_cols:
+                try:
+                    cur.execute(f"ALTER TABLE acidentes_relatorios ADD COLUMN {col} TEXT DEFAULT {defval}")
+                except Exception:
+                    pass
+            conn.autocommit = False
+        else:
+            try:
+                cols_acid = [r[1] for r in cur.execute("PRAGMA table_info(acidentes_relatorios)").fetchall()]
+                for col, _ in _acid_new_cols:
+                    if col not in cols_acid:
+                        cur.execute(f"ALTER TABLE acidentes_relatorios ADD COLUMN {col} TEXT DEFAULT ''")
+                conn.commit()
+            except Exception:
+                pass
+
         # Tabelas de Acidentes
         if USE_POSTGRES:
             cur.execute("""
@@ -474,6 +495,12 @@ def criar_banco():
                     supervisor_turno_nome TEXT DEFAULT '',
                     tecnico_seguranca TEXT DEFAULT 'JONATAS DA COSTA XAVIER',
                     analise_acidente TEXT DEFAULT '',
+                    descricao_acidente TEXT DEFAULT '',
+                    cel_testemunha1 TEXT DEFAULT '',
+                    cel_testemunha2 TEXT DEFAULT '',
+                    cel_supervisor TEXT DEFAULT '',
+                    responsavel_nome TEXT DEFAULT '',
+                    responsavel_cpf TEXT DEFAULT '',
                     criado_por TEXT DEFAULT '',
                     criado_em TIMESTAMP DEFAULT NOW(),
                     link_assinatura TEXT DEFAULT '',
@@ -526,6 +553,12 @@ def criar_banco():
                 supervisor_turno_nome TEXT DEFAULT '',
                 tecnico_seguranca TEXT DEFAULT 'JONATAS DA COSTA XAVIER',
                 analise_acidente TEXT DEFAULT '',
+                descricao_acidente TEXT DEFAULT '',
+                cel_testemunha1 TEXT DEFAULT '',
+                cel_testemunha2 TEXT DEFAULT '',
+                cel_supervisor TEXT DEFAULT '',
+                responsavel_nome TEXT DEFAULT '',
+                responsavel_cpf TEXT DEFAULT '',
                 criado_por TEXT DEFAULT '',
                 criado_em TEXT DEFAULT (datetime('now','localtime')),
                 link_assinatura TEXT DEFAULT '',
@@ -1499,7 +1532,9 @@ def salvar_relatorio_acidente(dados: dict, usuario: str = '') -> int:
         'checklist_acidente_semelhante','checklist_usava_epi','checklist_epi_justificativa',
         'checklist_treinamento','checklist_experiencia','checklist_supervisor_presente',
         'testemunha1_nome','testemunha2_nome','supervisor_turno_nome',
-        'tecnico_seguranca','analise_acidente'
+        'tecnico_seguranca','analise_acidente','descricao_acidente',
+        'cel_testemunha1','cel_testemunha2','cel_supervisor',
+        'responsavel_nome','responsavel_cpf'
     ]
     vals = [dados.get(c) for c in campos]
     rid = dados.get('id')

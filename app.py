@@ -246,8 +246,10 @@ async def index():
 # ══════════════════════════════════════════════════════════
 
 @app.get("/api/funcionarios")
-async def listar_funcionarios(busca: str = "", _=Depends(verificar_acesso)):
-    return banco.buscar_funcionarios(busca)
+async def listar_funcionarios(busca: str = "", q: str = "", _=Depends(verificar_acesso)):
+    termo = q or busca
+    lista = banco.buscar_funcionarios(termo)
+    return {"funcionarios": lista}
 
 @app.post("/api/funcionarios")
 async def salvar_funcionario(dados: dict, _=Depends(verificar_acesso)):
@@ -1978,7 +1980,15 @@ async def criar_relatorio_acidente(dados: dict, req: Request, _=Depends(verifica
 
 @app.get("/api/acidentes/relatorios")
 async def listar_relatorios_acidente(_=Depends(verificar_acesso)):
-    return banco.listar_relatorios_acidente()
+    return {"relatorios": banco.listar_relatorios_acidente()}
+
+
+@app.get("/api/acidentes/relatorios/branco/pdf")
+async def pdf_relatorio_acidente_branco(_=Depends(verificar_acesso)):
+    pdf_bytes = _gerar_pdf_acidente_bytes({})
+    import io
+    return StreamingResponse(io.BytesIO(pdf_bytes), media_type="application/pdf",
+                             headers={"Content-Disposition": 'attachment; filename="relatorio_acidente_BRANCO.pdf"'})
 
 
 @app.get("/api/acidentes/relatorios/{rid}")
@@ -1986,7 +1996,16 @@ async def buscar_relatorio_acidente(rid: int, _=Depends(verificar_acesso)):
     r = banco.buscar_relatorio_acidente(rid)
     if not r:
         raise HTTPException(404, "Relatório não encontrado")
-    return r
+    return {"relatorio": r}
+
+
+@app.put("/api/acidentes/relatorios/{rid}")
+async def atualizar_relatorio_acidente(rid: int, dados: dict, _=Depends(verificar_acesso)):
+    plano = dados.pop('plano_acao', [])
+    dados['id'] = rid
+    banco.salvar_relatorio_acidente(dados)
+    banco.salvar_plano_acao_acidente(rid, plano)
+    return {"ok": True, "id": rid}
 
 
 @app.delete("/api/acidentes/relatorios/{rid}")
@@ -1995,152 +2014,230 @@ async def deletar_relatorio_acidente(rid: int, _=Depends(verificar_acesso)):
     return {"ok": True}
 
 
+@app.post("/api/acidentes/relatorios/{rid}/assinar")
+async def assinar_relatorio_acidente(rid: int, dados: dict = None, _=Depends(verificar_acesso)):
+    if dados is None:
+        dados = {}
+    r = banco.buscar_relatorio_acidente(rid)
+    if not r:
+        raise HTTPException(404, "Relatório não encontrado")
+
+    tipo = dados.get("tipo", "func")
+    celular = dados.get("celular", "")
+
+    if tipo == "test1":
+        nome_sign = r.get("testemunha1_nome") or "Testemunha 1"
+        celular = celular or r.get("cel_testemunha1", "")
+    elif tipo == "test2":
+        nome_sign = r.get("testemunha2_nome") or "Testemunha 2"
+        celular = celular or r.get("cel_testemunha2", "")
+    elif tipo == "sup":
+        nome_sign = r.get("supervisor_turno_nome") or "Supervisor"
+        celular = celular or r.get("cel_supervisor", "")
+    else:
+        nome_sign = r.get("funcionario_nome") or "Funcionário"
+        celular = celular or r.get("telefone", "")
+
+    if not celular:
+        raise HTTPException(400, f"Informe o celular do(a) {nome_sign}")
+
+    pdf_bytes = _gerar_pdf_acidente_bytes(r)
+    import tempfile as _tempfile, os as _os
+    tmp = _tempfile.NamedTemporaryFile(delete=False, suffix=".pdf")
+    tmp.write(pdf_bytes)
+    tmp.close()
+
+    nome_doc = f"Relatório de Acidente — {r.get('funcionario_nome','')} — {r.get('data_acidente','')}"
+    funcionario_sign = {"nome": nome_sign, "celular": celular}
+    try:
+        ret = zapsign.enviar_documento(nome_doc, tmp.name, funcionario_sign)
+    finally:
+        try:
+            _os.remove(tmp.name)
+        except Exception:
+            pass
+
+    if not ret["sucesso"]:
+        raise HTTPException(400, ret.get("erro", "Erro ao enviar para ZapSign"))
+
+    return {"ok": True, "link_assinatura": ret.get("link", ""), "tipo": tipo}
+
+
+def _gerar_pdf_acidente_bytes(r: dict) -> bytes:
+    from reportlab.lib.pagesizes import A4
+    from reportlab.lib import colors
+    from reportlab.lib.units import cm
+    from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
+    from reportlab.lib.styles import ParagraphStyle
+    from reportlab.lib.enums import TA_CENTER, TA_LEFT
+    import io, uuid as _uuid
+
+    _uid = _uuid.uuid4().hex[:8]
+    title_s = ParagraphStyle(f'act_{_uid}', fontSize=13, fontName='Helvetica-Bold', alignment=TA_CENTER, spaceAfter=4)
+    sub_s   = ParagraphStyle(f'acs_{_uid}', fontSize=9,  fontName='Helvetica', alignment=TA_CENTER, spaceAfter=6)
+    sec_s   = ParagraphStyle(f'acsc_{_uid}',fontSize=10, fontName='Helvetica-Bold', spaceAfter=3, spaceBefore=8,
+                             backColor=colors.HexColor('#1F4E79'), textColor=colors.white, leftIndent=4)
+    body_s  = ParagraphStyle(f'acb_{_uid}', fontSize=9,  fontName='Helvetica', spaceAfter=2)
+    bold_s  = ParagraphStyle(f'acbd_{_uid}',fontSize=9,  fontName='Helvetica-Bold', spaceAfter=2)
+
+    buf = io.BytesIO()
+    doc = SimpleDocTemplate(buf, pagesize=A4, leftMargin=1.5*cm, rightMargin=1.5*cm,
+                            topMargin=1.5*cm, bottomMargin=1.5*cm)
+    W = A4[0] - 3*cm
+    story = []
+
+    story.append(Paragraph("RELATÓRIO DE ACIDENTE DE TRABALHO", title_s))
+    story.append(Paragraph("JS Construtora e Locadora Ltda — CNPJ: 16.910.656/0001-81", sub_s))
+
+    # Dados do Funcionário
+    story.append(Paragraph("DADOS DO FUNCIONÁRIO", sec_s))
+    fd = [
+        ["Nome:", r.get('funcionario_nome',''), "Matrícula:", r.get('matricula','')],
+        ["Função:", r.get('funcao',''), "Turno:", r.get('turno','')],
+        ["Sexo:", r.get('sexo',''), "Data Nasc.:", r.get('data_nasc','')],
+        ["Admissão:", r.get('data_admissao',''), "Telefone:", r.get('telefone','')],
+        ["Posto de Trabalho:", r.get('posto_trabalho',''), "Chefia Imediata:", r.get('chefia_imediata','')],
+    ]
+    ft = Table(fd, colWidths=[3.5*cm, 7*cm, 3.5*cm, W-14*cm])
+    ft.setStyle(TableStyle([
+        ('FONTNAME',(0,0),(-1,-1),'Helvetica'),('FONTNAME',(0,0),(0,-1),'Helvetica-Bold'),
+        ('FONTNAME',(2,0),(2,-1),'Helvetica-Bold'),('FONTSIZE',(0,0),(-1,-1),9),
+        ('GRID',(0,0),(-1,-1),0.3,colors.lightgrey),
+        ('BACKGROUND',(0,0),(0,-1),colors.HexColor('#f1f5f9')),
+        ('BACKGROUND',(2,0),(2,-1),colors.HexColor('#f1f5f9')),
+        ('PADDING',(0,0),(-1,-1),4),
+    ]))
+    story.append(ft)
+
+    # Tipo do Acidente
+    story.append(Paragraph("TIPO DO ACIDENTE", sec_s))
+    story.append(Paragraph(f"<b>{r.get('tipo_acidente','')}</b>", body_s))
+
+    # Dados do Acidente
+    story.append(Paragraph("DADOS DO ACIDENTE / DOENÇA", sec_s))
+    afas_txt = 'SIM' if r.get('afastamento') == 'sim' else 'NÃO'
+    ad = [
+        ["Data do Acidente:", r.get('data_acidente',''), "Hora:", r.get('hora_acidente','')],
+        ["Data Preenchimento:", r.get('data_preenchimento',''), "Afastamento:", f"{afas_txt} — {r.get('num_dias_afastamento',0)} dias"],
+        ["Natureza da Lesão:", Paragraph(r.get('natureza_lesao',''), body_s), "Agente Causador:", Paragraph(r.get('agente_causador',''), body_s)],
+        ["Serviço que Executava:", Paragraph(r.get('servico_executava',''), body_s), "", ""],
+    ]
+    adt = Table(ad, colWidths=[3.5*cm, 7*cm, 3.5*cm, W-14*cm])
+    adt.setStyle(TableStyle([
+        ('FONTNAME',(0,0),(-1,-1),'Helvetica'),('FONTNAME',(0,0),(0,-1),'Helvetica-Bold'),
+        ('FONTNAME',(2,0),(2,-1),'Helvetica-Bold'),('FONTSIZE',(0,0),(-1,-1),9),
+        ('GRID',(0,0),(-1,-1),0.3,colors.lightgrey),
+        ('BACKGROUND',(0,0),(0,-1),colors.HexColor('#f1f5f9')),
+        ('BACKGROUND',(2,0),(2,-1),colors.HexColor('#f1f5f9')),
+        ('PADDING',(0,0),(-1,-1),4),('VALIGN',(0,0),(-1,-1),'TOP'),
+    ]))
+    story.append(adt)
+
+    # Descrição do Acidente
+    if r.get('descricao_acidente'):
+        story.append(Paragraph("DESCRIÇÃO DO ACIDENTE", sec_s))
+        story.append(Paragraph(r.get('descricao_acidente',''), body_s))
+
+    # Checklist
+    def sn(val): return 'SIM' if val == 'sim' else ('NÃO' if val == 'nao' else '—')
+    def sc(val): return colors.HexColor('#dcfce7') if val=='sim' else (colors.HexColor('#fee2e2') if val=='nao' else colors.white)
+
+    story.append(Paragraph("CHECKLIST", sec_s))
+    ck_data = [
+        ["Pergunta", "Resp.", "Observação"],
+        ["O funcionário já sofreu acidente anteriormente?", sn(r.get('checklist_acidentes_antes','')),
+         f"Qtd: {r.get('checklist_qtd_acidentes','')}  Semelhante: {sn(r.get('checklist_acidente_semelhante',''))}"],
+        ["O funcionário usava EPI?", sn(r.get('checklist_usava_epi','')), r.get('checklist_epi_justificativa','')],
+        ["O funcionário recebeu treinamento?", sn(r.get('checklist_treinamento','')), ''],
+        ["O funcionário tem experiência na função?", sn(r.get('checklist_experiencia','')), ''],
+        ["O supervisor estava presente no momento?", sn(r.get('checklist_supervisor_presente','')), ''],
+    ]
+    ckt = Table(ck_data, colWidths=[9*cm, 1.5*cm, W-10.5*cm])
+    cks = TableStyle([
+        ('FONTNAME',(0,0),(-1,0),'Helvetica-Bold'),('FONTSIZE',(0,0),(-1,-1),8),
+        ('BACKGROUND',(0,0),(-1,0),colors.HexColor('#1F4E79')),('TEXTCOLOR',(0,0),(-1,0),colors.white),
+        ('GRID',(0,0),(-1,-1),0.3,colors.lightgrey),('ALIGN',(1,0),(1,-1),'CENTER'),
+        ('VALIGN',(0,0),(-1,-1),'MIDDLE'),('PADDING',(0,0),(-1,-1),4),
+    ])
+    for i, key in enumerate(['checklist_acidentes_antes','checklist_usava_epi','checklist_treinamento',
+                              'checklist_experiencia','checklist_supervisor_presente'], 1):
+        cks.add('BACKGROUND',(1,i),(1,i), sc(r.get(key,'')))
+    ckt.setStyle(cks)
+    story.append(ckt)
+
+    # Análise
+    story.append(Paragraph("INVESTIGAÇÃO E ANÁLISE DO ACIDENTE", sec_s))
+    if r.get('analise_acidente'):
+        story.append(Paragraph(r['analise_acidente'], body_s))
+        story.append(Spacer(1,4))
+
+    # Assinaturas
+    sign_data = [
+        ["Funcionário:", r.get('funcionario_nome',''), "Assinatura:", ""],
+        ["Testemunha 1:", r.get('testemunha1_nome',''), "Assinatura:", ""],
+        ["Testemunha 2:", r.get('testemunha2_nome',''), "Assinatura:", ""],
+        ["Supervisor (Turno):", r.get('supervisor_turno_nome',''), "Assinatura:", ""],
+        ["Técnico de Seg.:", r.get('tecnico_seguranca',''), "Assinatura:", ""],
+    ]
+    signt = Table(sign_data, colWidths=[3.5*cm, 6*cm, 3*cm, W-12.5*cm])
+    signt.setStyle(TableStyle([
+        ('FONTNAME',(0,0),(-1,-1),'Helvetica'),('FONTNAME',(0,0),(0,-1),'Helvetica-Bold'),
+        ('FONTNAME',(2,0),(2,-1),'Helvetica-Bold'),('FONTSIZE',(0,0),(-1,-1),9),
+        ('GRID',(0,0),(-1,-1),0.3,colors.lightgrey),
+        ('BACKGROUND',(0,0),(0,-1),colors.HexColor('#f1f5f9')),
+        ('BACKGROUND',(2,0),(2,-1),colors.HexColor('#f1f5f9')),
+        ('PADDING',(0,0),(-1,-1),5),('ROWBACKGROUNDS',(3,0),(3,-1),[colors.HexColor('#fffbe6')]),
+        ('MINROWHEIGHT',(3,0),(3,-1),30),
+    ]))
+    story.append(signt)
+
+    # Plano de Ação
+    plano = r.get('plano_acao') or []
+    if plano:
+        story.append(Paragraph("PLANO DE AÇÃO / MEDIDAS CORRETIVAS", sec_s))
+        pa = [["Ação","Responsável","Prazo","Visto"]]
+        for a in plano:
+            pa.append([Paragraph(a.get('acao',''), body_s), a.get('responsavel',''), a.get('prazo',''), a.get('visto','')])
+        pat = Table(pa, colWidths=[8*cm, 3.5*cm, 2.5*cm, W-14*cm])
+        pat.setStyle(TableStyle([
+            ('FONTNAME',(0,0),(-1,0),'Helvetica-Bold'),('FONTSIZE',(0,0),(-1,-1),8),
+            ('BACKGROUND',(0,0),(-1,0),colors.HexColor('#1F4E79')),('TEXTCOLOR',(0,0),(-1,0),colors.white),
+            ('GRID',(0,0),(-1,-1),0.3,colors.lightgrey),('PADDING',(0,0),(-1,-1),4),
+            ('VALIGN',(0,0),(-1,-1),'TOP'),
+        ]))
+        story.append(pat)
+
+    # Responsável pelo preenchimento
+    story.append(Spacer(1,12))
+    resp_data = [
+        ["Responsável pelo Preenchimento:", r.get('responsavel_nome',''), "CPF:", r.get('responsavel_cpf','')],
+    ]
+    respt = Table(resp_data, colWidths=[5*cm, 7*cm, 1.5*cm, W-13.5*cm])
+    respt.setStyle(TableStyle([
+        ('FONTNAME',(0,0),(-1,-1),'Helvetica'),('FONTNAME',(0,0),(0,-1),'Helvetica-Bold'),
+        ('FONTNAME',(2,0),(2,-1),'Helvetica-Bold'),('FONTSIZE',(0,0),(-1,-1),9),
+        ('GRID',(0,0),(-1,-1),0.3,colors.lightgrey),
+        ('BACKGROUND',(0,0),(0,-1),colors.HexColor('#f1f5f9')),
+        ('BACKGROUND',(2,0),(2,-1),colors.HexColor('#f1f5f9')),
+        ('PADDING',(0,0),(-1,-1),4),
+    ]))
+    story.append(respt)
+
+    doc.build(story)
+    buf.seek(0)
+    return buf.read()
+
+
 @app.get("/api/acidentes/relatorios/{rid}/pdf")
 async def pdf_relatorio_acidente(rid: int, _=Depends(verificar_acesso)):
     r = banco.buscar_relatorio_acidente(rid)
     if not r:
         raise HTTPException(404, "Relatório não encontrado")
     try:
-        from reportlab.lib.pagesizes import A4
-        from reportlab.lib import colors
-        from reportlab.lib.units import cm
-        from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
-        from reportlab.lib.styles import ParagraphStyle
-        from reportlab.lib.enums import TA_CENTER, TA_LEFT
-        import io, uuid as _uuid
-
-        _uid = _uuid.uuid4().hex[:8]
-        title_s = ParagraphStyle(f'act_{_uid}', fontSize=13, fontName='Helvetica-Bold', alignment=TA_CENTER, spaceAfter=4)
-        sub_s   = ParagraphStyle(f'acs_{_uid}', fontSize=9,  fontName='Helvetica', alignment=TA_CENTER, spaceAfter=6)
-        sec_s   = ParagraphStyle(f'acsc_{_uid}',fontSize=10, fontName='Helvetica-Bold', spaceAfter=3, spaceBefore=8,
-                                 backColor=colors.HexColor('#1F4E79'), textColor=colors.white, leftIndent=4)
-        body_s  = ParagraphStyle(f'acb_{_uid}', fontSize=9,  fontName='Helvetica', spaceAfter=2)
-        bold_s  = ParagraphStyle(f'acbd_{_uid}',fontSize=9,  fontName='Helvetica-Bold', spaceAfter=2)
-
-        buf = io.BytesIO()
-        doc = SimpleDocTemplate(buf, pagesize=A4, leftMargin=1.5*cm, rightMargin=1.5*cm,
-                                topMargin=1.5*cm, bottomMargin=1.5*cm)
-        W = A4[0] - 3*cm
-        story = []
-
-        story.append(Paragraph("RELATÓRIO DE ACIDENTE DE TRABALHO", title_s))
-        story.append(Paragraph("JS Construtora e Locadora Ltda — CNPJ: 16.910.656/0001-81", sub_s))
-
-        # Dados do Funcionário
-        story.append(Paragraph("DADOS DO FUNCIONÁRIO", sec_s))
-        fd = [
-            ["Nome:", r.get('funcionario_nome',''), "Matrícula:", r.get('matricula','')],
-            ["Função:", r.get('funcao',''), "Turno:", r.get('turno','')],
-            ["Sexo:", r.get('sexo',''), "Data Nasc.:", r.get('data_nasc','')],
-            ["Admissão:", r.get('data_admissao',''), "Telefone:", r.get('telefone','')],
-            ["Posto de Trabalho:", r.get('posto_trabalho',''), "Chefia Imediata:", r.get('chefia_imediata','')],
-        ]
-        ft = Table(fd, colWidths=[3.5*cm, 7*cm, 3.5*cm, W-14*cm])
-        ft.setStyle(TableStyle([
-            ('FONTNAME',(0,0),(-1,-1),'Helvetica'),('FONTNAME',(0,0),(0,-1),'Helvetica-Bold'),
-            ('FONTNAME',(2,0),(2,-1),'Helvetica-Bold'),('FONTSIZE',(0,0),(-1,-1),9),
-            ('GRID',(0,0),(-1,-1),0.3,colors.lightgrey),
-            ('BACKGROUND',(0,0),(0,-1),colors.HexColor('#f1f5f9')),
-            ('BACKGROUND',(2,0),(2,-1),colors.HexColor('#f1f5f9')),
-            ('PADDING',(0,0),(-1,-1),4),
-        ]))
-        story.append(ft)
-
-        # Tipo do Acidente
-        story.append(Paragraph("TIPO DO ACIDENTE", sec_s))
-        tipo = r.get('tipo_acidente','')
-        story.append(Paragraph(f"<b>{tipo}</b>", body_s))
-
-        # Dados do Acidente
-        story.append(Paragraph("DADOS DO ACIDENTE / DOENÇA", sec_s))
-        afas = 'SIM' if r.get('afastamento','') == 'sim' else 'NÃO'
-        ad = [
-            ["Data do Acidente:", r.get('data_acidente',''), "Hora:", r.get('hora_acidente','')],
-            ["Data Preenchimento:", r.get('data_preenchimento',''), "Afastamento:", f"{afas} — {r.get('num_dias_afastamento',0)} dias"],
-            ["Natureza da Lesão:", Paragraph(r.get('natureza_lesao',''), body_s), "Agente Causador:", Paragraph(r.get('agente_causador',''), body_s)],
-            ["Serviço que Executava:", Paragraph(r.get('servico_executava',''), body_s), "", ""],
-        ]
-        adt = Table(ad, colWidths=[3.5*cm, 7*cm, 3.5*cm, W-14*cm])
-        adt.setStyle(TableStyle([
-            ('FONTNAME',(0,0),(-1,-1),'Helvetica'),('FONTNAME',(0,0),(0,-1),'Helvetica-Bold'),
-            ('FONTNAME',(2,0),(2,-1),'Helvetica-Bold'),('FONTSIZE',(0,0),(-1,-1),9),
-            ('GRID',(0,0),(-1,-1),0.3,colors.lightgrey),
-            ('BACKGROUND',(0,0),(0,-1),colors.HexColor('#f1f5f9')),
-            ('BACKGROUND',(2,0),(2,-1),colors.HexColor('#f1f5f9')),
-            ('PADDING',(0,0),(-1,-1),4),('VALIGN',(0,0),(-1,-1),'TOP'),
-        ]))
-        story.append(adt)
-
-        # Checklist
-        def sn(val): return 'SIM' if val == 'sim' else ('NÃO' if val == 'nao' else '—')
-        def sc(val): return colors.HexColor('#dcfce7') if val=='sim' else (colors.HexColor('#fee2e2') if val=='nao' else colors.white)
-
-        story.append(Paragraph("CHECKLIST", sec_s))
-        ck_data = [
-            ["Pergunta", "Resp.", "Observação"],
-            ["O funcionário já sofreu acidente anteriormente?", sn(r.get('checklist_acidentes_antes','')),
-             f"Qtd: {r.get('checklist_qtd_acidentes','')}  Semelhante: {sn(r.get('checklist_acidente_semelhante',''))}"],
-            ["O funcionário usava EPI?", sn(r.get('checklist_usava_epi','')), r.get('checklist_epi_justificativa','')],
-            ["O funcionário recebeu treinamento?", sn(r.get('checklist_treinamento','')), ''],
-            ["O funcionário tem experiência na função?", sn(r.get('checklist_experiencia','')), ''],
-            ["O supervisor estava presente no momento?", sn(r.get('checklist_supervisor_presente','')), ''],
-        ]
-        ckt = Table(ck_data, colWidths=[9*cm, 1.5*cm, W-10.5*cm])
-        cks = TableStyle([
-            ('FONTNAME',(0,0),(-1,0),'Helvetica-Bold'),('FONTSIZE',(0,0),(-1,-1),8),
-            ('BACKGROUND',(0,0),(-1,0),colors.HexColor('#1F4E79')),('TEXTCOLOR',(0,0),(-1,0),colors.white),
-            ('GRID',(0,0),(-1,-1),0.3,colors.lightgrey),('ALIGN',(1,0),(1,-1),'CENTER'),
-            ('VALIGN',(0,0),(-1,-1),'MIDDLE'),('PADDING',(0,0),(-1,-1),4),
-        ])
-        for i, key in enumerate(['checklist_acidentes_antes','checklist_usava_epi','checklist_treinamento',
-                                  'checklist_experiencia','checklist_supervisor_presente'], 1):
-            cks.add('BACKGROUND',(1,i),(1,i), sc(r.get(key,'')))
-        ckt.setStyle(cks)
-        story.append(ckt)
-
-        # Investigação
-        story.append(Paragraph("INVESTIGAÇÃO E ANÁLISE DO ACIDENTE", sec_s))
-        inv = [
-            ["Testemunha 1:", r.get('testemunha1_nome',''), "Assinatura:", ""],
-            ["Testemunha 2:", r.get('testemunha2_nome',''), "Assinatura:", ""],
-            ["Supervisor (Turno):", r.get('supervisor_turno_nome',''), "Assinatura:", ""],
-            ["Técnico de Seg. Trabalho:", r.get('tecnico_seguranca',''), "Assinatura:", ""],
-        ]
-        invt = Table(inv, colWidths=[4*cm, 6*cm, 3*cm, W-13*cm])
-        invt.setStyle(TableStyle([
-            ('FONTNAME',(0,0),(-1,-1),'Helvetica'),('FONTNAME',(0,0),(0,-1),'Helvetica-Bold'),
-            ('FONTNAME',(2,0),(2,-1),'Helvetica-Bold'),('FONTSIZE',(0,0),(-1,-1),9),
-            ('GRID',(0,0),(-1,-1),0.3,colors.lightgrey),
-            ('BACKGROUND',(0,0),(0,-1),colors.HexColor('#f1f5f9')),
-            ('BACKGROUND',(2,0),(2,-1),colors.HexColor('#f1f5f9')),
-            ('PADDING',(0,0),(-1,-1),5),
-        ]))
-        story.append(invt)
-        if r.get('analise_acidente'):
-            story.append(Spacer(1,6))
-            story.append(Paragraph("Análise do Acidente:", bold_s))
-            story.append(Paragraph(r['analise_acidente'], body_s))
-
-        # Plano de Ação
-        plano = r.get('plano_acao') or []
-        if plano:
-            story.append(Paragraph("PLANO DE AÇÃO / MEDIDAS CORRETIVAS", sec_s))
-            pa = [["Ação","Responsável","Prazo","Visto"]]
-            for a in plano:
-                pa.append([Paragraph(a.get('acao',''), body_s), a.get('responsavel',''), a.get('prazo',''), a.get('visto','')])
-            pat = Table(pa, colWidths=[8*cm, 3.5*cm, 2.5*cm, W-14*cm])
-            pat.setStyle(TableStyle([
-                ('FONTNAME',(0,0),(-1,0),'Helvetica-Bold'),('FONTSIZE',(0,0),(-1,-1),8),
-                ('BACKGROUND',(0,0),(-1,0),colors.HexColor('#1F4E79')),('TEXTCOLOR',(0,0),(-1,0),colors.white),
-                ('GRID',(0,0),(-1,-1),0.3,colors.lightgrey),('PADDING',(0,0),(-1,-1),4),
-                ('VALIGN',(0,0),(-1,-1),'TOP'),
-            ]))
-            story.append(pat)
-
-        doc.build(story)
-        buf.seek(0)
+        import io
+        pdf_bytes = _gerar_pdf_acidente_bytes(r)
         fname = f"relatorio_acidente_{rid}_{r.get('data_acidente','').replace('/','')}.pdf"
-        return StreamingResponse(buf, media_type="application/pdf",
+        return StreamingResponse(io.BytesIO(pdf_bytes), media_type="application/pdf",
                                  headers={"Content-Disposition": f'attachment; filename="{fname}"'})
     except ImportError:
         raise HTTPException(500, "reportlab não instalado")

@@ -332,6 +332,7 @@ def criar_banco():
                     responsavel TEXT DEFAULT '',
                     cargo_responsavel TEXT DEFAULT '',
                     encarregado TEXT DEFAULT '',
+                    cel_encarregado TEXT DEFAULT '',
                     resultado TEXT DEFAULT 'conforme',
                     prazo_regularizacao TEXT DEFAULT '',
                     observacao_geral TEXT DEFAULT '',
@@ -385,6 +386,7 @@ def criar_banco():
                 responsavel TEXT DEFAULT '',
                 cargo_responsavel TEXT DEFAULT '',
                 encarregado TEXT DEFAULT '',
+                cel_encarregado TEXT DEFAULT '',
                 resultado TEXT DEFAULT 'conforme',
                 prazo_regularizacao TEXT DEFAULT '',
                 observacao_geral TEXT DEFAULT '',
@@ -419,17 +421,122 @@ def criar_banco():
 
         # Migrações: adiciona colunas novas se ainda não existirem
         if USE_POSTGRES:
-            for col, defval in [('link_assinatura', "''"), ('zapsign_token', "''")]:
+            conn.commit()  # fecha transação anterior antes das migrações DDL
+            conn.autocommit = True
+            for col, defval in [('cel_encarregado', "''"), ('link_assinatura', "''"), ('zapsign_token', "''")]:
                 try:
                     cur.execute(f"ALTER TABLE alojamento_vistorias ADD COLUMN {col} TEXT DEFAULT {defval}")
                 except Exception:
                     pass  # coluna já existe
+            conn.autocommit = False
         else:
             cols_existentes = [r[1] for r in cur.execute("PRAGMA table_info(alojamento_vistorias)").fetchall()]
-            for col, defval in [('link_assinatura', "''"), ('zapsign_token', "''")]:
+            for col, defval in [('cel_encarregado', "''"), ('link_assinatura', "''"), ('zapsign_token', "''")]:
                 if col not in cols_existentes:
                     cur.execute(f"ALTER TABLE alojamento_vistorias ADD COLUMN {col} TEXT DEFAULT {defval}")
+            conn.commit()
 
+        # Tabelas de Acidentes
+        if USE_POSTGRES:
+            cur.execute("""
+                CREATE TABLE IF NOT EXISTS acidentes_relatorios (
+                    id SERIAL PRIMARY KEY,
+                    funcionario_id INTEGER REFERENCES funcionarios(id),
+                    funcionario_nome TEXT DEFAULT '',
+                    matricula TEXT DEFAULT '',
+                    turno TEXT DEFAULT '',
+                    funcao TEXT DEFAULT '',
+                    sexo TEXT DEFAULT '',
+                    data_nasc TEXT DEFAULT '',
+                    data_admissao TEXT DEFAULT '',
+                    telefone TEXT DEFAULT '',
+                    posto_trabalho TEXT DEFAULT '',
+                    chefia_imediata TEXT DEFAULT '',
+                    tipo_acidente TEXT DEFAULT '',
+                    data_acidente TEXT DEFAULT '',
+                    hora_acidente TEXT DEFAULT '',
+                    data_preenchimento TEXT DEFAULT '',
+                    afastamento TEXT DEFAULT 'nao',
+                    num_dias_afastamento INTEGER DEFAULT 0,
+                    natureza_lesao TEXT DEFAULT '',
+                    agente_causador TEXT DEFAULT '',
+                    servico_executava TEXT DEFAULT '',
+                    checklist_acidentes_antes TEXT DEFAULT '',
+                    checklist_qtd_acidentes TEXT DEFAULT '',
+                    checklist_acidente_semelhante TEXT DEFAULT '',
+                    checklist_usava_epi TEXT DEFAULT '',
+                    checklist_epi_justificativa TEXT DEFAULT '',
+                    checklist_treinamento TEXT DEFAULT '',
+                    checklist_experiencia TEXT DEFAULT '',
+                    checklist_supervisor_presente TEXT DEFAULT '',
+                    testemunha1_nome TEXT DEFAULT '',
+                    testemunha2_nome TEXT DEFAULT '',
+                    supervisor_turno_nome TEXT DEFAULT '',
+                    tecnico_seguranca TEXT DEFAULT 'JONATAS DA COSTA XAVIER',
+                    analise_acidente TEXT DEFAULT '',
+                    criado_por TEXT DEFAULT '',
+                    criado_em TIMESTAMP DEFAULT NOW(),
+                    link_assinatura TEXT DEFAULT '',
+                    zapsign_token TEXT DEFAULT ''
+                )
+            """)
+            cur.execute("""
+                CREATE TABLE IF NOT EXISTS acidentes_plano_acao (
+                    id SERIAL PRIMARY KEY,
+                    relatorio_id INTEGER REFERENCES acidentes_relatorios(id) ON DELETE CASCADE,
+                    acao TEXT DEFAULT '',
+                    responsavel TEXT DEFAULT '',
+                    prazo TEXT DEFAULT '',
+                    visto TEXT DEFAULT ''
+                )
+            """)
+        else:
+            cur.execute("""CREATE TABLE IF NOT EXISTS acidentes_relatorios (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                funcionario_id INTEGER REFERENCES funcionarios(id),
+                funcionario_nome TEXT DEFAULT '',
+                matricula TEXT DEFAULT '',
+                turno TEXT DEFAULT '',
+                funcao TEXT DEFAULT '',
+                sexo TEXT DEFAULT '',
+                data_nasc TEXT DEFAULT '',
+                data_admissao TEXT DEFAULT '',
+                telefone TEXT DEFAULT '',
+                posto_trabalho TEXT DEFAULT '',
+                chefia_imediata TEXT DEFAULT '',
+                tipo_acidente TEXT DEFAULT '',
+                data_acidente TEXT DEFAULT '',
+                hora_acidente TEXT DEFAULT '',
+                data_preenchimento TEXT DEFAULT '',
+                afastamento TEXT DEFAULT 'nao',
+                num_dias_afastamento INTEGER DEFAULT 0,
+                natureza_lesao TEXT DEFAULT '',
+                agente_causador TEXT DEFAULT '',
+                servico_executava TEXT DEFAULT '',
+                checklist_acidentes_antes TEXT DEFAULT '',
+                checklist_qtd_acidentes TEXT DEFAULT '',
+                checklist_acidente_semelhante TEXT DEFAULT '',
+                checklist_usava_epi TEXT DEFAULT '',
+                checklist_epi_justificativa TEXT DEFAULT '',
+                checklist_treinamento TEXT DEFAULT '',
+                checklist_experiencia TEXT DEFAULT '',
+                checklist_supervisor_presente TEXT DEFAULT '',
+                testemunha1_nome TEXT DEFAULT '',
+                testemunha2_nome TEXT DEFAULT '',
+                supervisor_turno_nome TEXT DEFAULT '',
+                tecnico_seguranca TEXT DEFAULT 'JONATAS DA COSTA XAVIER',
+                analise_acidente TEXT DEFAULT '',
+                criado_por TEXT DEFAULT '',
+                criado_em TEXT DEFAULT (datetime('now','localtime')),
+                link_assinatura TEXT DEFAULT '',
+                zapsign_token TEXT DEFAULT '')""")
+            cur.execute("""CREATE TABLE IF NOT EXISTS acidentes_plano_acao (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                relatorio_id INTEGER REFERENCES acidentes_relatorios(id) ON DELETE CASCADE,
+                acao TEXT DEFAULT '',
+                responsavel TEXT DEFAULT '',
+                prazo TEXT DEFAULT '',
+                visto TEXT DEFAULT '')""")
         conn.commit()
 
         print(f"OK Banco criado ({'PostgreSQL' if USE_POSTGRES else 'SQLite'})")
@@ -1288,14 +1395,25 @@ def contar_admins() -> int:
 
 def salvar_vistoria_alojamento(dados: dict, usuario: str = '') -> int:
     campos = ['frente_servico','contrato','localizacao','data_vistoria','num_trabalhadores',
-              'responsavel','cargo_responsavel','encarregado','resultado','prazo_regularizacao',
+              'responsavel','cargo_responsavel','encarregado','cel_encarregado','resultado','prazo_regularizacao',
               'observacao_geral','assinatura_responsavel','assinatura_encarregado']
     vals = [dados.get(c, '') for c in campos]
     vid = dados.get('id')
     if vid:
-        sets = ', '.join(f'{c}=?' for c in campos)
-        executar(f'UPDATE alojamento_vistorias SET {sets} WHERE id=?', vals + [vid], commit=True)
-        return vid
+        # Tenta UPDATE com todos os campos; se alguma coluna não existir, retenta sem ela
+        def _try_update(cols, values):
+            sets = ', '.join(f'{c}=?' for c in cols)
+            executar(f'UPDATE alojamento_vistorias SET {sets} WHERE id=?', list(values) + [vid], commit=True)
+
+        try:
+            _try_update(campos, vals)
+        except Exception as e:
+            err = str(e).lower()
+            # Remove colunas inexistentes e tenta novamente
+            campos_ok = [c for c in campos if c not in ('cel_encarregado',)] if 'cel_encarregado' in err or 'column' in err else campos
+            vals_ok = [dados.get(c, '') for c in campos_ok]
+            _try_update(campos_ok, vals_ok)
+        return int(vid)
     else:
         cols = ', '.join(campos) + ', criado_por'
         placeholders = ', '.join(['?'] * (len(campos) + 1))
@@ -1367,6 +1485,128 @@ def deletar_vistoria_alojamento(vistoria_id: int):
 def salvar_link_vistoria(vistoria_id: int, link: str, token: str):
     executar('UPDATE alojamento_vistorias SET link_assinatura=?, zapsign_token=? WHERE id=?',
              (link, token, vistoria_id), commit=True)
+
+
+# ── ACIDENTES ─────────────────────────────────────────────
+
+def salvar_relatorio_acidente(dados: dict, usuario: str = '') -> int:
+    campos = [
+        'funcionario_id','funcionario_nome','matricula','turno','funcao','sexo',
+        'data_nasc','data_admissao','telefone','posto_trabalho','chefia_imediata',
+        'tipo_acidente','data_acidente','hora_acidente','data_preenchimento',
+        'afastamento','num_dias_afastamento','natureza_lesao','agente_causador',
+        'servico_executava','checklist_acidentes_antes','checklist_qtd_acidentes',
+        'checklist_acidente_semelhante','checklist_usava_epi','checklist_epi_justificativa',
+        'checklist_treinamento','checklist_experiencia','checklist_supervisor_presente',
+        'testemunha1_nome','testemunha2_nome','supervisor_turno_nome',
+        'tecnico_seguranca','analise_acidente'
+    ]
+    vals = [dados.get(c) for c in campos]
+    rid = dados.get('id')
+    conn = conectar()
+    try:
+        if USE_POSTGRES:
+            cur = conn.cursor(cursor_factory=_psycopg2_extras.RealDictCursor)
+        else:
+            cur = conn.cursor()
+        if rid:
+            if USE_POSTGRES:
+                sets = ', '.join(f'{c}=%s' for c in campos)
+                cur.execute(f'UPDATE acidentes_relatorios SET {sets} WHERE id=%s', vals + [rid])
+            else:
+                sets = ', '.join(f'{c}=?' for c in campos)
+                cur.execute(f'UPDATE acidentes_relatorios SET {sets} WHERE id=?', vals + [rid])
+            conn.commit()
+            return int(rid)
+        else:
+            cols = ', '.join(campos) + ', criado_por'
+            if USE_POSTGRES:
+                placeholders = ', '.join(['%s'] * (len(campos) + 1))
+                cur.execute(f'INSERT INTO acidentes_relatorios ({cols}) VALUES ({placeholders}) RETURNING id',
+                            vals + [usuario])
+                new_id = cur.fetchone()['id']
+            else:
+                placeholders = ', '.join(['?'] * (len(campos) + 1))
+                cur.execute(f'INSERT INTO acidentes_relatorios ({cols}) VALUES ({placeholders})',
+                            vals + [usuario])
+                new_id = cur.lastrowid
+            conn.commit()
+            return new_id
+    finally:
+        conn.close()
+
+
+def salvar_plano_acao_acidente(relatorio_id: int, plano: list):
+    conn = conectar()
+    try:
+        if USE_POSTGRES:
+            cur = conn.cursor()
+            cur.execute('DELETE FROM acidentes_plano_acao WHERE relatorio_id=%s', (relatorio_id,))
+            for a in plano:
+                cur.execute('INSERT INTO acidentes_plano_acao (relatorio_id,acao,responsavel,prazo,visto) VALUES (%s,%s,%s,%s,%s)',
+                            (relatorio_id, a.get('acao',''), a.get('responsavel',''), a.get('prazo',''), a.get('visto','')))
+        else:
+            cur = conn.cursor()
+            cur.execute('DELETE FROM acidentes_plano_acao WHERE relatorio_id=?', (relatorio_id,))
+            for a in plano:
+                cur.execute('INSERT INTO acidentes_plano_acao (relatorio_id,acao,responsavel,prazo,visto) VALUES (?,?,?,?,?)',
+                            (relatorio_id, a.get('acao',''), a.get('responsavel',''), a.get('prazo',''), a.get('visto','')))
+        conn.commit()
+    finally:
+        conn.close()
+
+
+def listar_relatorios_acidente() -> list:
+    conn = conectar()
+    try:
+        if USE_POSTGRES:
+            cur = conn.cursor(cursor_factory=_psycopg2_extras.RealDictCursor)
+        else:
+            cur = conn.cursor()
+        cur.execute('SELECT id,funcionario_nome,matricula,tipo_acidente,data_acidente,afastamento,criado_em FROM acidentes_relatorios ORDER BY criado_em DESC')
+        rows = cur.fetchall()
+        return [dict(r) for r in rows]
+    finally:
+        conn.close()
+
+
+def buscar_relatorio_acidente(rid: int) -> dict | None:
+    conn = conectar()
+    try:
+        if USE_POSTGRES:
+            cur = conn.cursor(cursor_factory=_psycopg2_extras.RealDictCursor)
+            cur.execute('SELECT * FROM acidentes_relatorios WHERE id=%s', (rid,))
+        else:
+            cur = conn.cursor()
+            cur.execute('SELECT * FROM acidentes_relatorios WHERE id=?', (rid,))
+        row = cur.fetchone()
+        if not row:
+            return None
+        r = dict(row)
+        if USE_POSTGRES:
+            cur.execute('SELECT * FROM acidentes_plano_acao WHERE relatorio_id=%s ORDER BY id', (rid,))
+        else:
+            cur.execute('SELECT * FROM acidentes_plano_acao WHERE relatorio_id=? ORDER BY id', (rid,))
+        r['plano_acao'] = [dict(a) for a in cur.fetchall()]
+        return r
+    finally:
+        conn.close()
+
+
+def deletar_relatorio_acidente(rid: int):
+    conn = conectar()
+    try:
+        if USE_POSTGRES:
+            cur = conn.cursor()
+            cur.execute('DELETE FROM acidentes_plano_acao WHERE relatorio_id=%s', (rid,))
+            cur.execute('DELETE FROM acidentes_relatorios WHERE id=%s', (rid,))
+        else:
+            cur = conn.cursor()
+            cur.execute('DELETE FROM acidentes_plano_acao WHERE relatorio_id=?', (rid,))
+            cur.execute('DELETE FROM acidentes_relatorios WHERE id=?', (rid,))
+        conn.commit()
+    finally:
+        conn.close()
 
 
 if __name__ == "__main__":

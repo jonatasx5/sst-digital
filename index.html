@@ -228,6 +228,7 @@ tr:hover td { background:#F9FAFB; }
     <button class="nav-item" data-modulo="envio-lote" onclick="irPara('envio-lote')"><i class="ti ti-send"></i>Envio de Lote</button>
     <button class="nav-item" data-modulo="ordem-servico" onclick="irPara('ordem-servico')"><i class="ti ti-clipboard-list"></i>Ordem de Serviço</button>
     <button class="nav-item" data-modulo="alojamentos" onclick="irPara('alojamentos')"><i class="ti ti-home-2"></i>Alojamentos</button>
+    <button class="nav-item" data-modulo="acidentes" onclick="irPara('acidentes')"><i class="ti ti-alert-triangle"></i>Acidentes</button>
     <button class="nav-item" data-modulo="historico" onclick="irPara('historico')"><i class="ti ti-clock"></i>Histórico</button>
     <button class="nav-item" data-modulo="diario-obra" onclick="irPara('diario-obra')"><i class="ti ti-camera"></i>Diário de Obra</button>
     <button class="nav-item nav-admin" data-modulo="admin" onclick="irPara('admin')"
@@ -1250,6 +1251,184 @@ tr:hover td { background:#F9FAFB; }
   </div>
 </div><!-- fecha panel-alojamentos -->
 
+<!-- ── ACIDENTES ── -->
+<div class="panel" id="panel-acidentes">
+  <div class="page-header">
+    <div><div class="page-title"><i class="ti ti-alert-triangle"></i> Acidentes</div><div class="page-sub">Relatório de Acidente de Trabalho</div></div>
+  </div>
+  <div style="display:flex;gap:4px;margin-bottom:16px;border-bottom:2px solid var(--borda)">
+    <button id="acid-tab-form" onclick="acidAba('form')" style="padding:8px 18px;border:none;background:none;cursor:pointer;font-weight:600;color:var(--primario);border-bottom:2px solid var(--primario);margin-bottom:-2px">Novo Relatório</button>
+    <button id="acid-tab-hist" onclick="acidAba('hist')" style="padding:8px 18px;border:none;background:none;cursor:pointer;color:var(--texto2)">Histórico</button>
+  </div>
+
+  <div id="acid-panel-form">
+    <div class="card" style="margin-bottom:16px">
+      <div class="card-title"><i class="ti ti-user-search"></i>Funcionário</div>
+      <div style="position:relative;max-width:420px;margin-bottom:12px">
+        <input type="text" id="acid-busca-func" placeholder="Digite o nome para buscar..." oninput="acidBuscarFunc(this.value)"
+          style="width:100%;padding:8px 12px;border:1px solid var(--borda);border-radius:8px;font-size:14px">
+        <div id="acid-func-dropdown" style="display:none;position:absolute;top:100%;left:0;right:0;background:#fff;border:1px solid var(--borda);border-radius:8px;box-shadow:0 4px 12px rgba(0,0,0,.1);z-index:100;max-height:220px;overflow-y:auto"></div>
+      </div>
+      <div class="grid2" style="gap:12px">
+        <div class="field"><label>Nome Completo</label><input type="text" id="acid-nome"></div>
+        <div class="field"><label>Matrícula</label><input type="text" id="acid-matricula"></div>
+        <div class="field"><label>Função/Cargo</label><input type="text" id="acid-funcao"></div>
+        <div class="field"><label>Turno</label><input type="text" id="acid-turno" placeholder="Ex: Diurno / Noturno"></div>
+        <div class="field"><label>Sexo</label>
+          <select id="acid-sexo" style="width:100%;padding:8px;border:1px solid var(--borda);border-radius:8px;font-size:13px"><option value="">—</option><option value="M">Masculino</option><option value="F">Feminino</option></select>
+        </div>
+        <div class="field"><label>Data de Nascimento</label><input type="date" id="acid-nasc"></div>
+        <div class="field"><label>Data de Admissão</label><input type="date" id="acid-admissao"></div>
+        <div class="field"><label>Telefone</label><input type="text" id="acid-telefone"></div>
+        <div class="field"><label>Posto de Trabalho</label><input type="text" id="acid-posto"></div>
+        <div class="field"><label>Chefia Imediata</label><input type="text" id="acid-chefia"></div>
+      </div>
+    </div>
+
+    <div class="card" style="margin-bottom:16px">
+      <div class="card-title"><i class="ti ti-category"></i>Tipo do Acidente</div>
+      <div style="display:flex;flex-direction:column;gap:8px">
+        <label style="display:flex;align-items:center;gap:8px;cursor:pointer"><input type="radio" name="acid-tipo" value="ACIDENTE SEM AFASTAMENTO"> ACIDENTE SEM AFASTAMENTO</label>
+        <label style="display:flex;align-items:center;gap:8px;cursor:pointer"><input type="radio" name="acid-tipo" value="ACIDENTE COM AFASTAMENTO"> ACIDENTE COM AFASTAMENTO</label>
+        <label style="display:flex;align-items:center;gap:8px;cursor:pointer"><input type="radio" name="acid-tipo" value="INCIDENTE"> INCIDENTE</label>
+        <label style="display:flex;align-items:center;gap:8px;cursor:pointer"><input type="radio" name="acid-tipo" value="ACIDENTE DE TRAJETO SEM AFASTAMENTO"> ACIDENTE DE TRAJETO SEM AFASTAMENTO</label>
+        <label style="display:flex;align-items:center;gap:8px;cursor:pointer"><input type="radio" name="acid-tipo" value="ACIDENTE DE TRAJETO COM AFASTAMENTO"> ACIDENTE DE TRAJETO COM AFASTAMENTO</label>
+        <label style="display:flex;align-items:center;gap:8px;cursor:pointer"><input type="radio" name="acid-tipo" value="REABERTURA ACIDENTE DO TRABALHO"> REABERTURA ACIDENTE DO TRABALHO</label>
+        <label style="display:flex;align-items:center;gap:8px;cursor:pointer"><input type="radio" name="acid-tipo" value="DOENÇA OCUPACIONAL SEM AFASTAMENTO"> DOENÇA OCUPACIONAL SEM AFASTAMENTO</label>
+        <label style="display:flex;align-items:center;gap:8px;cursor:pointer"><input type="radio" name="acid-tipo" value="DOENÇA OCUPACIONAL COM AFASTAMENTO"> DOENÇA OCUPACIONAL COM AFASTAMENTO</label>
+        <label style="display:flex;align-items:center;gap:8px;cursor:pointer"><input type="radio" name="acid-tipo" value="ACIDENTE COM ÓBITO"> ACIDENTE COM ÓBITO</label>
+      </div>
+    </div>
+
+    <div class="card" style="margin-bottom:16px">
+      <div class="card-title"><i class="ti ti-calendar-event"></i>Dados do Acidente / Doença</div>
+      <div class="grid2" style="gap:12px">
+        <div class="field"><label>Data do Acidente</label><input type="date" id="acid-data-acid"></div>
+        <div class="field"><label>Hora</label><input type="time" id="acid-hora"></div>
+        <div class="field"><label>Data de Preenchimento</label><input type="date" id="acid-data-preen"></div>
+        <div class="field"><label>Afastamento</label>
+          <div style="display:flex;gap:16px;margin-top:6px">
+            <label><input type="radio" name="acid-afas" value="sim" onchange="acidToggleAfas()"> SIM</label>
+            <label><input type="radio" name="acid-afas" value="nao" onchange="acidToggleAfas()" checked> NÃO</label>
+          </div>
+        </div>
+        <div class="field" id="acid-dias-wrap" style="display:none"><label>Nº de Dias Afastamento</label><input type="number" id="acid-dias" min="0" value="0"></div>
+        <div class="field" style="grid-column:1/-1"><label>Natureza da Lesão</label><textarea id="acid-natureza" rows="2" style="width:100%;padding:8px;border:1px solid var(--borda);border-radius:8px;font-size:13px;resize:vertical"></textarea></div>
+        <div class="field" style="grid-column:1/-1"><label>Agente Causador</label><textarea id="acid-agente" rows="2" style="width:100%;padding:8px;border:1px solid var(--borda);border-radius:8px;font-size:13px;resize:vertical"></textarea></div>
+        <div class="field" style="grid-column:1/-1"><label>Serviço que Executava</label><textarea id="acid-servico" rows="2" style="width:100%;padding:8px;border:1px solid var(--borda);border-radius:8px;font-size:13px;resize:vertical"></textarea></div>
+      </div>
+    </div>
+
+    <div class="card" style="margin-bottom:16px">
+      <div class="card-title"><i class="ti ti-list-check"></i>Checklist</div>
+      <div style="display:flex;flex-direction:column;gap:16px">
+        <div>
+          <div style="font-size:13px;font-weight:600;margin-bottom:6px">O funcionário já sofreu acidente anteriormente?</div>
+          <div style="display:flex;gap:16px">
+            <label><input type="radio" name="acid-ck1" value="sim" onchange="document.getElementById('ck1-extra').style.display=''"> SIM</label>
+            <label><input type="radio" name="acid-ck1" value="nao" onchange="document.getElementById('ck1-extra').style.display='none'"> NÃO</label>
+          </div>
+          <div id="ck1-extra" style="display:none;margin-top:8px;display:flex;gap:16px;flex-wrap:wrap;align-items:flex-end">
+            <div class="field"><label style="font-size:12px">Quantos acidentes?</label><input type="number" id="acid-ck1-qtd" min="0" value="1" style="width:80px;padding:6px;border:1px solid var(--borda);border-radius:6px"></div>
+            <div class="field"><label style="font-size:12px">Semelhante ao atual?</label>
+              <div style="display:flex;gap:12px;margin-top:4px">
+                <label><input type="radio" name="acid-ck1-sem" value="sim"> SIM</label>
+                <label><input type="radio" name="acid-ck1-sem" value="nao"> NÃO</label>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div>
+          <div style="font-size:13px;font-weight:600;margin-bottom:6px">O funcionário usava EPI?</div>
+          <div style="display:flex;gap:16px">
+            <label><input type="radio" name="acid-ck2" value="sim" onchange="document.getElementById('ck2-extra').style.display='none'"> SIM</label>
+            <label><input type="radio" name="acid-ck2" value="nao" onchange="document.getElementById('ck2-extra').style.display=''"> NÃO</label>
+          </div>
+          <div id="ck2-extra" style="display:none;margin-top:8px">
+            <label style="font-size:12px">Justificativa:</label>
+            <input type="text" id="acid-ck2-just" style="width:100%;max-width:400px;padding:6px;border:1px solid var(--borda);border-radius:6px;font-size:13px;margin-top:4px">
+          </div>
+        </div>
+        <div>
+          <div style="font-size:13px;font-weight:600;margin-bottom:6px">O funcionário recebeu treinamento para a função?</div>
+          <div style="display:flex;gap:16px">
+            <label><input type="radio" name="acid-ck3" value="sim"> SIM</label>
+            <label><input type="radio" name="acid-ck3" value="nao"> NÃO</label>
+          </div>
+        </div>
+        <div>
+          <div style="font-size:13px;font-weight:600;margin-bottom:6px">O funcionário tem experiência na função?</div>
+          <div style="display:flex;gap:16px">
+            <label><input type="radio" name="acid-ck4" value="sim"> SIM</label>
+            <label><input type="radio" name="acid-ck4" value="nao"> NÃO</label>
+          </div>
+        </div>
+        <div>
+          <div style="font-size:13px;font-weight:600;margin-bottom:6px">O supervisor estava presente no momento do acidente?</div>
+          <div style="display:flex;gap:16px">
+            <label><input type="radio" name="acid-ck5" value="sim"> SIM</label>
+            <label><input type="radio" name="acid-ck5" value="nao"> NÃO</label>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card" style="margin-bottom:16px">
+      <div class="card-title"><i class="ti ti-search"></i>Investigação e Análise</div>
+      <div class="grid2" style="gap:12px">
+        <div class="field"><label>Testemunha 1 — Nome</label><input type="text" id="acid-test1"></div>
+        <div class="field"><label>Testemunha 2 — Nome</label><input type="text" id="acid-test2"></div>
+        <div class="field"><label>Supervisor (Turno) — Nome</label><input type="text" id="acid-sup"></div>
+        <div class="field"><label>Técnico de Segurança do Trabalho</label><input type="text" id="acid-tecnico" value="JONATAS DA COSTA XAVIER"></div>
+        <div class="field" style="grid-column:1/-1"><label>Análise do Acidente</label>
+          <textarea id="acid-analise" rows="4" style="width:100%;padding:8px;border:1px solid var(--borda);border-radius:8px;font-size:13px;resize:vertical" placeholder="Descreva as causas e circunstâncias do acidente..."></textarea>
+        </div>
+      </div>
+    </div>
+
+    <div class="card" style="margin-bottom:16px">
+      <div class="card-title"><i class="ti ti-checklist"></i>Plano de Ação / Medidas Corretivas
+        <button onclick="acidAddAcao()" style="margin-left:12px;padding:3px 10px;border-radius:6px;border:1px solid var(--primario);background:var(--fundo);color:var(--primario);cursor:pointer;font-size:12px"><i class="ti ti-plus"></i> Adicionar</button>
+      </div>
+      <table style="width:100%;border-collapse:collapse;font-size:13px">
+        <thead><tr style="background:var(--fundo)">
+          <th style="padding:8px;text-align:left;border-bottom:1px solid var(--borda)">Ação / Medida Corretiva</th>
+          <th style="padding:8px;text-align:left;border-bottom:1px solid var(--borda);width:130px">Responsável</th>
+          <th style="padding:8px;text-align:left;border-bottom:1px solid var(--borda);width:110px">Prazo</th>
+          <th style="padding:8px;text-align:left;border-bottom:1px solid var(--borda);width:70px">Visto</th>
+          <th style="padding:8px;width:30px;border-bottom:1px solid var(--borda)"></th>
+        </tr></thead>
+        <tbody id="acid-plano-body"></tbody>
+      </table>
+    </div>
+
+    <div style="display:flex;gap:12px;justify-content:flex-end;flex-wrap:wrap;margin-bottom:8px">
+      <button class="btn btn-outline" onclick="acidNovaOcorrencia()"><i class="ti ti-refresh"></i>Nova Ocorrência</button>
+      <button id="acid-btn-pdf" class="btn btn-outline" style="display:none" onclick="acidGerarPDF(_acidId)"><i class="ti ti-file-type-pdf"></i>Baixar PDF</button>
+      <button id="acid-btn-salvar" class="btn btn-primary" onclick="acidSalvar()"><i class="ti ti-device-floppy"></i>Salvar Relatório</button>
+    </div>
+    <div id="acid-result" style="font-size:13px;margin-bottom:24px"></div>
+  </div>
+
+  <div id="acid-panel-hist" style="display:none">
+    <div class="card" style="overflow-x:auto">
+      <table style="width:100%;border-collapse:collapse;font-size:13px;">
+        <thead>
+          <tr style="border-bottom:2px solid var(--borda)">
+            <th style="padding:10px 14px;text-align:left;color:var(--texto2)">Data</th>
+            <th style="padding:10px 14px;text-align:left;color:var(--texto2)">Funcionário</th>
+            <th style="padding:10px 14px;text-align:left;color:var(--texto2)">Cargo</th>
+            <th style="padding:10px 14px;text-align:left;color:var(--texto2)">Local</th>
+            <th style="padding:10px 14px;text-align:left;color:var(--texto2)">Tipo</th>
+            <th style="padding:10px 14px;text-align:center;color:var(--texto2)">Ações</th>
+          </tr>
+        </thead>
+        <tbody id="acid-hist-body"></tbody>
+      </table>
+    </div>
+  </div>
+</div><!-- fecha panel-acidentes -->
+
 <!-- ── ADMINISTRAÇÃO ── -->
 <div class="panel" id="panel-admin">
   <div class="page-header">
@@ -1371,6 +1550,7 @@ const MODULOS = [
   { id:'historico',     label:'Histórico' },
   { id:'diario-obra',   label:'Diário de Obra' },
   { id:'alojamentos',   label:'Alojamentos' },
+  { id:'acidentes',     label:'Acidentes' },
 ];
 
 let _authToken = null;
@@ -1636,6 +1816,7 @@ function irPara(aba) {
   if (aba==='historico')     carregarHistorico();
   if (aba==='diario-obra')   doInit();
   if (aba==='alojamentos')   alojaInit();
+  if (aba==='acidentes')     acidInit();
   if (aba==='admin')         carregarAdmin();
   // Scroll para o topo e fecha sidebar mobile
   const mainEl = document.querySelector('main.main');
@@ -4293,6 +4474,304 @@ async function alojaDeletar(id) {
   const res = await apiFetch(`/api/alojamentos/vistorias/${id}`, {method:'DELETE'});
   if (!res || !res.ok) { alert('Erro ao excluir.'); return; }
   alojaCarregarHistorico();
+}
+
+// ========== ACIDENTES ==========
+let _acidId = null;
+let _acidBuscaTimer = null;
+
+function acidInit() {
+  const hoje = new Date().toISOString().slice(0,10);
+  const campoData = document.getElementById('acid-data-preen');
+  if (campoData && !campoData.value) campoData.value = hoje;
+  const campoDataAc = document.getElementById('acid-data-acidente');
+  if (campoDataAc && !campoDataAc.value) campoDataAc.value = hoje;
+  acidAba('form');
+}
+
+function acidAba(aba) {
+  document.getElementById('acid-panel-form').style.display = aba === 'form' ? '' : 'none';
+  document.getElementById('acid-panel-hist').style.display = aba === 'hist' ? '' : 'none';
+  document.getElementById('acid-tab-form').style.color = aba === 'form' ? 'var(--primario)' : 'var(--texto2)';
+  document.getElementById('acid-tab-form').style.borderBottom = aba === 'form' ? '2px solid var(--primario)' : 'none';
+  document.getElementById('acid-tab-hist').style.color = aba === 'hist' ? 'var(--primario)' : 'var(--texto2)';
+  document.getElementById('acid-tab-hist').style.borderBottom = aba === 'hist' ? '2px solid var(--primario)' : 'none';
+  if (aba === 'hist') acidCarregarHistorico();
+}
+
+function acidBuscarFunc(q) {
+  clearTimeout(_acidBuscaTimer);
+  const drop = document.getElementById('acid-func-drop');
+  if (!q || q.length < 2) { drop.style.display = 'none'; return; }
+  _acidBuscaTimer = setTimeout(async () => {
+    const res = await apiFetch(`/api/funcionarios?q=${encodeURIComponent(q)}`);
+    if (!res || !res.funcionarios) { drop.style.display = 'none'; return; }
+    drop.innerHTML = '';
+    if (res.funcionarios.length === 0) {
+      drop.innerHTML = '<div style="padding:8px;color:var(--texto2)">Nenhum encontrado</div>';
+    } else {
+      res.funcionarios.forEach(f => {
+        const d = document.createElement('div');
+        d.style.cssText = 'padding:8px 12px;cursor:pointer;';
+        d.textContent = `${f.nome} — ${f.cargo || ''}`;
+        d.onmouseenter = () => d.style.background = '#f0f4ff';
+        d.onmouseleave = () => d.style.background = '';
+        d.onclick = () => acidSelecionarFunc(f);
+        drop.appendChild(d);
+      });
+    }
+    drop.style.display = '';
+  }, 300);
+}
+
+function acidSelecionarFunc(f) {
+  document.getElementById('acid-busca-func').value = f.nome;
+  document.getElementById('acid-func-drop').style.display = 'none';
+  document.getElementById('acid-func-nome').value = f.nome || '';
+  document.getElementById('acid-func-matricula').value = f.matricula || '';
+  document.getElementById('acid-func-cargo').value = f.cargo || '';
+  document.getElementById('acid-func-setor').value = f.setor || f.frente_servico || '';
+  document.getElementById('acid-func-contrato').value = f.contrato || '';
+  document.getElementById('acid-func-empresa').value = f.empresa || '';
+  document.getElementById('acid-func-adm').value = f.data_admissao || '';
+}
+
+function acidToggleAfas() {
+  const afas = document.querySelector('input[name="acid-afastamento"]:checked');
+  const wrap = document.getElementById('acid-dias-wrap');
+  if (wrap) wrap.style.display = (afas && afas.value === 'Sim') ? '' : 'none';
+}
+
+function acidAddAcao() {
+  const tbody = document.getElementById('acid-plano-body');
+  const tr = document.createElement('tr');
+  tr.innerHTML = `
+    <td><input type="text" style="width:100%;border:1px solid #ddd;padding:4px;border-radius:4px"></td>
+    <td><input type="text" style="width:100%;border:1px solid #ddd;padding:4px;border-radius:4px"></td>
+    <td><input type="date" style="width:100%;border:1px solid #ddd;padding:4px;border-radius:4px"></td>
+    <td style="text-align:center"><input type="checkbox"></td>
+    <td style="text-align:center"><button onclick="this.closest('tr').remove()" style="background:none;border:none;cursor:pointer;color:#e53e3e;font-size:16px">✕</button></td>`;
+  tbody.appendChild(tr);
+}
+
+function acidColetarDados() {
+  const v = id => (document.getElementById(id)||{}).value || '';
+  const r = name => { const el = document.querySelector(`input[name="${name}"]:checked`); return el ? el.value : ''; };
+  const c = id => (document.getElementById(id)||{}).checked ? 'Sim' : '';
+
+  const plano = [];
+  document.querySelectorAll('#acid-plano-body tr').forEach(tr => {
+    const inputs = tr.querySelectorAll('input');
+    if (inputs.length >= 4) {
+      plano.push({
+        acao: inputs[0].value,
+        responsavel: inputs[1].value,
+        prazo: inputs[2].value,
+        visto: inputs[3].checked ? 'Sim' : ''
+      });
+    }
+  });
+
+  return {
+    data_preenchimento: v('acid-data-preen'),
+    funcionario_nome: v('acid-func-nome'),
+    funcionario_matricula: v('acid-func-matricula'),
+    funcionario_cargo: v('acid-func-cargo'),
+    funcionario_setor: v('acid-func-setor'),
+    funcionario_contrato: v('acid-func-contrato'),
+    funcionario_empresa: v('acid-func-empresa'),
+    funcionario_data_adm: v('acid-func-adm'),
+    data_acidente: v('acid-data-acidente'),
+    hora_acidente: v('acid-hora-acidente'),
+    local_acidente: v('acid-local-acidente'),
+    tipo_acidente: r('acid-tipo'),
+    tipo_acidente_outro: v('acid-tipo-outro'),
+    descricao_acidente: v('acid-descricao'),
+    houve_afastamento: r('acid-afastamento'),
+    dias_afastamento: v('acid-dias'),
+    parte_corpo_atingida: v('acid-parte-corpo'),
+    natureza_lesao: v('acid-natureza-lesao'),
+    testemunha1_nome: v('acid-test1-nome'),
+    testemunha1_cargo: v('acid-test1-cargo'),
+    testemunha2_nome: v('acid-test2-nome'),
+    testemunha2_cargo: v('acid-test2-cargo'),
+    epi_fornecido: c('acid-epi-fornecido'),
+    epi_adequado: c('acid-epi-adequado'),
+    epi_usando: c('acid-epi-usando'),
+    ato_inseguro: c('acid-ato-inseguro'),
+    cond_insegura: c('acid-cond-insegura'),
+    falta_epi: c('acid-falta-epi'),
+    falha_equipamento: c('acid-falha-equip'),
+    falta_sinalizacao: c('acid-falta-sinal'),
+    falta_treinamento: c('acid-falta-trein'),
+    outros_fatores: c('acid-outros-fat'),
+    outros_fatores_desc: v('acid-outros-fat-desc'),
+    causas_diretas: v('acid-causas-diretas'),
+    causas_basicas: v('acid-causas-basicas'),
+    medidas_imediatas: v('acid-medidas-imediatas'),
+    tecnico_seguranca: v('acid-tecnico') || 'JONATAS DA COSTA XAVIER',
+    plano_acao: plano
+  };
+}
+
+async function acidSalvar() {
+  const dados = acidColetarDados();
+  if (!dados.funcionario_nome) { alert('Selecione o funcionário.'); return; }
+  if (!dados.data_acidente) { alert('Informe a data do acidente.'); return; }
+
+  const url = _acidId ? `/api/acidentes/relatorios/${_acidId}` : '/api/acidentes/relatorios';
+  const method = _acidId ? 'PUT' : 'POST';
+  const res = await apiFetch(url, { method, body: JSON.stringify(dados) });
+  if (!res || !res.id) { alert('Erro ao salvar relatório.'); return; }
+  _acidId = res.id;
+
+  document.getElementById('acid-btn-pdf').style.display = '';
+  document.getElementById('acid-btn-pdf').onclick = () => acidGerarPDF(_acidId);
+  alert('Relatório salvo com sucesso!');
+}
+
+async function acidGerarPDF(id) {
+  try {
+    const token = localStorage.getItem('token');
+    const resp = await fetch(`/api/acidentes/relatorios/${id}/pdf`, {
+      headers: { Authorization: `Bearer ${token}` }
+    });
+    if (!resp.ok) { alert('Erro ao gerar PDF.'); return; }
+    const blob = await resp.blob();
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `relatorio_acidente_${id}.pdf`;
+    a.click();
+    URL.revokeObjectURL(url);
+  } catch(e) { alert('Erro ao baixar PDF: ' + e.message); }
+}
+
+async function acidCarregarHistorico() {
+  const res = await apiFetch('/api/acidentes/relatorios');
+  const tbody = document.getElementById('acid-hist-body');
+  if (!tbody) return;
+  tbody.innerHTML = '';
+  if (!res || !res.relatorios || res.relatorios.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:var(--texto2);padding:20px">Nenhum relatório encontrado.</td></tr>';
+    return;
+  }
+  res.relatorios.forEach(r => {
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td>${r.data_acidente || '-'}</td>
+      <td>${r.funcionario_nome || '-'}</td>
+      <td>${r.funcionario_cargo || '-'}</td>
+      <td>${r.local_acidente || '-'}</td>
+      <td>${r.tipo_acidente || '-'}</td>
+      <td>
+        <button class="btn btn-sm btn-outline" onclick="acidAbrirRelatorio(${r.id})" style="margin-right:4px"><i class="ti ti-edit"></i></button>
+        <button class="btn btn-sm btn-outline" onclick="acidGerarPDF(${r.id})" style="margin-right:4px"><i class="ti ti-file-type-pdf"></i></button>
+        <button class="btn btn-sm" style="background:#fee2e2;color:#e53e3e;border:none;padding:4px 8px;border-radius:4px;cursor:pointer" onclick="acidDeletar(${r.id})"><i class="ti ti-trash"></i></button>
+      </td>`;
+    tbody.appendChild(tr);
+  });
+}
+
+async function acidAbrirRelatorio(id) {
+  const res = await apiFetch(`/api/acidentes/relatorios/${id}`);
+  if (!res || !res.relatorio) { alert('Erro ao carregar relatório.'); return; }
+  const r = res.relatorio;
+  _acidId = id;
+
+  const sv = (elId, val) => { const el = document.getElementById(elId); if(el) el.value = val || ''; };
+  const sc = (elId, val) => { const el = document.getElementById(elId); if(el) el.checked = val === 'Sim'; };
+  const sr = (name, val) => { const el = document.querySelector(`input[name="${name}"][value="${val}"]`); if(el) el.checked = true; };
+
+  sv('acid-data-preen', r.data_preenchimento);
+  sv('acid-busca-func', r.funcionario_nome);
+  sv('acid-func-nome', r.funcionario_nome);
+  sv('acid-func-matricula', r.funcionario_matricula);
+  sv('acid-func-cargo', r.funcionario_cargo);
+  sv('acid-func-setor', r.funcionario_setor);
+  sv('acid-func-contrato', r.funcionario_contrato);
+  sv('acid-func-empresa', r.funcionario_empresa);
+  sv('acid-func-adm', r.funcionario_data_adm);
+  sv('acid-data-acidente', r.data_acidente);
+  sv('acid-hora-acidente', r.hora_acidente);
+  sv('acid-local-acidente', r.local_acidente);
+  if (r.tipo_acidente) sr('acid-tipo', r.tipo_acidente);
+  sv('acid-tipo-outro', r.tipo_acidente_outro);
+  sv('acid-descricao', r.descricao_acidente);
+  if (r.houve_afastamento) sr('acid-afastamento', r.houve_afastamento);
+  acidToggleAfas();
+  sv('acid-dias', r.dias_afastamento);
+  sv('acid-parte-corpo', r.parte_corpo_atingida);
+  sv('acid-natureza-lesao', r.natureza_lesao);
+  sv('acid-test1-nome', r.testemunha1_nome);
+  sv('acid-test1-cargo', r.testemunha1_cargo);
+  sv('acid-test2-nome', r.testemunha2_nome);
+  sv('acid-test2-cargo', r.testemunha2_cargo);
+  sc('acid-epi-fornecido', r.epi_fornecido);
+  sc('acid-epi-adequado', r.epi_adequado);
+  sc('acid-epi-usando', r.epi_usando);
+  sc('acid-ato-inseguro', r.ato_inseguro);
+  sc('acid-cond-insegura', r.cond_insegura);
+  sc('acid-falta-epi', r.falta_epi);
+  sc('acid-falha-equip', r.falha_equipamento);
+  sc('acid-falta-sinal', r.falta_sinalizacao);
+  sc('acid-falta-trein', r.falta_treinamento);
+  sc('acid-outros-fat', r.outros_fatores);
+  sv('acid-outros-fat-desc', r.outros_fatores_desc);
+  sv('acid-causas-diretas', r.causas_diretas);
+  sv('acid-causas-basicas', r.causas_basicas);
+  sv('acid-medidas-imediatas', r.medidas_imediatas);
+  sv('acid-tecnico', r.tecnico_seguranca);
+
+  // Plano de ação
+  const tbody = document.getElementById('acid-plano-body');
+  tbody.innerHTML = '';
+  (r.plano_acao || []).forEach(p => {
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td><input type="text" value="${p.acao||''}" style="width:100%;border:1px solid #ddd;padding:4px;border-radius:4px"></td>
+      <td><input type="text" value="${p.responsavel||''}" style="width:100%;border:1px solid #ddd;padding:4px;border-radius:4px"></td>
+      <td><input type="date" value="${p.prazo||''}" style="width:100%;border:1px solid #ddd;padding:4px;border-radius:4px"></td>
+      <td style="text-align:center"><input type="checkbox" ${p.visto==='Sim'?'checked':''}></td>
+      <td style="text-align:center"><button onclick="this.closest('tr').remove()" style="background:none;border:none;cursor:pointer;color:#e53e3e;font-size:16px">✕</button></td>`;
+    tbody.appendChild(tr);
+  });
+
+  document.getElementById('acid-btn-pdf').style.display = '';
+  document.getElementById('acid-btn-pdf').onclick = () => acidGerarPDF(id);
+  acidAba('form');
+  window.scrollTo(0, 0);
+}
+
+async function acidDeletar(id) {
+  if (!confirm('Excluir este relatório permanentemente?')) return;
+  const res = await apiFetch(`/api/acidentes/relatorios/${id}`, {method:'DELETE'});
+  if (!res || !res.ok) { alert('Erro ao excluir.'); return; }
+  acidCarregarHistorico();
+}
+
+function acidNovaOcorrencia() {
+  _acidId = null;
+  document.getElementById('acid-busca-func').value = '';
+  ['acid-func-nome','acid-func-matricula','acid-func-cargo','acid-func-setor',
+   'acid-func-contrato','acid-func-empresa','acid-func-adm','acid-hora-acidente',
+   'acid-local-acidente','acid-tipo-outro','acid-descricao','acid-dias',
+   'acid-parte-corpo','acid-natureza-lesao','acid-test1-nome','acid-test1-cargo',
+   'acid-test2-nome','acid-test2-cargo','acid-causas-diretas','acid-causas-basicas',
+   'acid-medidas-imediatas'].forEach(id => { const el = document.getElementById(id); if(el) el.value=''; });
+  ['acid-epi-fornecido','acid-epi-adequado','acid-epi-usando','acid-ato-inseguro',
+   'acid-cond-insegura','acid-falta-epi','acid-falha-equip','acid-falta-sinal',
+   'acid-falta-trein','acid-outros-fat'].forEach(id => { const el = document.getElementById(id); if(el) el.checked=false; });
+  document.querySelectorAll('input[name^="acid-"]').forEach(el => el.checked = false);
+  document.getElementById('acid-plano-body').innerHTML = '';
+  document.getElementById('acid-btn-pdf').style.display = 'none';
+  const hoje = new Date().toISOString().slice(0,10);
+  const dp = document.getElementById('acid-data-preen'); if(dp) dp.value = hoje;
+  const da = document.getElementById('acid-data-acidente'); if(da) da.value = hoje;
+  { const el = document.getElementById('acid-tecnico'); if(el) el.value='JONATAS DA COSTA XAVIER'; }
+  acidToggleAfas();
+  acidAba('form');
+  window.scrollTo(0,0);
 }
 </script>
 </body>

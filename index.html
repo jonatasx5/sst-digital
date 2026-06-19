@@ -1994,14 +1994,26 @@ async function uploadPlanilha(inp) {
   if (!inp.files[0]) return;
   const fd = new FormData();
   fd.append('file', inp.files[0]);
-  document.getElementById('import-result').innerHTML = '<div class="alert al-info"><i class="ti ti-loader-2"></i>Importando...</div>';
-  const res = await apiFetch('/api/funcionarios/importar', { method:'POST', body:fd });
-  const data = await res.json();
-  if (data.ok) {
-    document.getElementById('import-result').innerHTML = `<div class="alert al-success"><i class="ti ti-check"></i>✅ ${data.inseridos} inseridos · ${data.atualizados} atualizados</div>`;
-    carregarFuncionarios();
-  } else {
-    document.getElementById('import-result').innerHTML = `<div class="alert al-error"><i class="ti ti-x"></i>${data.erro}</div>`;
+  const resultEl = document.getElementById('import-result');
+  resultEl.innerHTML = '<div class="alert al-info"><i class="ti ti-loader-2"></i> Importando, aguarde...</div>';
+  try {
+    const res = await apiFetch('/api/funcionarios/importar', { method:'POST', body:fd });
+    if (!res || !res.ok) { resultEl.innerHTML = '<div class="alert al-error"><i class="ti ti-x"></i> Erro na importação.</div>'; return; }
+    const data = await res.json();
+    if (data.ok) {
+      const avisos = (data.avisos||[]).filter(a=>a).map(a=>`<div style="font-size:12px;margin-top:4px;color:#856404">⚠️ ${a}</div>`).join('');
+      resultEl.innerHTML = `
+        <div class="alert al-success" style="display:flex;flex-direction:column;gap:4px">
+          <div><strong><i class="ti ti-check"></i> Importação concluída com sucesso!</strong></div>
+          <div>${data.inseridos} novo(s) inserido(s) &nbsp;·&nbsp; ${data.atualizados} atualizado(s)</div>
+          ${avisos}
+        </div>`;
+      await carregarFuncionarios();  // atualiza lista e contador
+    } else {
+      resultEl.innerHTML = `<div class="alert al-error"><i class="ti ti-x"></i> ${data.erro||'Erro desconhecido'}</div>`;
+    }
+  } catch(e) {
+    resultEl.innerHTML = `<div class="alert al-error"><i class="ti ti-x"></i> Erro: ${e.message}</div>`;
   }
 }
 

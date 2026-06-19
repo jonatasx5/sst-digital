@@ -439,7 +439,7 @@ def criar_banco():
         # Migrações: colunas novas em acidentes_relatorios
         _acid_new_cols = [('descricao_acidente',"''"),('cel_testemunha1',"''"),('cel_testemunha2',"''"),
                           ('cel_supervisor',"''"),('responsavel_nome',"''"),('responsavel_cpf',"''"),
-                          ('empresa_terceiro',"''")]
+                          ('empresa_terceiro',"''"),('cel_tecnico',"''")]
         if USE_POSTGRES:
             conn.autocommit = True
             for col, defval in _acid_new_cols:
@@ -1534,7 +1534,7 @@ def salvar_relatorio_acidente(dados: dict, usuario: str = '') -> int:
         'checklist_treinamento','checklist_experiencia','checklist_supervisor_presente',
         'testemunha1_nome','testemunha2_nome','supervisor_turno_nome',
         'tecnico_seguranca','analise_acidente','descricao_acidente',
-        'cel_testemunha1','cel_testemunha2','cel_supervisor',
+        'cel_testemunha1','cel_testemunha2','cel_supervisor','cel_tecnico',
         'responsavel_nome','responsavel_cpf','empresa_terceiro'
     ]
     vals = [dados.get(c) for c in campos]

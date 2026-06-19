@@ -2031,30 +2031,54 @@ async def deletar_relatorio_acidente(rid: int, _=Depends(verificar_acesso)):
 
 @app.post("/api/acidentes/relatorios/{rid}/assinar")
 async def assinar_relatorio_acidente(rid: int, dados: dict = None, _=Depends(verificar_acesso)):
+    """
+    Envia o relatório de acidente ao ZapSign com todos os signatários preenchidos.
+    Recebe: {signatarios: [{tipo, nome, celular}], sandbox: bool}
+    Retorna: {ok, signatarios: [{tipo, nome, link}], autentique_id}
+    """
     if dados is None:
         dados = {}
     r = banco.buscar_relatorio_acidente(rid)
     if not r:
         raise HTTPException(404, "Relatório não encontrado")
 
-    tipo = dados.get("tipo", "func")
-    celular = dados.get("celular", "")
+    sandbox = dados.get("sandbox", False)
 
-    if tipo == "test1":
-        nome_sign = r.get("testemunha1_nome") or "Testemunha 1"
-        celular = celular or r.get("cel_testemunha1", "")
-    elif tipo == "test2":
-        nome_sign = r.get("testemunha2_nome") or "Testemunha 2"
-        celular = celular or r.get("cel_testemunha2", "")
-    elif tipo == "sup":
-        nome_sign = r.get("supervisor_turno_nome") or "Supervisor"
-        celular = celular or r.get("cel_supervisor", "")
+    # Monta lista de signatários a partir do payload OU dos dados salvos no relatório
+    signatarios_input = dados.get("signatarios", [])
+
+    if signatarios_input:
+        signatarios = signatarios_input
     else:
-        nome_sign = r.get("funcionario_nome") or "Funcionário"
-        celular = celular or r.get("telefone", "")
+        # Monta a partir dos dados do relatório (compatibilidade legada)
+        signatarios = []
+        func_nome = r.get("funcionario_nome") or "Funcionário"
+        func_cel  = r.get("telefone") or ""
+        if func_nome:
+            signatarios.append({"tipo": "func", "nome": func_nome, "celular": func_cel})
 
-    if not celular:
-        raise HTTPException(400, f"Informe o celular do(a) {nome_sign}")
+        t1_nome = r.get("testemunha1_nome") or ""
+        t1_cel  = r.get("cel_testemunha1") or ""
+        if t1_nome:
+            signatarios.append({"tipo": "test1", "nome": t1_nome, "celular": t1_cel})
+
+        t2_nome = r.get("testemunha2_nome") or ""
+        t2_cel  = r.get("cel_testemunha2") or ""
+        if t2_nome:
+            signatarios.append({"tipo": "test2", "nome": t2_nome, "celular": t2_cel})
+
+        sup_nome = r.get("supervisor_turno_nome") or ""
+        sup_cel  = r.get("cel_supervisor") or ""
+        if sup_nome:
+            signatarios.append({"tipo": "sup", "nome": sup_nome, "celular": sup_cel})
+
+        tec_nome = r.get("tecnico_seguranca") or ""
+        tec_cel  = r.get("cel_tecnico") or ""
+        if tec_nome:
+            signatarios.append({"tipo": "tec", "nome": tec_nome, "celular": tec_cel})
+
+    if not signatarios:
+        raise HTTPException(400, "Nenhum signatário informado.")
 
     pdf_bytes = _gerar_pdf_acidente_bytes(r)
     import tempfile as _tempfile, os as _os
@@ -2063,9 +2087,8 @@ async def assinar_relatorio_acidente(rid: int, dados: dict = None, _=Depends(ver
     tmp.close()
 
     nome_doc = f"Relatório de Acidente — {r.get('funcionario_nome','')} — {r.get('data_acidente','')}"
-    funcionario_sign = {"nome": nome_sign, "celular": celular}
     try:
-        ret = zapsign.enviar_documento(nome_doc, tmp.name, funcionario_sign)
+        ret = zapsign.enviar_documento_multi(nome_doc, tmp.name, signatarios, sandbox=sandbox)
     finally:
         try:
             _os.remove(tmp.name)
@@ -2075,7 +2098,20 @@ async def assinar_relatorio_acidente(rid: int, dados: dict = None, _=Depends(ver
     if not ret["sucesso"]:
         raise HTTPException(400, ret.get("erro", "Erro ao enviar para ZapSign"))
 
-    return {"ok": True, "link_assinatura": ret.get("link", ""), "tipo": tipo}
+    # Salva o token ZapSign no relatório
+    token = ret.get("autentique_id", "")
+    if token:
+        try:
+            banco.executar(
+                "UPDATE acidentes_relatorios SET zapsign_token=? WHERE id=?" if not banco.USE_POSTGRES
+                else "UPDATE acidentes_relatorios SET zapsign_token=%s WHERE id=%s",
+                (token, rid)
+            )
+        except Exception:
+            pass
+
+    return {"ok": True, "signatarios": ret.get("signatarios", []),
+            "autentique_id": token}
 
 
 def _gerar_pdf_acidente_bytes(r: dict) -> bytes:

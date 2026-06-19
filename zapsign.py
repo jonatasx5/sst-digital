@@ -19,6 +19,24 @@ def _headers():
     }
 
 
+def _montar_signer(signatario: dict) -> dict:
+    """Converte dict interno {nome, celular, email} para formato ZapSign."""
+    nome    = signatario.get("nome", "Signatário")
+    email   = (signatario.get("email") or "").strip()
+    celular = (signatario.get("celular") or "").strip()
+    signer  = {"name": nome}
+    if email:
+        signer["email"] = email
+        signer["send_automatic_email"] = False
+    if celular:
+        cel_num = "".join(filter(str.isdigit, celular))
+        if not cel_num.startswith("55"):
+            cel_num = "55" + cel_num
+        signer["phone_country"] = "55"
+        signer["phone_number"]  = cel_num[2:]
+    return signer
+
+
 def enviar_documento(
     nome_documento: str,
     caminho_pdf: str,
@@ -26,99 +44,99 @@ def enviar_documento(
     sandbox: bool = False
 ) -> dict:
     """
-    Envia um PDF para o ZapSign e cria o documento para assinatura.
+    Envia um PDF para o ZapSign com um único signatário.
+    Mantido para compatibilidade com outros módulos.
+    """
+    resultado = enviar_documento_multi(nome_documento, caminho_pdf, [funcionario], sandbox)
+    if not resultado["sucesso"]:
+        return {"sucesso": False, "autentique_id": None, "link": None,
+                "erro": resultado.get("erro")}
+    links = resultado.get("signatarios", [])
+    link = links[0]["link"] if links else None
+    return {"sucesso": True, "autentique_id": resultado["autentique_id"],
+            "link": link, "erro": None}
+
+
+def enviar_documento_multi(
+    nome_documento: str,
+    caminho_pdf: str,
+    signatarios: list,   # lista de {tipo, nome, celular, email}
+    sandbox: bool = False
+) -> dict:
+    """
+    Envia um PDF para o ZapSign com múltiplos signatários.
 
     Retorna dict com:
         sucesso       : bool
-        autentique_id : str  (token do documento no ZapSign)
-        link          : str  (link de assinatura do funcionário)
+        autentique_id : str
+        signatarios   : list de {tipo, nome, link}
         erro          : str | None
     """
+    if not signatarios:
+        return {"sucesso": False, "autentique_id": None, "signatarios": [],
+                "erro": "Nenhum signatário informado."}
 
-    nome   = funcionario.get("nome", "Funcionário")
-    email  = funcionario.get("email", "").strip()
-    celular = funcionario.get("celular", "").strip()
-
-    if not email and not celular:
-        return {
-            "sucesso": False,
-            "autentique_id": None,
-            "link": None,
-            "erro": f"Funcionário '{nome}' não possui e-mail nem celular cadastrado."
-        }
-
-    # Lê o PDF e converte para base64
     try:
         with open(caminho_pdf, "rb") as f:
             pdf_b64 = base64.b64encode(f.read()).decode("utf-8")
     except Exception as e:
-        return {"sucesso": False, "autentique_id": None, "link": None,
+        return {"sucesso": False, "autentique_id": None, "signatarios": [],
                 "erro": f"Erro ao ler PDF: {e}"}
 
-    # Monta signatário
-    signer = {"name": nome}
-    if email:
-        signer["email"] = email
-        signer["send_automatic_email"] = False   # não envia e-mail automático — usamos link manual
-    if celular:
-        cel_num = "".join(filter(str.isdigit, celular))
-        if not cel_num.startswith("55"):
-            cel_num = "55" + cel_num
-        signer["phone_country"] = "55"
-        signer["phone_number"]  = cel_num[2:]    # sem o 55
+    signers_payload = []
+    for s in signatarios:
+        signer = _montar_signer(s)
+        if not signer.get("email") and not signer.get("phone_number"):
+            continue  # pula signatários sem contato
+        signers_payload.append(signer)
 
-    # Payload principal
+    if not signers_payload:
+        return {"sucesso": False, "autentique_id": None, "signatarios": [],
+                "erro": "Nenhum signatário com celular ou e-mail informado."}
+
     payload = {
-        "name":         nome_documento,
-        "base64_pdf":   pdf_b64,
-        "lang":         "pt-br",
-        "signers":      [signer],
-        "sandbox":      sandbox,
+        "name":       nome_documento,
+        "base64_pdf": pdf_b64,
+        "lang":       "pt-br",
+        "signers":    signers_payload,
+        "sandbox":    sandbox,
     }
 
     try:
         url_base = "https://sandbox.api.zapsign.com.br/api/v1" if sandbox else ZAPSIGN_URL
-        r = requests.post(
-            f"{url_base}/docs/",
-            headers=_headers(),
-            json=payload,
-            timeout=60
-        )
+        r = requests.post(f"{url_base}/docs/", headers=_headers(), json=payload, timeout=60)
 
         if r.status_code not in (200, 201):
-            return {
-                "sucesso": False,
-                "autentique_id": None,
-                "link": None,
-                "erro": f"HTTP {r.status_code}: {r.text[:300]}"
-            }
+            return {"sucesso": False, "autentique_id": None, "signatarios": [],
+                    "erro": f"HTTP {r.status_code}: {r.text[:300]}"}
 
         data = r.json()
         print("ZAPSIGN RESPONSE:", data)
 
-        doc_token = data.get("token")
-        signers   = data.get("signers", [])
+        doc_token   = data.get("token")
+        resp_signers = data.get("signers", [])
 
-        # Pega o link do primeiro signatário
-        link = None
-        for s in signers:
+        result_signatarios = []
+        for i, s in enumerate(resp_signers):
             token_signer = s.get("token")
-            if token_signer:
-                link = f"https://app.zapsign.co/verificar/{token_signer}"
-                break
+            link = f"https://app.zapsign.co/verificar/{token_signer}" if token_signer else None
+            tipo = signatarios[i].get("tipo", f"sign{i}") if i < len(signatarios) else f"sign{i}"
+            nome = signatarios[i].get("nome", s.get("name", "")) if i < len(signatarios) else s.get("name", "")
+            result_signatarios.append({"tipo": tipo, "nome": nome, "link": link})
 
         return {
-            "sucesso":        True,
-            "autentique_id":  doc_token,   # mantém chave para compatibilidade com banco
-            "link":           link,
-            "erro":           None
+            "sucesso":      True,
+            "autentique_id": doc_token,
+            "signatarios":  result_signatarios,
+            "link":         result_signatarios[0]["link"] if result_signatarios else None,
+            "erro":         None,
         }
 
     except requests.exceptions.Timeout:
-        return {"sucesso": False, "autentique_id": None, "link": None,
+        return {"sucesso": False, "autentique_id": None, "signatarios": [],
                 "erro": "Timeout — verifique a conexão."}
     except Exception as e:
-        return {"sucesso": False, "autentique_id": None, "link": None, "erro": str(e)}
+        return {"sucesso": False, "autentique_id": None, "signatarios": [], "erro": str(e)}
 
 
 def consultar_status(doc_token: str) -> dict:

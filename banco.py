@@ -650,7 +650,18 @@ def salvar_pgr_cargo(cargo: str, cbo: str = '', ambiente: str = '', atividades: 
     finally:
         conn.close()
 
+def _normalizar_cargo(cargo: str) -> str:
+    """Remove sufixos de nível/grau para busca normalizada no PGR.
+    Ex: 'RASTELEIRO NÍVEL II' → 'RASTELEIRO', 'MOTORISTA DE CAMINHÃO NV I' → 'MOTORISTA DE CAMINHÃO'
+    """
+    import re as _re
+    s = cargo.upper().strip()
+    s = _re.sub(r'\s+(N[IVX]+|NV\.?\s*[IVX]+|NIVEL\s*[IVX0-9]+|NÍVEL\s*[IVX0-9]+|[IVX]{1,4}|[0-9]+)$', '', s).strip()
+    return s
+
+
 def buscar_pgr_cargo(cargo: str) -> dict:
+    """Busca PGR pelo cargo exato; se não achar, tenta pelo cargo normalizado (sem nível)."""
     conn = conectar()
     try:
         cur = conn.cursor()
@@ -659,6 +670,33 @@ def buscar_pgr_cargo(cargo: str) -> dict:
         else:
             cur.execute("SELECT * FROM pgr_inventario WHERE UPPER(cargo)=UPPER(?)", (cargo,))
         row = cur.fetchone()
+
+        # Fallback: busca pelo cargo normalizado (sem nível/grau)
+        if not row:
+            cargo_norm = _normalizar_cargo(cargo)
+            if cargo_norm != cargo.upper().strip():
+                if USE_POSTGRES:
+                    cur.execute("SELECT * FROM pgr_inventario WHERE UPPER(cargo)=UPPER(%s)", (cargo_norm,))
+                else:
+                    cur.execute("SELECT * FROM pgr_inventario WHERE UPPER(cargo)=UPPER(?)", (cargo_norm,))
+                row = cur.fetchone()
+
+        # Fallback 2: busca pelo CBO — se cargo tem CBO cadastrado, pega qualquer PGR com mesmo CBO
+        if not row:
+            cur2 = conn.cursor()
+            if USE_POSTGRES:
+                cur2.execute("SELECT cbo_codigo FROM cargo_cbo WHERE UPPER(cargo)=UPPER(%s)", (cargo,))
+            else:
+                cur2.execute("SELECT cbo_codigo FROM cargo_cbo WHERE UPPER(cargo)=UPPER(?)", (cargo,))
+            cbo_row = cur2.fetchone()
+            if cbo_row and cbo_row[0]:
+                cbo_codigo = cbo_row[0]
+                if USE_POSTGRES:
+                    cur.execute("SELECT * FROM pgr_inventario WHERE cbo=%s LIMIT 1", (cbo_codigo,))
+                else:
+                    cur.execute("SELECT * FROM pgr_inventario WHERE cbo=? LIMIT 1", (cbo_codigo,))
+                row = cur.fetchone()
+
         if not row:
             return {}
         cols = [d[0] for d in cur.description]
@@ -809,15 +847,24 @@ def salvar_cargo_cbo(cargo: str, cbo_codigo: str, cbo_titulo: str, cbo_descricao
 
 
 def buscar_cargo_cbo(cargo: str) -> dict | None:
+    """Busca CBO do cargo; se não achar exato, tenta cargo normalizado."""
     conn = conectar()
     try:
         if USE_POSTGRES:
             cur = conn.cursor(cursor_factory=_psycopg2_extras.RealDictCursor)
-            cur.execute("SELECT * FROM cargo_cbo WHERE cargo=%s", (cargo,))
+            cur.execute("SELECT * FROM cargo_cbo WHERE UPPER(cargo)=UPPER(%s)", (cargo,))
         else:
             cur = conn.cursor()
-            cur.execute("SELECT * FROM cargo_cbo WHERE cargo=?", (cargo,))
+            cur.execute("SELECT * FROM cargo_cbo WHERE UPPER(cargo)=UPPER(?)", (cargo,))
         row = cur.fetchone()
+        if not row:
+            cargo_norm = _normalizar_cargo(cargo)
+            if cargo_norm != cargo.upper().strip():
+                if USE_POSTGRES:
+                    cur.execute("SELECT * FROM cargo_cbo WHERE UPPER(cargo)=UPPER(%s)", (cargo_norm,))
+                else:
+                    cur.execute("SELECT * FROM cargo_cbo WHERE UPPER(cargo)=UPPER(?)", (cargo_norm,))
+                row = cur.fetchone()
         return dict(row) if row else None
     finally:
         conn.close()

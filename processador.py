@@ -32,6 +32,7 @@ COLUNAS_MAP = {
     "admissao":    ["admissão", "admissao", "data admissão", "data de admissão", "dt admissão"],
     "celular":     ["celular", "telefone", "whatsapp", "fone", "cel"],
     "email":       ["e-mail pessoal", "email", "e-mail", "email pessoal"],
+    "cbo":         ["cbo", "código cbo", "codigo cbo", "cbo cargo", "cbo função", "cbo funcao"],
 }
 
 
@@ -116,6 +117,7 @@ def ler_planilha(caminho: str) -> tuple[list[dict], list[str]]:
                 "admissao":  get("admissao"),
                 "celular":   cel,
                 "email":     get("email"),
+                "cbo":       re.sub(r"\D", "", get("cbo")),  # só dígitos
             })
 
         return funcionarios, avisos

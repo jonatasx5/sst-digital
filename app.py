@@ -281,6 +281,21 @@ async def importar_planilha(file: UploadFile = File(...), _=Depends(verificar_ac
         if not lista:
             return {"ok": False, "erro": "Nenhum funcionário encontrado", "avisos": avisos}
         ins, atu = banco.importar_funcionarios(lista)
+
+        # Se a planilha tem coluna CBO, salva CBO por cargo automaticamente
+        cbos_salvos = 0
+        for f in lista:
+            cbo_num = (f.get("cbo") or "").strip()
+            cargo   = (f.get("cargo") or "").strip()
+            if cbo_num and cargo:
+                existente = banco.buscar_cargo_cbo(cargo)
+                if not existente or not existente.get("cbo_codigo"):
+                    banco.salvar_cargo_cbo(cargo, cbo_num, "", "")
+                    cbos_salvos += 1
+
+        if cbos_salvos:
+            avisos.append(f"ℹ️ {cbos_salvos} cargo(s) com CBO preenchido automaticamente da planilha.")
+
         return {"ok": True, "inseridos": ins, "atualizados": atu, "avisos": avisos}
     finally:
         os.unlink(tmp_path)
@@ -914,12 +929,20 @@ async def listar_os_config(_=Depends(verificar_acesso)):
 
 @app.get("/api/os/config/{cargo}")
 async def get_os_config_cargo(cargo: str, _=Depends(verificar_acesso)):
-    cbo = banco.buscar_cargo_cbo(cargo)
+    cbo  = banco.buscar_cargo_cbo(cargo)
     epis = banco.listar_epis_do_cargo(cargo)
+    pgr  = banco.buscar_pgr_cargo(cargo)  # já faz fallback por normalização
     return {
         "cargo": cargo,
-        "cbo": cbo or {"cbo_codigo": "", "cbo_titulo": "", "cbo_descricao": ""},
-        "epis": epis,
+        "cbo":   cbo or {"cbo_codigo": "", "cbo_titulo": "", "cbo_descricao": ""},
+        "epis":  epis,
+        "pgr": {
+            "riscos":     pgr.get("riscos", ""),
+            "epis":       pgr.get("epis", ""),
+            "atividades": pgr.get("atividades", ""),
+            "ambiente":   pgr.get("ambiente", ""),
+            "cargo_ref":  pgr.get("cargo", ""),  # cargo que foi efetivamente encontrado no PGR
+        },
     }
 
 

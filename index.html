@@ -3411,35 +3411,43 @@ async function selecionarOSCargo(cargo) {
   document.getElementById('os-salvar-status').style.display = 'none';
 
   try {
-    const [data, pgr] = await Promise.all([
-      apiFetch(`/api/os/config/${encodeURIComponent(cargo)}`).then(r=>r.json()),
-      apiFetch(`/api/pgr/cargo/${encodeURIComponent(cargo)}`).then(r=>r.json()).catch(()=>({}))
-    ]);
+    const res  = await apiFetch(`/api/os/config/${encodeURIComponent(cargo)}`);
+    const data = await res.json();
+    const pgr  = data.pgr || {};
+
     document.getElementById('os-cbo-codigo').value    = data.cbo?.cbo_codigo || '';
     document.getElementById('os-cbo-titulo').value    = data.cbo?.cbo_titulo || '';
-    document.getElementById('os-cbo-descricao').value = data.cbo?.cbo_descricao || '';
+    document.getElementById('os-cbo-descricao').value = data.cbo?.cbo_descricao || pgr.atividades || '';
 
-    // Preenche riscos do PGR
+    // Preenche riscos do PGR (já normalizado no backend)
     const riscosEl = document.getElementById('os-riscos');
     const pgrBadge = document.getElementById('os-pgr-badge');
-    if (pgr && pgr.riscos) {
+    if (pgr.riscos) {
       riscosEl.value = pgr.riscos;
       pgrBadge.style.display = '';
+      // Mostra cargo de referência se for diferente (normalizado)
+      if (pgr.cargo_ref && pgr.cargo_ref.toUpperCase() !== cargo.toUpperCase()) {
+        pgrBadge.title = `Dados do PGR obtidos de: ${pgr.cargo_ref}`;
+      }
     } else {
       if (!riscosEl.value) riscosEl.value = '';
       pgrBadge.style.display = 'none';
     }
 
+    // Descrição sumária do CBO: se campo vazio e PGR tem atividades, sugere
+    const descEl = document.getElementById('os-cbo-descricao');
+    if (!descEl.value && pgr.atividades) descEl.value = pgr.atividades;
+
     // Preview EPIs (do cadastro + PGR)
-    const epis = data.epis || [];
-    const episPgr = pgr?.epis ? pgr.epis.split(';').map(s=>s.trim()).filter(Boolean) : [];
+    const epis    = data.epis || [];
+    const episPgr = pgr.epis ? pgr.epis.split(';').map(s=>s.trim()).filter(Boolean) : [];
     const episHtml = epis.length
       ? epis.map(e=>`<div>• ${e.descricao}${e.ca?' (C.A: '+e.ca+')':''} — Qtd: ${e.quantidade}</div>`).join('')
       : episPgr.length
         ? episPgr.map(e=>`<div>• ${e} <em style="color:var(--verde);font-size:10px">(PGR)</em></div>`).join('')
         : '<em>Nenhum EPI configurado para este cargo</em>';
     document.getElementById('os-epis-preview').innerHTML = episHtml;
-  } catch(e) {}
+  } catch(e) { console.error('OS config:', e); }
 
   carregarOSCargos();
 }

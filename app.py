@@ -908,21 +908,18 @@ async def buscar_cbo(titulo: str = "", codigo: str = "", _=Depends(verificar_ace
 
 @app.get("/api/os/config")
 async def listar_os_config(_=Depends(verificar_acesso)):
-    """Lista configuração de OS (CBO) por cargo."""
-    cargos = banco.buscar_cargos()
-    cbo_configs = {c["cargo"]: c for c in banco.listar_cargos_cbo()}
-    todos_modelos = banco.listar_modelos()
-    modelos_cargo = {(m["id"], m["cargo"]) for m in todos_modelos if m.get("cargo") and m.get("tem_conteudo")}
+    """Lista todos os cargos com configuração de OS (CBO)."""
+    cargos     = banco.buscar_cargos()
+    cbo_map    = {c["cargo"]: c for c in banco.listar_cargos_cbo()}
     result = []
     for cargo in cargos:
-        cbo = cbo_configs.get(cargo, {})
-        tem_os = (OS_DOC_ID, cargo) in modelos_cargo
+        cbo = cbo_map.get(cargo, {})
         result.append({
-            "cargo": cargo,
-            "cbo_codigo": cbo.get("cbo_codigo", ""),
-            "cbo_titulo": cbo.get("cbo_titulo", ""),
+            "cargo":       cargo,
+            "cbo_codigo":  cbo.get("cbo_codigo", ""),
+            "cbo_titulo":  cbo.get("cbo_titulo", ""),
             "cbo_descricao": cbo.get("cbo_descricao", ""),
-            "tem_os_gerada": tem_os,
+            "configurado": bool(cbo.get("cbo_codigo") or cbo.get("cbo_descricao")),
         })
     return result
 

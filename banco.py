@@ -875,11 +875,13 @@ def listar_cargos_cbo() -> list:
     try:
         if USE_POSTGRES:
             cur = conn.cursor(cursor_factory=_psycopg2_extras.RealDictCursor)
+            cur.execute("SELECT cargo, cbo_codigo, cbo_titulo, cbo_descricao FROM cargo_cbo ORDER BY cargo")
+            return [dict(r) for r in cur.fetchall()]
         else:
             cur = conn.cursor()
-        cur.execute("SELECT cargo, cbo_codigo, cbo_titulo FROM cargo_cbo ORDER BY cargo")
-        rows = cur.fetchall()
-        return [dict(r) for r in rows]
+            cur.execute("SELECT cargo, cbo_codigo, cbo_titulo, cbo_descricao FROM cargo_cbo ORDER BY cargo")
+            cols = ['cargo','cbo_codigo','cbo_titulo','cbo_descricao']
+            return [dict(zip(cols, r)) for r in cur.fetchall()]
     finally:
         conn.close()
 

@@ -3410,7 +3410,7 @@ async function carregarOSCargos() {
           <div style="font-weight:500;font-size:13px">${c.cargo}</div>
           <div style="font-size:11px;color:var(--texto2)">${c.cbo_codigo ? 'CBO: '+c.cbo_codigo+' — '+c.cbo_titulo : 'CBO não configurado'}</div>
         </div>
-        <span class="badge ${c.cbo_descricao?'b-green':'b-amber'}">${c.cbo_descricao?'✓ OK':'Pendente'}</span>
+        <span style="font-size:11px;padding:2px 8px;border-radius:10px;background:${c.configurado?'#d1fae5':'#fef3c7'};color:${c.configurado?'#065f46':'#92400e'}">${c.configurado?'✓ OK':'Pendente'}</span>
       </div>
     `).join('');
   } catch(e) { console.error('carregarOSCargos:', e); el.innerHTML=`<p style="color:#e53e3e">Erro: ${e.message}</p>`; }

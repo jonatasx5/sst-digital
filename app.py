@@ -41,6 +41,22 @@ app.add_middleware(
 bearer_sec = HTTPBearer(auto_error=False)
 
 
+def _garantir_os_base():
+    """Seed the 03_os_base template if not already in DB."""
+    try:
+        existing = banco.buscar_modelo("03_os_base")
+        if not existing:
+            docx_bytes = processador.criar_os_base_docx()
+            banco.salvar_modelo("03_os_base", "Ordem de Serviço Base", docx_bytes)
+    except Exception as e:
+        print(f"[WARN] _garantir_os_base: {e}")
+
+
+@app.on_event("startup")
+async def startup_event():
+    _garantir_os_base()
+
+
 def _hash_senha(senha: str) -> str:
     salt = _secrets.token_hex(16)
     h = hashlib.pbkdf2_hmac("sha256", senha.encode(), salt.encode(), 260000)

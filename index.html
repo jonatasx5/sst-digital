@@ -1931,7 +1931,9 @@ function toggleSidebar() {
 async function carregarFuncionarios() {
   const busca = document.getElementById('busca-func').value;
   const res = await apiFetch(`/api/funcionarios?busca=${encodeURIComponent(busca)}`);
-  todosFunc = await res.json();
+  if (!res || !res.ok) return;
+  const data = await res.json();
+  todosFunc = Array.isArray(data) ? data : (data.funcionarios || []);
   document.getElementById('func-count-sub').textContent = `${todosFunc.length} funcionário(s) cadastrado(s)`;
   const tbody = document.getElementById('func-tbody');
   tbody.innerHTML = '';

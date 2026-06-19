@@ -541,6 +541,102 @@ def preencher_os_dinamica(funcionario: dict, descricao_atividades: str,
     return buf.getvalue()
 
 
+def criar_os_base_docx() -> bytes:
+    """Gera o template base de Ordem de Serviço em DOCX."""
+    from docx import Document as _Doc
+    from docx.shared import Pt, Cm, RGBColor
+    from docx.enum.text import WD_ALIGN_PARAGRAPH
+    from docx.enum.table import WD_ALIGN_VERTICAL
+    import io as _io
+
+    doc = _Doc()
+    # Margens
+    for sec in doc.sections:
+        sec.top_margin = Cm(1.5)
+        sec.bottom_margin = Cm(1.5)
+        sec.left_margin = Cm(2)
+        sec.right_margin = Cm(2)
+
+    def add_bold(para, text, size=11):
+        run = para.add_run(text)
+        run.bold = True
+        run.font.size = Pt(size)
+
+    def add_normal(para, text, size=10):
+        run = para.add_run(text)
+        run.font.size = Pt(size)
+
+    # Título
+    titulo = doc.add_paragraph()
+    titulo.alignment = WD_ALIGN_PARAGRAPH.CENTER
+    add_bold(titulo, "ORDEM DE SERVIÇO - SST", 14)
+
+    doc.add_paragraph()
+
+    # Dados do funcionário
+    campos = [
+        ("Empresa:", "{{EMPRESA}}"),
+        ("CNPJ:", "{{CNPJ}}"),
+        ("Nome:", "{{NOME}}"),
+        ("CPF:", "{{CPF}}"),
+        ("Matrícula:", "{{MATRICULA}}"),
+        ("Cargo/Função:", "{{CARGO}}"),
+        ("Lotação/Setor:", "{{LOTACAO}}"),
+        ("Data de Admissão:", "{{DATA_ADMISSAO}}"),
+        ("Celular:", "{{CELULAR}}"),
+        ("Data de Emissão:", "{{DATA_HOJE}}"),
+    ]
+    for label, val in campos:
+        p = doc.add_paragraph()
+        add_bold(p, f"{label} ")
+        add_normal(p, val)
+
+    doc.add_paragraph()
+
+    # Tabela principal com 3 colunas
+    table = doc.add_table(rows=2, cols=3)
+    table.style = 'Table Grid'
+
+    headers = [
+        "DESCRIÇÃO DAS ATIVIDADES",
+        "RISCOS A QUE ESTÁ EXPOSTO",
+        "EQUIPAMENTO DE PROTEÇÃO INDIVIDUAL (EPI) E UNIFORME",
+    ]
+    for i, hdr in enumerate(headers):
+        cell = table.rows[0].cells[i]
+        cell.vertical_alignment = WD_ALIGN_VERTICAL.CENTER
+        p = cell.paragraphs[0]
+        p.alignment = WD_ALIGN_PARAGRAPH.CENTER
+        run = p.add_run(hdr)
+        run.bold = True
+        run.font.size = Pt(9)
+
+    placeholders = ["{{ATIVIDADES}}", "{{RISCOS}}", "{{EPIS}}"]
+    for i, ph in enumerate(placeholders):
+        cell = table.rows[1].cells[i]
+        p = cell.paragraphs[0]
+        p.add_run(ph).font.size = Pt(9)
+
+    doc.add_paragraph()
+
+    # Assinaturas
+    p_ass = doc.add_paragraph()
+    add_bold(p_ass, "Responsável SST: ")
+    add_normal(p_ass, "{{RESP_SST}}")
+
+    p_func = doc.add_paragraph()
+    add_bold(p_func, "Assinatura do Funcionário: ")
+    add_normal(p_func, "_" * 40)
+
+    p_data = doc.add_paragraph()
+    add_bold(p_data, "Data: ")
+    add_normal(p_data, "{{DATA_HOJE}}")
+
+    buf = _io.BytesIO()
+    doc.save(buf)
+    return buf.getvalue()
+
+
 def extrair_texto_docx(conteudo_bytes: bytes) -> str:
     """Extrai todo o texto de um .docx em formato editável."""
     import io

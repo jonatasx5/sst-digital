@@ -1049,13 +1049,10 @@ def salvar_docs_cargo(cargo, doc_ids):
 def buscar_cargos():
     conn = conectar()
     try:
-        if USE_POSTGRES:
-            cur = conn.cursor(cursor_factory=_psycopg2_extras.RealDictCursor)
-        else:
-            cur = conn.cursor()
+        cur = conn.cursor()
         cur.execute("SELECT DISTINCT cargo FROM funcionarios WHERE cargo IS NOT NULL AND cargo != '' ORDER BY cargo")
         rows = cur.fetchall()
-        return [dict(r)["cargo"] for r in rows]
+        return [r[0] for r in rows]
     finally:
         conn.close()
 

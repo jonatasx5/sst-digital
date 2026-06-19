@@ -2093,8 +2093,8 @@ def _gerar_pdf_acidente_bytes(r: dict) -> bytes:
     story.append(Paragraph("DADOS DO FUNCIONÁRIO", sec_s))
     fd = [
         ["Nome:", r.get('funcionario_nome',''), "Matrícula:", r.get('matricula','')],
-        ["Função:", r.get('funcao',''), "Turno:", r.get('turno','')],
-        ["Sexo:", r.get('sexo',''), "Data Nasc.:", r.get('data_nasc','')],
+        ["Função:", r.get('funcao',''), "Empresa:", r.get('empresa_terceiro','') or 'JS Construtora e Locadora Ltda'],
+        ["Turno:", r.get('turno',''), "Sexo / Data Nasc.:", f"{r.get('sexo','')} / {r.get('data_nasc','')}"],
         ["Admissão:", r.get('data_admissao',''), "Telefone:", r.get('telefone','')],
         ["Posto de Trabalho:", r.get('posto_trabalho',''), "Chefia Imediata:", r.get('chefia_imediata','')],
     ]

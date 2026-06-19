@@ -1264,23 +1264,30 @@ tr:hover td { background:#F9FAFB; }
   <div id="acid-panel-form">
     <div class="card" style="margin-bottom:16px">
       <div class="card-title"><i class="ti ti-user-search"></i>Funcionário</div>
-      <div style="position:relative;max-width:420px;margin-bottom:12px">
-        <input type="text" id="acid-busca-func" placeholder="Digite o nome para buscar..." oninput="acidBuscarFunc(this.value)"
-          style="width:100%;padding:8px 12px;border:1px solid var(--borda);border-radius:8px;font-size:14px">
-        <div id="acid-func-dropdown" style="display:none;position:absolute;top:100%;left:0;right:0;background:#fff;border:1px solid var(--borda);border-radius:8px;box-shadow:0 4px 12px rgba(0,0,0,.1);z-index:100;max-height:220px;overflow-y:auto"></div>
+      <div style="display:flex;gap:8px;align-items:center;margin-bottom:10px;flex-wrap:wrap">
+        <div style="position:relative;flex:1;min-width:240px;max-width:420px">
+          <input type="text" id="acid-busca-func" placeholder="Buscar funcionário pelo nome..." oninput="acidBuscarFunc(this.value)"
+            style="width:100%;padding:8px 12px;border:1px solid var(--borda);border-radius:8px;font-size:14px">
+          <div id="acid-func-dropdown" style="display:none;position:absolute;top:100%;left:0;right:0;background:#fff;border:1px solid var(--borda);border-radius:8px;box-shadow:0 4px 12px rgba(0,0,0,.1);z-index:100;max-height:220px;overflow-y:auto"></div>
+        </div>
+        <button onclick="acidModoAvulso()" style="padding:7px 14px;border:1px solid var(--borda);background:var(--fundo);border-radius:8px;cursor:pointer;font-size:13px;white-space:nowrap;color:var(--texto2)"><i class="ti ti-pencil"></i> Terceiro / Avulso</button>
+      </div>
+      <div id="acid-avulso-info" style="display:none;background:#fffbe6;border:1px solid #f6c90e;border-radius:8px;padding:8px 12px;font-size:12px;color:#856404;margin-bottom:10px">
+        <i class="ti ti-info-circle"></i> Modo avulso — preencha os dados manualmente para funcionário de empresa terceira.
       </div>
       <div class="grid2" style="gap:12px">
-        <div class="field"><label>Nome Completo</label><input type="text" id="acid-nome"></div>
-        <div class="field"><label>Matrícula</label><input type="text" id="acid-matricula"></div>
-        <div class="field"><label>Função/Cargo</label><input type="text" id="acid-funcao"></div>
+        <div class="field"><label>Nome Completo *</label><input type="text" id="acid-nome"></div>
+        <div class="field"><label>Matrícula / CPF</label><input type="text" id="acid-matricula"></div>
+        <div class="field"><label>Função / Cargo</label><input type="text" id="acid-funcao"></div>
+        <div class="field"><label>Empresa (para terceiros)</label><input type="text" id="acid-empresa" placeholder="Ex: Empreiteira XYZ"></div>
         <div class="field"><label>Turno</label><input type="text" id="acid-turno" placeholder="Ex: Diurno / Noturno"></div>
         <div class="field"><label>Sexo</label>
           <select id="acid-sexo" style="width:100%;padding:8px;border:1px solid var(--borda);border-radius:8px;font-size:13px"><option value="">—</option><option value="M">Masculino</option><option value="F">Feminino</option></select>
         </div>
         <div class="field"><label>Data de Nascimento</label><input type="date" id="acid-nasc"></div>
         <div class="field"><label>Data de Admissão</label><input type="date" id="acid-admissao"></div>
-        <div class="field"><label>Telefone</label><input type="text" id="acid-telefone"></div>
-        <div class="field"><label>Posto de Trabalho</label><input type="text" id="acid-posto"></div>
+        <div class="field"><label>Telefone / Celular</label><input type="text" id="acid-telefone"></div>
+        <div class="field"><label>Posto de Trabalho / Frente</label><input type="text" id="acid-posto"></div>
         <div class="field"><label>Chefia Imediata</label><input type="text" id="acid-chefia"></div>
       </div>
     </div>
@@ -4615,14 +4622,31 @@ function acidBuscarFunc(q) {
   }, 300);
 }
 
+function acidModoAvulso() {
+  document.getElementById('acid-busca-func').value = '';
+  const drop = document.getElementById('acid-func-dropdown');
+  if(drop) drop.style.display='none';
+  const info = document.getElementById('acid-avulso-info');
+  if(info) info.style.display='';
+  ['acid-nome','acid-matricula','acid-funcao','acid-empresa','acid-turno','acid-nasc',
+   'acid-admissao','acid-telefone','acid-posto','acid-chefia'].forEach(id => {
+    const el = document.getElementById(id); if(el) el.value='';
+  });
+  const sexo=document.getElementById('acid-sexo'); if(sexo) sexo.value='';
+  document.getElementById('acid-nome').focus();
+}
+
 function acidSelecionarFunc(f) {
   const drop = document.getElementById('acid-func-dropdown');
   if(drop) drop.style.display='none';
+  const info = document.getElementById('acid-avulso-info');
+  if(info) info.style.display='none';
   document.getElementById('acid-busca-func').value = f.nome || '';
   const sv = (id, v) => { const el=document.getElementById(id); if(el) el.value=v||''; };
   sv('acid-nome', f.nome);
   sv('acid-matricula', f.matricula);
   sv('acid-funcao', f.cargo || f.funcao);
+  sv('acid-empresa', f.empresa || '');
   sv('acid-turno', f.turno);
   sv('acid-nasc', f.data_nasc || f.data_nascimento);
   sv('acid-admissao', f.data_admissao);
@@ -4688,6 +4712,7 @@ function acidColetarDados() {
     funcionario_nome: v('acid-nome'),
     matricula: v('acid-matricula'),
     funcao: v('acid-funcao'),
+    empresa_terceiro: v('acid-empresa'),
     turno: v('acid-turno'),
     sexo: v('acid-sexo'),
     data_nasc: v('acid-nasc'),
@@ -4895,11 +4920,12 @@ async function acidDeletar(id) {
 function acidNovaOcorrencia() {
   _acidId = null; _acidFotos = [];
   document.getElementById('acid-busca-func').value = '';
-  ['acid-nome','acid-matricula','acid-funcao','acid-turno','acid-nasc','acid-admissao',
+  ['acid-nome','acid-matricula','acid-funcao','acid-empresa','acid-turno','acid-nasc','acid-admissao',
    'acid-telefone','acid-posto','acid-chefia','acid-hora','acid-ck1-qtd','acid-ck2-just',
    'acid-natureza','acid-agente','acid-servico','acid-descricao','acid-dias',
    'acid-test1','acid-test1-cel','acid-test2','acid-test2-cel','acid-sup','acid-sup-cel',
    'acid-analise','acid-resp-nome','acid-resp-cpf'].forEach(id => { const el=document.getElementById(id); if(el) el.value=''; });
+  const avInfo=document.getElementById('acid-avulso-info'); if(avInfo) avInfo.style.display='none';
   const sexo=document.getElementById('acid-sexo'); if(sexo) sexo.value='';
   document.querySelectorAll('input[name^="acid-"]').forEach(el => el.checked=false);
   document.getElementById('acid-plano-body').innerHTML='';

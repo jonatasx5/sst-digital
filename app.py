@@ -289,15 +289,24 @@ async def importar_planilha(file: UploadFile = File(...), _=Depends(verificar_ac
         ins, atu = banco.importar_funcionarios(lista)
 
         # Se a planilha tem coluna CBO, salva CBO por cargo automaticamente
+        # Agrupa por cargo para buscar MTE só uma vez por código único
         cbos_salvos = 0
+        cbo_por_cargo: dict[str, str] = {}
         for f in lista:
             cbo_num = (f.get("cbo") or "").strip()
             cargo   = (f.get("cargo") or "").strip()
-            if cbo_num and cargo:
-                existente = banco.buscar_cargo_cbo(cargo)
-                if not existente or not existente.get("cbo_codigo"):
-                    banco.salvar_cargo_cbo(cargo, cbo_num, "", "")
-                    cbos_salvos += 1
+            if cbo_num and cargo and cargo not in cbo_por_cargo:
+                cbo_por_cargo[cargo] = cbo_num
+        # Códigos únicos → busca MTE uma vez por código
+        mte_cache: dict[str, tuple[str, str]] = {}
+        for cargo, cbo_num in cbo_por_cargo.items():
+            existente = banco.buscar_cargo_cbo(cargo)
+            if not existente or not existente.get("cbo_codigo"):
+                if cbo_num not in mte_cache:
+                    mte_cache[cbo_num] = _cbo_enriquecer(cbo_num)
+                titulo, descricao = mte_cache[cbo_num]
+                banco.salvar_cargo_cbo(cargo, cbo_num, titulo, descricao)
+                cbos_salvos += 1
 
         if cbos_salvos:
             avisos.append(f"ℹ️ {cbos_salvos} cargo(s) com CBO preenchido automaticamente da planilha.")
@@ -882,6 +891,28 @@ def _cbo_buscar_descricao(codigo_familia: str) -> dict:
         "titulos": titulos,
         "descricao_sumaria": descricao,
     }
+
+
+def _cbo_enriquecer(cbo_codigo: str) -> tuple[str, str]:
+    """Dado um código CBO (4-6 dígitos), retorna (titulo, descricao_sumaria) do MTE.
+    Usa os 4 primeiros dígitos para buscar a família; tenta achar o título exato.
+    Retorna ('', '') em caso de falha."""
+    try:
+        familia = str(cbo_codigo).replace("-", "").replace(".", "")[:4]
+        data = _cbo_buscar_descricao(familia)
+        if not data:
+            return "", ""
+        titulo = ""
+        codigo_limpo = str(cbo_codigo).replace("-", "").replace(".", "")
+        for t in data.get("titulos", []):
+            if t.get("codigo", "").replace("-", "").replace(".", "") == codigo_limpo:
+                titulo = t["titulo"]
+                break
+        if not titulo:
+            titulo = data.get("nome_familia", "")
+        return titulo, data.get("descricao_sumaria", "")
+    except Exception:
+        return "", ""
 
 
 @app.get("/api/cbo/buscar")

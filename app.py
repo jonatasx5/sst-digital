@@ -1049,9 +1049,13 @@ async def salvar_os_config_cargo(cargo: str, dados: dict, _=Depends(verificar_ac
     if not modelo_base:
         return {"ok": True, "aviso": "CBO salvo. Modelo base da OS não encontrado para gerar prévia."}
 
-    # Monta texto de EPIs
+    # Monta texto de EPIs (já devem estar salvos antes de chegar aqui)
     epis = banco.listar_epis_do_cargo(cargo)
     epis_texto = _formatar_epis_texto(epis)
+
+    # Pega riscos do PGR (texto completo, não o resumo do campo de detalhe)
+    pgr_para_os = banco.buscar_pgr_cargo(cargo)
+    riscos_para_os = pgr_para_os.get("riscos", "") if pgr_para_os else ""
 
     # Funcionário fictício para template de cargo
     func_template = {
@@ -1060,7 +1064,7 @@ async def salvar_os_config_cargo(cargo: str, dados: dict, _=Depends(verificar_ac
         "rg": "{{RG}}",
     }
     docx_bytes = processador.preencher_os_dinamica(
-        func_template, cbo_descricao, epis_texto, modelo_base, riscos_texto=riscos
+        func_template, cbo_descricao, epis_texto, modelo_base, riscos_texto=riscos_para_os
     )
     banco.salvar_modelo(OS_DOC_ID, "Ordem de Serviço", docx_bytes, cargo=cargo)
 

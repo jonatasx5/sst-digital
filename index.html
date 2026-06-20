@@ -723,10 +723,15 @@ tr:hover td { background:#F9FAFB; }
           <div id="os-epis-preview" style="font-size:12px;color:var(--texto2)">—</div>
         </div>
 
-        <button class="btn btn-primary" onclick="salvarOSConfig()" id="os-btn-salvar" disabled>
-          <i class="ti ti-device-floppy"></i> Salvar
-        </button>
-        <span id="os-salvar-status" style="font-size:12px;color:var(--verde);margin-left:10px;display:none"></span>
+        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+          <button class="btn btn-primary" onclick="salvarOSConfig()" id="os-btn-salvar" disabled>
+            <i class="ti ti-device-floppy"></i> Salvar
+          </button>
+          <button class="btn btn-outline" onclick="baixarOSCargo()" id="os-btn-baixar" disabled title="Baixar OS gerada para este cargo">
+            <i class="ti ti-download"></i> Ver OS
+          </button>
+          <span id="os-salvar-status" style="font-size:12px;color:var(--verde);display:none"></span>
+        </div>
       </div>
     </div>
   </div>
@@ -3479,6 +3484,7 @@ async function selecionarOSCargo(cargo) {
   osCargoAtual = cargo;
   document.getElementById('os-cargo-nome').textContent = cargo;
   document.getElementById('os-btn-salvar').disabled = false;
+  document.getElementById('os-btn-baixar').disabled = false;
   document.getElementById('os-salvar-status').style.display = 'none';
 
   try {
@@ -3705,17 +3711,17 @@ async function salvarOSConfig() {
         quantidade: parseInt(document.getElementById('os-epi-qtd-'+chk.value)?.value) || 1
       }));
 
-    // Salva config OS (CBO + riscos)
-    const r = await apiFetch(`/api/os/config/${encodeURIComponent(osCargoAtual)}`, {
-      method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload)
-    });
-    const data = await r.json();
-
-    // Salva EPIs do cargo
+    // 1) Salva EPIs primeiro (para a geração da OS já os incluir)
     await apiFetch(`/api/epis/cargo/${encodeURIComponent(osCargoAtual)}`, {
       method:'POST', headers:{'Content-Type':'application/json'},
       body: JSON.stringify({ epis: episSelecionados })
     });
+
+    // 2) Salva config OS (CBO + gera DOCX com EPIs e riscos do PGR)
+    const r = await apiFetch(`/api/os/config/${encodeURIComponent(osCargoAtual)}`, {
+      method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload)
+    });
+    const data = await r.json();
 
     if (data.ok) {
       const prop = data.propagado_para?.length ? ` · propagado para ${data.propagado_para.length} variante(s)` : '';
@@ -3730,6 +3736,20 @@ async function salvarOSConfig() {
     btn.disabled = false;
     btn.innerHTML = '<i class="ti ti-device-floppy"></i> Salvar';
   }
+}
+
+async function baixarOSCargo() {
+  if (!osCargoAtual) return;
+  // Busca o modelo OS gerado para este cargo
+  const res = await apiFetch(`/api/os/${encodeURIComponent(osCargoAtual)}/download`);
+  if (!res || !res.ok) { alert('OS ainda não gerada para este cargo. Clique em Salvar primeiro.'); return; }
+  const blob = await res.blob();
+  const url  = URL.createObjectURL(blob);
+  const a    = document.createElement('a');
+  a.href     = url;
+  a.download = `OS_${osCargoAtual}.docx`;
+  a.click();
+  URL.revokeObjectURL(url);
 }
 
 async function carregarOSFuncs() {

@@ -3469,9 +3469,36 @@ async function selecionarOSCargo(cargo) {
     const data = await res.json();
     const pgr  = data.pgr || {};
 
-    document.getElementById('os-cbo-codigo').value    = data.cbo?.cbo_codigo || '';
-    document.getElementById('os-cbo-titulo').value    = data.cbo?.cbo_titulo || '';
-    document.getElementById('os-cbo-descricao').value = data.cbo?.cbo_descricao || pgr.atividades || '';
+    const cboCodigo = data.cbo?.cbo_codigo || '';
+    let   cboTitulo = data.cbo?.cbo_titulo || '';
+    let   cboDesc   = data.cbo?.cbo_descricao || pgr.atividades || '';
+
+    document.getElementById('os-cbo-codigo').value    = cboCodigo;
+    document.getElementById('os-cbo-titulo').value    = cboTitulo;
+    document.getElementById('os-cbo-descricao').value = cboDesc;
+
+    // Se tem código mas não tem título, busca automaticamente no CBO
+    if (cboCodigo && !cboTitulo) {
+      try {
+        // Usa família (primeiros 4 dígitos) para buscar no mtecbo
+        const familia = cboCodigo.toString().replace(/\D/g,'').substring(0,4);
+        const cboRes = await apiFetch(`/api/cbo/buscar?codigo=${encodeURIComponent(familia)}`);
+        if (cboRes && cboRes.ok) {
+          const cboData = await cboRes.json();
+          if (cboData.ok) {
+            // Tenta achar o título exato pelo código completo nos titulos
+            const titulos = cboData.titulos || [];
+            const match = titulos.find(t => t.codigo && t.codigo.replace(/\D/g,'') === cboCodigo.toString().replace(/\D/g,''));
+            cboTitulo = match?.titulo || cboData.nome_familia || '';
+            document.getElementById('os-cbo-titulo').value = cboTitulo;
+            if (!cboDesc && cboData.descricao_sumaria) {
+              cboDesc = cboData.descricao_sumaria;
+              document.getElementById('os-cbo-descricao').value = cboDesc;
+            }
+          }
+        }
+      } catch(e) { /* silencioso */ }
+    }
 
     // Preenche riscos do PGR (já normalizado no backend)
     const riscosEl = document.getElementById('os-riscos');
@@ -3479,7 +3506,6 @@ async function selecionarOSCargo(cargo) {
     if (pgr.riscos) {
       riscosEl.value = pgr.riscos;
       pgrBadge.style.display = '';
-      // Mostra cargo de referência se for diferente (normalizado)
       if (pgr.cargo_ref && pgr.cargo_ref.toUpperCase() !== cargo.toUpperCase()) {
         pgrBadge.title = `Dados do PGR obtidos de: ${pgr.cargo_ref}`;
       }
@@ -3488,7 +3514,7 @@ async function selecionarOSCargo(cargo) {
       pgrBadge.style.display = 'none';
     }
 
-    // Descrição sumária do CBO: se campo vazio e PGR tem atividades, sugere
+    // Descrição sumária: se campo ainda vazio e PGR tem atividades, sugere
     const descEl = document.getElementById('os-cbo-descricao');
     if (!descEl.value && pgr.atividades) descEl.value = pgr.atividades;
 

@@ -701,13 +701,13 @@ tr:hover td { background:#F9FAFB; }
 
         <div class="card" style="background:var(--verde-light);border-color:var(--verde);margin-bottom:12px">
           <div style="font-size:12px;font-weight:600;color:var(--verde-dark);margin-bottom:8px">
-            <i class="ti ti-shield"></i> EPIs do cargo (PGR + cadastro)
+            <i class="ti ti-shield"></i> EPIs e Uniformes do cargo
           </div>
           <div id="os-epis-preview" style="font-size:12px;color:var(--texto2)">—</div>
         </div>
 
         <button class="btn btn-primary" onclick="salvarOSConfig()" id="os-btn-salvar" disabled>
-          <i class="ti ti-device-floppy"></i> Salvar e Gerar OS
+          <i class="ti ti-device-floppy"></i> Salvar
         </button>
         <span id="os-salvar-status" style="font-size:12px;color:var(--verde);margin-left:10px;display:none"></span>
       </div>
@@ -3518,15 +3518,32 @@ async function selecionarOSCargo(cargo) {
     const descEl = document.getElementById('os-cbo-descricao');
     if (!descEl.value && pgr.atividades) descEl.value = pgr.atividades;
 
-    // Preview EPIs (do cadastro + PGR)
-    const epis    = data.epis || [];
-    const episPgr = pgr.epis ? pgr.epis.split(';').map(s=>s.trim()).filter(Boolean) : [];
-    const episHtml = epis.length
-      ? epis.map(e=>`<div>• ${e.descricao}${e.ca?' (C.A: '+e.ca+')':''} — Qtd: ${e.quantidade}</div>`).join('')
-      : episPgr.length
-        ? episPgr.map(e=>`<div>• ${e} <em style="color:var(--verde);font-size:10px">(PGR)</em></div>`).join('')
-        : '<em>Nenhum EPI configurado para este cargo</em>';
-    document.getElementById('os-epis-preview').innerHTML = episHtml;
+    // Lista de EPIs e Uniformes — catálogo completo com checkboxes
+    const episCargo = data.epis || [];  // já salvos para este cargo
+    const episCargoIds = new Set(episCargo.map(e => e.epi_id || e.id));
+    // Palavras que indicam item de sinalização (não EPI)
+    const _naoEpi = /cone|placa|sinaliza[çc]/i;
+    try {
+      const catRes  = await apiFetch('/api/epis/catalogo');
+      const catalogo = catRes && catRes.ok ? (await catRes.json()) : [];
+      const episFiltrado = catalogo.filter(e => !_naoEpi.test(e.descricao || ''));
+      if (episFiltrado.length === 0) {
+        document.getElementById('os-epis-preview').innerHTML = '<em>Nenhum EPI cadastrado no sistema ainda.</em>';
+      } else {
+        document.getElementById('os-epis-preview').innerHTML = episFiltrado.map(e => {
+          const chk = episCargoIds.has(e.id) ? 'checked' : '';
+          const qtdCargo = episCargo.find(ec => (ec.epi_id||ec.id) === e.id);
+          const qtd = qtdCargo ? qtdCargo.quantidade : 1;
+          return `<label style="display:flex;align-items:center;gap:8px;padding:4px 0;border-bottom:1px solid rgba(0,0,0,.06);cursor:pointer">
+            <input type="checkbox" id="os-epi-${e.id}" value="${e.id}" ${chk} style="accent-color:var(--verde)">
+            <span style="flex:1">${e.descricao}${e.ca ? ' <small style="color:var(--texto2)">(C.A: '+e.ca+')</small>' : ''}</span>
+            <input type="number" id="os-epi-qtd-${e.id}" value="${qtd}" min="1" style="width:44px;padding:2px 4px;border:1px solid var(--borda);border-radius:4px;font-size:12px;text-align:center">
+          </label>`;
+        }).join('');
+      }
+    } catch(e) {
+      document.getElementById('os-epis-preview').innerHTML = '<em>Erro ao carregar EPIs</em>';
+    }
   } catch(e) { console.error('OS config:', e); }
 
   carregarOSCargos();
@@ -3651,13 +3668,28 @@ async function salvarOSConfig() {
       cbo_descricao: document.getElementById('os-cbo-descricao').value.trim(),
       riscos:        document.getElementById('os-riscos').value.trim(),
     };
+    // Coleta EPIs selecionados
+    const episSelecionados = [...document.querySelectorAll('#os-epis-preview input[type=checkbox]:checked')]
+      .map(chk => ({
+        epi_id: parseInt(chk.value),
+        quantidade: parseInt(document.getElementById('os-epi-qtd-'+chk.value)?.value) || 1
+      }));
+
+    // Salva config OS (CBO + riscos)
     const r = await apiFetch(`/api/os/config/${encodeURIComponent(osCargoAtual)}`, {
       method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload)
     });
     const data = await r.json();
+
+    // Salva EPIs do cargo
+    await apiFetch(`/api/epis/cargo/${encodeURIComponent(osCargoAtual)}`, {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ epis: episSelecionados })
+    });
+
     if (data.ok) {
       const prop = data.propagado_para?.length ? ` · propagado para ${data.propagado_para.length} variante(s)` : '';
-      status.textContent = `✓ OS gerada com ${data.epis_count} EPIs${prop}`;
+      status.textContent = `✓ Salvo — ${episSelecionados.length} EPI(s)${prop}`;
       status.style.display = '';
       carregarOSCargos();
     } else {
@@ -3666,7 +3698,7 @@ async function salvarOSConfig() {
   } catch(e) { alert('Erro: '+e); }
   finally {
     btn.disabled = false;
-    btn.innerHTML = '<i class="ti ti-device-floppy"></i> Salvar e Gerar OS';
+    btn.innerHTML = '<i class="ti ti-device-floppy"></i> Salvar';
   }
 }
 

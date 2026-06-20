@@ -26,10 +26,10 @@ from config import MODELOS_DIR, OUTPUT_DIR, EMPRESA, RESP_SST, CNPJ, DOCUMENTOS
 COLUNAS_MAP = {
     "nome":        ["nome", "funcionário", "funcionario", "colaborador"],
     "cpf":         ["cpf"],
-    "matricula":   ["matrícula", "matricula", "mat"],
-    "cargo":       ["cargo atual", "cargo", "função", "funcao", "função atual"],
+    "matricula":   ["matrícula", "matricula", "mat", "esocial matricula", "esocial matrícula", "esocial"],
+    "cargo":       ["cargo atual", "cargo", "função", "funcao", "função atual", "código atual", "codigo atual"],
     "lotacao":     ["contrato", "lotação", "lotacao", "obra", "frente"],
-    "admissao":    ["admissão", "admissao", "data admissão", "data de admissão", "dt admissão"],
+    "admissao":    ["admissão", "admissao", "data admissão", "data de admissão", "dt admissão", "admissão"],
     "celular":     ["celular", "telefone", "whatsapp", "fone", "cel"],
     "email":       ["e-mail pessoal", "email", "e-mail", "email pessoal"],
     "cbo":         ["cbo", "código cbo", "codigo cbo", "cbo cargo", "cbo função", "cbo funcao"],

@@ -651,11 +651,18 @@ def salvar_pgr_cargo(cargo: str, cbo: str = '', ambiente: str = '', atividades: 
         conn.close()
 
 # Aliases: cargo no sistema → cargo de referência no PGR
+# "TECNICO SEGURANCA DO TRABALHO" = versão sem acento (como vem de algumas planilhas)
+# "TECNICO SEGURANÇA DO TRABALHO" = versão com acento
+_TECNICO_SST = "TECNICO SEGURANCA DO TRABALHO"   # canonical sem acento
 _CARGO_ALIASES = {
-    "TST": "TECNICO SEGURANÇA DO TRABALHO",
-    "TEC SEGURANÇA DO TRABALHO": "TECNICO SEGURANÇA DO TRABALHO",
-    "TEC. SEGURANÇA DO TRABALHO": "TECNICO SEGURANÇA DO TRABALHO",
-    "TÉCNICO SEGURANÇA DO TRABALHO": "TECNICO SEGURANÇA DO TRABALHO",
+    "TST":                              _TECNICO_SST,
+    "TEC SEGURANÇA DO TRABALHO":        _TECNICO_SST,
+    "TEC. SEGURANÇA DO TRABALHO":       _TECNICO_SST,
+    "TEC SEGURANCA DO TRABALHO":        _TECNICO_SST,
+    "TEC. SEGURANCA DO TRABALHO":       _TECNICO_SST,
+    "TÉCNICO SEGURANÇA DO TRABALHO":    _TECNICO_SST,
+    "TÉCNICO SEGURANCA DO TRABALHO":    _TECNICO_SST,
+    "TECNICO SEGURANÇA DO TRABALHO":    _TECNICO_SST,  # com acento → canonical sem acento
 }
 
 

@@ -912,12 +912,14 @@ def propagar_cbo_variantes():
     """Propaga CBO de cargos base para variantes (NIVEL I/II/III, aliases) que ainda não têm CBO."""
     todos = buscar_cargos()
     cargos_com_cbo = listar_cargos_cbo()
-    cbo_map = {r["cargo"].upper(): r for r in cargos_com_cbo}
+    # Só considera "configurado" se realmente tem cbo_codigo ou cbo_descricao
+    cbo_map = {r["cargo"].upper(): r for r in cargos_com_cbo
+               if r.get("cbo_codigo") or r.get("cbo_descricao")}
     propagados = []
     for cargo in todos:
         cargo_up = cargo.upper().strip()
         if cargo_up in cbo_map:
-            continue  # já tem CBO próprio
+            continue  # já tem CBO configurado
         cargo_norm = _normalizar_cargo(cargo_up)
         if cargo_norm in cbo_map:
             src = cbo_map[cargo_norm]

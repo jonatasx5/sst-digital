@@ -397,6 +397,14 @@ async def listar_modelos_banco(_=Depends(verificar_acesso)):
     return resultado
 
 
+@app.post("/api/modelos/{doc_id}/upload")
+async def upload_modelo_base(doc_id: str, file: UploadFile = File(...), _=Depends(verificar_acesso)):
+    """Substitui um modelo base (ex: 03_os_base) por upload de .docx."""
+    conteudo = await file.read()
+    banco.salvar_modelo(doc_id, file.filename or doc_id, conteudo)
+    return {"ok": True}
+
+
 @app.get("/api/modelos/{doc_id}/download")
 async def download_modelo(doc_id: str, cargo: str = None, _=Depends(verificar_acesso)):
     from fastapi.responses import Response

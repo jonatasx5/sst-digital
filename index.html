@@ -630,9 +630,18 @@ tr:hover td { background:#F9FAFB; }
       <div class="page-title">Ordens de Serviço</div>
       <div class="page-sub">Configure o CBO, riscos (PGR) por cargo e envie a OS para assinatura</div>
     </div>
-    <button class="btn btn-outline btn-sm" onclick="importarPGR()" title="Importa riscos e EPIs do PGR para todos os cargos">
-      <i class="ti ti-shield-lock"></i> Importar PGR
-    </button>
+    <div style="display:flex;gap:8px;align-items:center">
+      <button class="btn btn-outline btn-sm" onclick="baixarModeloOSBase()" title="Baixar o modelo base da OS para editar">
+        <i class="ti ti-download"></i> Modelo Base
+      </button>
+      <label class="btn btn-outline btn-sm" style="cursor:pointer;margin:0" title="Enviar novo modelo base da OS">
+        <i class="ti ti-upload"></i> Subir Modelo
+        <input type="file" accept=".docx" style="display:none" onchange="uploadModeloOSBase(this)">
+      </label>
+      <button class="btn btn-outline btn-sm" onclick="importarPGR()" title="Importa riscos e EPIs do PGR para todos os cargos">
+        <i class="ti ti-shield-lock"></i> Importar PGR
+      </button>
+    </div>
   </div>
 
   <!-- Tabs -->
@@ -3405,6 +3414,30 @@ function osAba(aba) {
     b.style.borderBottom = isAtivo ? '2px solid var(--verde)' : '2px solid transparent';
   });
   if (aba === 'envio') carregarOSFuncs();
+}
+
+async function baixarModeloOSBase() {
+  const res = await apiFetch('/api/modelos/03_os_base/download');
+  if (!res || !res.ok) { alert('Modelo base não encontrado.'); return; }
+  const blob = await res.blob();
+  const url  = URL.createObjectURL(blob);
+  const a    = document.createElement('a');
+  a.href     = url;
+  a.download = 'modelo_os_base.docx';
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+async function uploadModeloOSBase(input) {
+  const file = input.files[0];
+  if (!file) return;
+  const fd = new FormData();
+  fd.append('file', file);
+  const res = await apiFetch('/api/modelos/03_os_base/upload', { method: 'POST', body: fd });
+  const data = await res.json();
+  if (data.ok) alert('Modelo base atualizado com sucesso!');
+  else alert('Erro ao subir modelo: ' + JSON.stringify(data));
+  input.value = '';
 }
 
 async function importarPGR() {

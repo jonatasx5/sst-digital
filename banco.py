@@ -908,6 +908,24 @@ def listar_cargos_cbo() -> list:
         conn.close()
 
 
+def propagar_cbo_variantes():
+    """Propaga CBO de cargos base para variantes (NIVEL I/II/III, aliases) que ainda não têm CBO."""
+    todos = buscar_cargos()
+    cargos_com_cbo = listar_cargos_cbo()
+    cbo_map = {r["cargo"].upper(): r for r in cargos_com_cbo}
+    propagados = []
+    for cargo in todos:
+        cargo_up = cargo.upper().strip()
+        if cargo_up in cbo_map:
+            continue  # já tem CBO próprio
+        cargo_norm = _normalizar_cargo(cargo_up)
+        if cargo_norm in cbo_map:
+            src = cbo_map[cargo_norm]
+            salvar_cargo_cbo(cargo, src["cbo_codigo"], src["cbo_titulo"], src["cbo_descricao"])
+            propagados.append(cargo)
+    return propagados
+
+
 def buscar_funcionarios(termo="", apenas_ativos=True):
     conn = conectar()
     try:

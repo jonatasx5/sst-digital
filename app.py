@@ -55,6 +55,12 @@ def _garantir_os_base():
 @app.on_event("startup")
 async def startup_event():
     _garantir_os_base()
+    try:
+        propagados = banco.propagar_cbo_variantes()
+        if propagados:
+            print(f"[STARTUP] CBO propagado para {len(propagados)} cargos: {propagados}")
+    except Exception as e:
+        print(f"[WARN] propagar_cbo_variantes: {e}")
 
 
 def _hash_senha(senha: str) -> str:

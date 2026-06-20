@@ -55,12 +55,28 @@ def _garantir_os_base():
 @app.on_event("startup")
 async def startup_event():
     _garantir_os_base()
-    # Seed PGR: insere cargos que ainda não têm entrada (não sobrescreve dados editados manualmente)
+    # Seed PGR: insere cargos sem entrada E corrige riscos com duplicatas acumuladas
     try:
+        import re as _re
         for item in PGR_SEED:
             existente = banco.buscar_pgr_cargo(item["cargo"])
             if not existente:
                 banco.salvar_pgr_cargo(**item)
+            else:
+                # Corrige riscos duplicados (texto repetido com " — " de salvamentos anteriores)
+                riscos_atual = existente.get("riscos", "")
+                if " — " in riscos_atual:
+                    partes = [p.strip() for p in riscos_atual.split(" — ")]
+                    riscos_limpo = partes[0]  # primeira ocorrência = original do PGR
+                    banco.salvar_pgr_cargo(
+                        cargo=existente["cargo"],
+                        cbo=existente.get("cbo",""),
+                        ambiente=existente.get("ambiente",""),
+                        atividades=existente.get("atividades",""),
+                        riscos=riscos_limpo,
+                        epis=existente.get("epis",""),
+                        epcs=existente.get("epcs",""),
+                    )
         print(f"[STARTUP] PGR seed verificado ({len(PGR_SEED)} entradas)")
     except Exception as e:
         print(f"[WARN] pgr seed: {e}")
@@ -1037,20 +1053,7 @@ async def salvar_os_config_cargo(cargo: str, dados: dict, _=Depends(verificar_ac
                 banco.salvar_cargo_cbo(c, cbo_codigo, cbo_titulo, cbo_descricao)
                 propagados.append(c)
 
-    # Atualiza riscos no PGR apenas se o usuário digitou algo no campo de detalhe
-    # (não sobrescreve o campo completo do PGR com as categorias de checkbox)
-    riscos_detalhe = dados.get("riscos_detalhe", "").strip()
-    if riscos_detalhe:
-        pgr_atual = banco.buscar_pgr_cargo(cargo)
-        banco.salvar_pgr_cargo(
-            cargo=cargo,
-            cbo=pgr_atual.get("cbo", cbo_codigo),
-            ambiente=pgr_atual.get("ambiente", ""),
-            atividades=pgr_atual.get("atividades", cbo_descricao),
-            riscos=pgr_atual.get("riscos", "") + (" — " + riscos_detalhe if pgr_atual.get("riscos") else riscos_detalhe),
-            epis=pgr_atual.get("epis", ""),
-            epcs=pgr_atual.get("epcs", ""),
-        )
+    # Riscos do PGR não são alterados aqui — o PGR é a fonte de verdade
 
     # Gera a OS modelo para o cargo (sem funcionário — com placeholders)
     modelo_base = banco.buscar_modelo("03_os_base")

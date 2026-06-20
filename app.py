@@ -55,6 +55,15 @@ def _garantir_os_base():
 @app.on_event("startup")
 async def startup_event():
     _garantir_os_base()
+    # Seed PGR: insere cargos que ainda não têm entrada (não sobrescreve dados editados manualmente)
+    try:
+        for item in PGR_SEED:
+            existente = banco.buscar_pgr_cargo(item["cargo"])
+            if not existente:
+                banco.salvar_pgr_cargo(**item)
+        print(f"[STARTUP] PGR seed verificado ({len(PGR_SEED)} entradas)")
+    except Exception as e:
+        print(f"[WARN] pgr seed: {e}")
     try:
         propagados = banco.propagar_cbo_variantes()
         if propagados:
@@ -1020,15 +1029,17 @@ async def salvar_os_config_cargo(cargo: str, dados: dict, _=Depends(verificar_ac
                 banco.salvar_cargo_cbo(c, cbo_codigo, cbo_titulo, cbo_descricao)
                 propagados.append(c)
 
-    # Salva riscos no PGR se informado
-    if riscos:
+    # Atualiza riscos no PGR apenas se o usuário digitou algo no campo de detalhe
+    # (não sobrescreve o campo completo do PGR com as categorias de checkbox)
+    riscos_detalhe = dados.get("riscos_detalhe", "").strip()
+    if riscos_detalhe:
         pgr_atual = banco.buscar_pgr_cargo(cargo)
         banco.salvar_pgr_cargo(
             cargo=cargo,
             cbo=pgr_atual.get("cbo", cbo_codigo),
             ambiente=pgr_atual.get("ambiente", ""),
             atividades=pgr_atual.get("atividades", cbo_descricao),
-            riscos=riscos,
+            riscos=pgr_atual.get("riscos", "") + (" — " + riscos_detalhe if pgr_atual.get("riscos") else riscos_detalhe),
             epis=pgr_atual.get("epis", ""),
             epcs=pgr_atual.get("epcs", ""),
         )

@@ -3692,21 +3692,11 @@ async function salvarOSConfig() {
   btn.innerHTML = '<i class="ti ti-loader ti-spin"></i> Salvando...';
 
   try {
-    // Monta string de categorias de risco selecionadas
-    const categorias = ['Físico','Químico','Biológico','Ergonômico','Acidente']
-      .filter((_,i) => [document.getElementById('os-risco-fisico'),
-                        document.getElementById('os-risco-quimico'),
-                        document.getElementById('os-risco-biologico'),
-                        document.getElementById('os-risco-ergonomico'),
-                        document.getElementById('os-risco-acidente')][i]?.checked)
-      .join(', ');
-    const riscosDetalhe = document.getElementById('os-riscos').value.trim();
-    const riscosTotal = [categorias, riscosDetalhe].filter(Boolean).join(' — ');
     const payload = {
-      cbo_codigo:    document.getElementById('os-cbo-codigo').value.trim(),
-      cbo_titulo:    document.getElementById('os-cbo-titulo').value.trim(),
-      cbo_descricao: document.getElementById('os-cbo-descricao').value.trim(),
-      riscos:        riscosTotal,
+      cbo_codigo:      document.getElementById('os-cbo-codigo').value.trim(),
+      cbo_titulo:      document.getElementById('os-cbo-titulo').value.trim(),
+      cbo_descricao:   document.getElementById('os-cbo-descricao').value.trim(),
+      riscos_detalhe:  document.getElementById('os-riscos').value.trim(),
     };
     // Coleta EPIs selecionados
     const episSelecionados = [...document.querySelectorAll('#os-epis-preview input[type=checkbox]:checked')]

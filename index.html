@@ -3396,24 +3396,66 @@ async function importarPGR() {
   }
 }
 
+let _osCargosCache = [];
+
 async function carregarOSCargos() {
   const el = document.getElementById('os-lista-cargos');
   el.innerHTML = '<p style="color:var(--texto2);font-size:13px">Carregando...</p>';
   try {
     const res = await apiFetch('/api/os/config');
-    if (!res || !res.ok) { el.innerHTML='<p style="color:#e53e3e">Erro ao carregar cargos.</p>'; return; }
+    if (!res || !res.ok) {
+      const txt = res ? await res.text() : 'sem resposta';
+      el.innerHTML=`<p style="color:#e53e3e">Erro ao carregar cargos: ${txt}</p>`; return;
+    }
     const configList = await res.json();
-    if (!configList || !configList.length) { el.innerHTML='<p>Nenhum cargo cadastrado. Importe a planilha de funcionários primeiro.</p>'; return; }
-    el.innerHTML = configList.map(c => `
-      <div onclick="selecionarOSCargo('${c.cargo}')" style="display:flex;align-items:center;justify-content:space-between;padding:10px 12px;border-radius:8px;cursor:pointer;margin-bottom:4px;background:${osCargoAtual===c.cargo?'var(--verde-light)':'#F9FAFB'};border:1px solid ${osCargoAtual===c.cargo?'var(--verde)':'var(--borda)'}">
-        <div>
-          <div style="font-weight:500;font-size:13px">${c.cargo}</div>
-          <div style="font-size:11px;color:var(--texto2)">${c.cbo_codigo ? 'CBO: '+c.cbo_codigo+' — '+c.cbo_titulo : 'CBO não configurado'}</div>
-        </div>
-        <span style="font-size:11px;padding:2px 8px;border-radius:10px;background:${c.configurado?'#d1fae5':'#fef3c7'};color:${c.configurado?'#065f46':'#92400e'}">${c.configurado?'✓ OK':'Pendente'}</span>
-      </div>
-    `).join('');
-  } catch(e) { console.error('carregarOSCargos:', e); el.innerHTML=`<p style="color:#e53e3e">Erro: ${e.message}</p>`; }
+    if (!configList || !configList.length) {
+      el.innerHTML='<p style="font-size:13px">Nenhum cargo encontrado. Importe a planilha de funcionários primeiro.</p>'; return;
+    }
+    _osCargosCache = configList;
+    renderOSCargos(configList);
+  } catch(e) {
+    console.error('carregarOSCargos:', e);
+    el.innerHTML=`<p style="color:#e53e3e">Erro: ${e.message}</p>`;
+  }
+}
+
+function renderOSCargos(lista) {
+  const el = document.getElementById('os-lista-cargos');
+  const pendentes = lista.filter(c=>!c.configurado).length;
+  el.innerHTML = `
+    <div style="margin-bottom:8px;font-size:12px;color:var(--texto2)">${lista.length} cargo(s) · <span style="color:#92400e">${pendentes} pendente(s)</span></div>
+    <input type="text" placeholder="Filtrar cargo..." oninput="filtrarOSCargos(this.value)"
+      style="width:100%;padding:7px 10px;border:1px solid var(--borda);border-radius:8px;font-size:13px;margin-bottom:8px;box-sizing:border-box">
+    <div id="os-cargos-lista">` +
+    lista.map(c => {
+      const cargoEsc = c.cargo.replace(/\\/g,'\\\\').replace(/'/g,"\\'");
+      const ativo = osCargoAtual===c.cargo;
+      return `<div onclick="selecionarOSCargo('${cargoEsc}')"
+        style="display:flex;align-items:center;justify-content:space-between;padding:9px 12px;border-radius:8px;cursor:pointer;margin-bottom:3px;
+               background:${ativo?'var(--verde-light)':'#F9FAFB'};border:1px solid ${ativo?'var(--verde)':'var(--borda)'}">
+        <div style="font-weight:500;font-size:13px;flex:1;margin-right:8px">${c.cargo}</div>
+        <span style="font-size:11px;padding:2px 8px;border-radius:10px;white-space:nowrap;
+          background:${c.configurado?'#d1fae5':'#fef3c7'};color:${c.configurado?'#065f46':'#92400e'}">${c.configurado?'✓ OK':'Pendente'}</span>
+      </div>`;
+    }).join('') + '</div>';
+}
+
+function filtrarOSCargos(termo) {
+  const t = termo.trim().toLowerCase();
+  const filtrado = t ? _osCargosCache.filter(c=>c.cargo.toLowerCase().includes(t)) : _osCargosCache;
+  const listaEl = document.getElementById('os-cargos-lista');
+  if (!listaEl) return;
+  listaEl.innerHTML = filtrado.map(c => {
+    const cargoEsc = c.cargo.replace(/\\/g,'\\\\').replace(/'/g,"\\'");
+    const ativo = osCargoAtual===c.cargo;
+    return `<div onclick="selecionarOSCargo('${cargoEsc}')"
+      style="display:flex;align-items:center;justify-content:space-between;padding:9px 12px;border-radius:8px;cursor:pointer;margin-bottom:3px;
+             background:${ativo?'var(--verde-light)':'#F9FAFB'};border:1px solid ${ativo?'var(--verde)':'var(--borda)'}">
+      <div style="font-weight:500;font-size:13px;flex:1;margin-right:8px">${c.cargo}</div>
+      <span style="font-size:11px;padding:2px 8px;border-radius:10px;white-space:nowrap;
+        background:${c.configurado?'#d1fae5':'#fef3c7'};color:${c.configurado?'#065f46':'#92400e'}">${c.configurado?'✓ OK':'Pendente'}</span>
+    </div>`;
+  }).join('');
 }
 
 async function selecionarOSCargo(cargo) {

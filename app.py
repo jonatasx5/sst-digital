@@ -909,19 +909,23 @@ async def buscar_cbo(titulo: str = "", codigo: str = "", _=Depends(verificar_ace
 @app.get("/api/os/config")
 async def listar_os_config(_=Depends(verificar_acesso)):
     """Lista todos os cargos com configuração de OS (CBO)."""
-    cargos     = banco.buscar_cargos()
-    cbo_map    = {c["cargo"]: c for c in banco.listar_cargos_cbo()}
-    result = []
-    for cargo in cargos:
-        cbo = cbo_map.get(cargo, {})
-        result.append({
-            "cargo":       cargo,
-            "cbo_codigo":  cbo.get("cbo_codigo", ""),
-            "cbo_titulo":  cbo.get("cbo_titulo", ""),
-            "cbo_descricao": cbo.get("cbo_descricao", ""),
-            "configurado": bool(cbo.get("cbo_codigo") or cbo.get("cbo_descricao")),
-        })
-    return result
+    try:
+        cargos  = banco.buscar_cargos()
+        cbo_map = {c["cargo"].upper(): c for c in banco.listar_cargos_cbo()}
+        result  = []
+        for cargo in cargos:
+            cbo = cbo_map.get(cargo.upper(), {})
+            result.append({
+                "cargo":         cargo,
+                "cbo_codigo":    cbo.get("cbo_codigo", ""),
+                "cbo_titulo":    cbo.get("cbo_titulo", ""),
+                "cbo_descricao": cbo.get("cbo_descricao", ""),
+                "configurado":   bool(cbo.get("cbo_codigo") or cbo.get("cbo_descricao")),
+            })
+        return result
+    except Exception as e:
+        print(f"[ERRO /api/os/config] {e}")
+        raise HTTPException(500, str(e))
 
 
 @app.get("/api/os/config/{cargo}")

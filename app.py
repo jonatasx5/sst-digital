@@ -1089,18 +1089,17 @@ async def salvar_os_config_cargo(cargo: str, dados: dict, _=Depends(verificar_ac
 
 
 def _formatar_epis_texto(epis: list) -> str:
-    """Formata lista de EPIs para texto da OS."""
+    """Formata lista de EPIs para texto da OS — só nome do item, sem quantidade."""
     if not epis:
         return ""
     linhas = []
     for e in epis:
-        ca = e.get("ca", "")
-        qtd = e.get("quantidade", 1)
         desc = e.get("descricao", "")
+        ca   = e.get("ca", "")
         if ca:
-            linhas.append(f"- {desc} (C.A: {ca}) — Qtd: {qtd}")
+            linhas.append(f"- {desc} (C.A: {ca})")
         else:
-            linhas.append(f"- {desc} — Qtd: {qtd}")
+            linhas.append(f"- {desc}")
     return "\n".join(linhas)
 
 

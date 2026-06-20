@@ -696,7 +696,24 @@ tr:hover td { background:#F9FAFB; }
             <span>Riscos a que está exposto</span>
             <span id="os-pgr-badge" style="display:none;font-size:10px;background:var(--verde);color:#fff;padding:2px 8px;border-radius:10px">PGR</span>
           </label>
-          <textarea id="os-riscos" rows="5" placeholder="Preenchido automaticamente pelo PGR ao selecionar o cargo, ou edite manualmente..."></textarea>
+          <div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:8px">
+            <label style="display:flex;align-items:center;gap:5px;font-size:13px;cursor:pointer">
+              <input type="checkbox" id="os-risco-fisico" style="accent-color:var(--verde)"> Físico
+            </label>
+            <label style="display:flex;align-items:center;gap:5px;font-size:13px;cursor:pointer">
+              <input type="checkbox" id="os-risco-quimico" style="accent-color:var(--verde)"> Químico
+            </label>
+            <label style="display:flex;align-items:center;gap:5px;font-size:13px;cursor:pointer">
+              <input type="checkbox" id="os-risco-biologico" style="accent-color:var(--verde)"> Biológico
+            </label>
+            <label style="display:flex;align-items:center;gap:5px;font-size:13px;cursor:pointer">
+              <input type="checkbox" id="os-risco-ergonomico" style="accent-color:var(--verde)"> Ergonômico
+            </label>
+            <label style="display:flex;align-items:center;gap:5px;font-size:13px;cursor:pointer">
+              <input type="checkbox" id="os-risco-acidente" style="accent-color:var(--verde)"> Acidente
+            </label>
+          </div>
+          <textarea id="os-riscos" rows="3" placeholder="Detalhes adicionais dos riscos (opcional)..."></textarea>
         </div>
 
         <div class="card" style="background:var(--verde-light);border-color:var(--verde);margin-bottom:12px">
@@ -3500,23 +3517,31 @@ async function selecionarOSCargo(cargo) {
       } catch(e) { /* silencioso */ }
     }
 
-    // Preenche riscos do PGR (já normalizado no backend)
+    // Riscos do PGR — preenche checkboxes de categoria e textarea de detalhe
     const riscosEl = document.getElementById('os-riscos');
     const pgrBadge = document.getElementById('os-pgr-badge');
+    const riscosTexto = (pgr.riscos || data.cbo?.riscos || '').toLowerCase();
+    document.getElementById('os-risco-fisico').checked    = /f[íi]sico/i.test(riscosTexto);
+    document.getElementById('os-risco-quimico').checked   = /qu[íi]mico/i.test(riscosTexto);
+    document.getElementById('os-risco-biologico').checked = /biol[oó]gico/i.test(riscosTexto);
+    document.getElementById('os-risco-ergonomico').checked= /ergon[oô]mico/i.test(riscosTexto);
+    document.getElementById('os-risco-acidente').checked  = /acidente/i.test(riscosTexto);
+    riscosEl.value = pgr.riscos || '';
     if (pgr.riscos) {
-      riscosEl.value = pgr.riscos;
       pgrBadge.style.display = '';
-      if (pgr.cargo_ref && pgr.cargo_ref.toUpperCase() !== cargo.toUpperCase()) {
+      if (pgr.cargo_ref && pgr.cargo_ref.toUpperCase() !== cargo.toUpperCase())
         pgrBadge.title = `Dados do PGR obtidos de: ${pgr.cargo_ref}`;
-      }
     } else {
-      if (!riscosEl.value) riscosEl.value = '';
       pgrBadge.style.display = 'none';
     }
 
     // Descrição sumária: se campo ainda vazio e PGR tem atividades, sugere
     const descEl = document.getElementById('os-cbo-descricao');
     if (!descEl.value && pgr.atividades) descEl.value = pgr.atividades;
+
+    // EPIs do PGR (nomes separados por ; ou ,) para pré-marcar catálogo
+    const _norm = s => s.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/[^a-z0-9 ]/g,' ').trim();
+    const episPgrNomes = (pgr.epis || '').split(/[;,]/).map(s=>_norm(s)).filter(Boolean);
 
     // Lista de EPIs e Uniformes — catálogo completo com checkboxes
     const episCargo = data.epis || [];  // já salvos para este cargo
@@ -3531,12 +3556,17 @@ async function selecionarOSCargo(cargo) {
         document.getElementById('os-epis-preview').innerHTML = '<em>Nenhum EPI cadastrado no sistema ainda.</em>';
       } else {
         document.getElementById('os-epis-preview').innerHTML = episFiltrado.map(e => {
-          const chk = episCargoIds.has(e.id) ? 'checked' : '';
+          // Pré-marca se já está salvo no cargo OU se o nome bate com algum EPI do PGR
+          const desc_norm = _norm(e.descricao || '');
+          const viaCargoSalvo = episCargoIds.has(e.id);
+          const viaPgr = !viaCargoSalvo && episPgrNomes.some(p => p.length > 3 && (desc_norm.includes(p) || p.includes(desc_norm.split(' ')[0])));
+          const chk = (viaCargoSalvo || viaPgr) ? 'checked' : '';
+          const pgrLabel = viaPgr ? ' <small style="color:var(--verde);font-size:10px">(PGR)</small>' : '';
           const qtdCargo = episCargo.find(ec => (ec.epi_id||ec.id) === e.id);
           const qtd = qtdCargo ? qtdCargo.quantidade : 1;
           return `<label style="display:flex;align-items:center;gap:8px;padding:4px 0;border-bottom:1px solid rgba(0,0,0,.06);cursor:pointer">
             <input type="checkbox" id="os-epi-${e.id}" value="${e.id}" ${chk} style="accent-color:var(--verde)">
-            <span style="flex:1">${e.descricao}${e.ca ? ' <small style="color:var(--texto2)">(C.A: '+e.ca+')</small>' : ''}</span>
+            <span style="flex:1">${e.descricao}${e.ca ? ' <small style="color:var(--texto2)">(C.A: '+e.ca+')</small>' : ''}${pgrLabel}</span>
             <input type="number" id="os-epi-qtd-${e.id}" value="${qtd}" min="1" style="width:44px;padding:2px 4px;border:1px solid var(--borda);border-radius:4px;font-size:12px;text-align:center">
           </label>`;
         }).join('');
@@ -3662,11 +3692,21 @@ async function salvarOSConfig() {
   btn.innerHTML = '<i class="ti ti-loader ti-spin"></i> Salvando...';
 
   try {
+    // Monta string de categorias de risco selecionadas
+    const categorias = ['Físico','Químico','Biológico','Ergonômico','Acidente']
+      .filter((_,i) => [document.getElementById('os-risco-fisico'),
+                        document.getElementById('os-risco-quimico'),
+                        document.getElementById('os-risco-biologico'),
+                        document.getElementById('os-risco-ergonomico'),
+                        document.getElementById('os-risco-acidente')][i]?.checked)
+      .join(', ');
+    const riscosDetalhe = document.getElementById('os-riscos').value.trim();
+    const riscosTotal = [categorias, riscosDetalhe].filter(Boolean).join(' — ');
     const payload = {
       cbo_codigo:    document.getElementById('os-cbo-codigo').value.trim(),
       cbo_titulo:    document.getElementById('os-cbo-titulo').value.trim(),
       cbo_descricao: document.getElementById('os-cbo-descricao').value.trim(),
-      riscos:        document.getElementById('os-riscos').value.trim(),
+      riscos:        riscosTotal,
     };
     // Coleta EPIs selecionados
     const episSelecionados = [...document.querySelectorAll('#os-epis-preview input[type=checkbox]:checked')]

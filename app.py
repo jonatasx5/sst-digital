@@ -868,13 +868,12 @@ def _cbo_buscar_descricao(codigo_familia: str) -> dict:
 
     texto = soup3.get_text(separator="\n")
 
-    # Extrai "Descrição Sumária"
+    # Extrai "Descrição Sumária" — apenas o primeiro parágrafo
     import re as _re
     m = _re.search(r"Descri[çc][ãa]o\s+Sum[aá]ria\s*(.*?)(?=Todos os direitos|$)", texto, _re.DOTALL)
-    descricao = m.group(1).strip() if m else ""
-
-    # Remove linhas de rodapé
-    descricao = _re.sub(r"\n{3,}", "\n\n", descricao).strip()
+    descricao_full = m.group(1).strip() if m else ""
+    # Pega só o primeiro parágrafo (antes de "Esta família não compreende" ou linha em branco dupla)
+    descricao = _re.split(r"\n{2,}|Esta fam[íi]lia n[ãa]o compreende", descricao_full)[0].strip()
 
     # Extrai títulos (ocupações da família)
     titulos = []

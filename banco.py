@@ -889,17 +889,23 @@ def listar_cargos_cbo() -> list:
 def buscar_funcionarios(termo="", apenas_ativos=True):
     conn = conectar()
     try:
-        filtro = "AND ativo=1" if apenas_ativos else ""
+        filtro = "AND f.ativo=1" if apenas_ativos else ""
         if USE_POSTGRES:
             cur = conn.cursor(cursor_factory=_psycopg2_extras.RealDictCursor)
-            cur.execute(f"""SELECT * FROM funcionarios
-                WHERE (nome ILIKE %s OR cpf ILIKE %s OR cargo ILIKE %s OR lotacao ILIKE %s) {filtro}
-                ORDER BY nome""", (f"%{termo}%",)*4)
+            cur.execute(f"""
+                SELECT f.*, COALESCE(c.cbo_codigo,'') as cbo
+                FROM funcionarios f
+                LEFT JOIN cargo_cbo c ON UPPER(c.cargo)=UPPER(f.cargo)
+                WHERE (f.nome ILIKE %s OR f.cpf ILIKE %s OR f.cargo ILIKE %s OR f.lotacao ILIKE %s) {filtro}
+                ORDER BY f.nome""", (f"%{termo}%",)*4)
         else:
             cur = conn.cursor()
-            cur.execute(f"""SELECT * FROM funcionarios
-                WHERE (nome LIKE ? OR cpf LIKE ? OR cargo LIKE ? OR lotacao LIKE ?) {filtro}
-                ORDER BY nome""", (f"%{termo}%",)*4)
+            cur.execute(f"""
+                SELECT f.*, COALESCE(c.cbo_codigo,'') as cbo
+                FROM funcionarios f
+                LEFT JOIN cargo_cbo c ON UPPER(c.cargo)=UPPER(f.cargo)
+                WHERE (f.nome LIKE ? OR f.cpf LIKE ? OR f.cargo LIKE ? OR f.lotacao LIKE ?) {filtro}
+                ORDER BY f.nome""", (f"%{termo}%",)*4)
         rows = cur.fetchall()
         return [dict(r) for r in rows]
     finally:

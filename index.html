@@ -272,7 +272,7 @@ tr:hover td { background:#F9FAFB; }
     <div class="table-wrap">
       <table>
         <thead><tr>
-          <th>Funcionário</th><th>CPF</th><th>Cargo</th><th>Lotação</th><th>Admissão</th><th>Celular</th><th></th>
+          <th>Funcionário</th><th>CPF</th><th>Cargo / CBO</th><th>Lotação</th><th>Admissão</th><th>Celular</th><th></th>
         </tr></thead>
         <tbody id="func-tbody"></tbody>
       </table>
@@ -1959,8 +1959,8 @@ async function carregarFuncionarios() {
         <div><div class="fn">${f.nome}</div></div>
       </div></td>
       <td>${f.cpf}</td>
-      <td><div class="fn" style="font-size:12px">${f.cargo}</div></td>
-      <td style="font-size:12px;color:var(--texto2)">${f.lotacao||''}</td>
+      <td><div class="fn" style="font-size:12px">${f.cargo}</div>${f.cbo?`<div style="font-size:10px;color:var(--texto2)">CBO: ${f.cbo}</div>`:''}</td>
+      <td style="font-size:12px;color:var(--texto2)">${f.lotacao||f.contrato||''}</td>
       <td style="font-size:12px">${f.admissao||''}</td>
       <td style="font-size:12px">${f.celular||''}</td>
       <td><button class="btn btn-outline btn-sm" onclick='abrirModalFunc(${JSON.stringify(f)})'><i class="ti ti-edit"></i></button></td>

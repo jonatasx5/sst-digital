@@ -906,6 +906,17 @@ async def buscar_cbo(titulo: str = "", codigo: str = "", _=Depends(verificar_ace
         return {"ok": False, "erro": f"Erro ao consultar CBO: {str(e)}"}
 
 
+@app.get("/api/os/config/debug")
+async def debug_os_config(_=Depends(verificar_acesso)):
+    """Diagnóstico temporário."""
+    try:
+        cargos = banco.buscar_cargos()
+        cbos   = banco.listar_cargos_cbo()
+        return {"total_cargos": len(cargos), "sample": cargos[:3], "total_cbos": len(cbos)}
+    except Exception as e:
+        return {"erro": str(e)}
+
+
 @app.get("/api/os/config")
 async def listar_os_config(_=Depends(verificar_acesso)):
     """Lista todos os cargos com configuração de OS (CBO)."""

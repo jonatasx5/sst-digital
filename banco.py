@@ -650,13 +650,35 @@ def salvar_pgr_cargo(cargo: str, cbo: str = '', ambiente: str = '', atividades: 
     finally:
         conn.close()
 
+# Aliases: cargo no sistema → cargo de referência no PGR
+_CARGO_ALIASES = {
+    "TST": "TECNICO SEGURANÇA DO TRABALHO",
+    "TEC SEGURANÇA DO TRABALHO": "TECNICO SEGURANÇA DO TRABALHO",
+    "TEC. SEGURANÇA DO TRABALHO": "TECNICO SEGURANÇA DO TRABALHO",
+    "TÉCNICO SEGURANÇA DO TRABALHO": "TECNICO SEGURANÇA DO TRABALHO",
+}
+
+
 def _normalizar_cargo(cargo: str) -> str:
     """Remove sufixos de nível/grau para busca normalizada no PGR.
-    Ex: 'RASTELEIRO NÍVEL II' → 'RASTELEIRO', 'MOTORISTA DE CAMINHÃO NV I' → 'MOTORISTA DE CAMINHÃO'
+    Ex: 'RASTELEIRO NÍVEL II' → 'RASTELEIRO'
+        'AUXILIAR ADMINISTRATIVO NIVEL III' → 'AUXILIAR ADMINISTRATIVO'
+        'TST' → 'TECNICO SEGURANÇA DO TRABALHO'
     """
     import re as _re
     s = cargo.upper().strip()
-    s = _re.sub(r'\s+(N[IVX]+|NV\.?\s*[IVX]+|NIVEL\s*[IVX0-9]+|NÍVEL\s*[IVX0-9]+|[IVX]{1,4}|[0-9]+)$', '', s).strip()
+
+    # Verifica alias direto primeiro
+    if s in _CARGO_ALIASES:
+        return _CARGO_ALIASES[s]
+
+    # Remove sufixo de nível/grau no final
+    s = _re.sub(r'\s+(N[IVX]+|NV\.?\s*[IVX]+|NIVEL\s*[IVX0-9]+|NÍVEL\s*[IVX0-9]+|NIVEL\s+[IVX0-9]+|[IVX]{1,4}|[0-9]+)$', '', s).strip()
+
+    # Verifica alias novamente após remover nível
+    if s in _CARGO_ALIASES:
+        return _CARGO_ALIASES[s]
+
     return s
 
 

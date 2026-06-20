@@ -3630,7 +3630,8 @@ async function salvarOSConfig() {
     });
     const data = await r.json();
     if (data.ok) {
-      status.textContent = `✓ OS gerada com ${data.epis_count} EPIs`;
+      const prop = data.propagado_para?.length ? ` · propagado para ${data.propagado_para.length} variante(s)` : '';
+      status.textContent = `✓ OS gerada com ${data.epis_count} EPIs${prop}`;
       status.style.display = '';
       carregarOSCargos();
     } else {

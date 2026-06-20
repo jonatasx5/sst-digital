@@ -960,13 +960,29 @@ async def get_os_config_cargo(cargo: str, _=Depends(verificar_acesso)):
 
 @app.post("/api/os/config/{cargo}")
 async def salvar_os_config_cargo(cargo: str, dados: dict, _=Depends(verificar_acesso)):
-    """Salva configuração de CBO para um cargo e gera a OS modelo."""
+    """Salva configuração de CBO para um cargo e gera a OS modelo.
+    Propaga automaticamente para variantes de nível (NIVEL I, II, III) do mesmo cargo.
+    """
     cbo_codigo    = dados.get("cbo_codigo", "")
     cbo_titulo    = dados.get("cbo_titulo", "")
     cbo_descricao = dados.get("cbo_descricao", "")
     riscos        = dados.get("riscos", "")
 
     banco.salvar_cargo_cbo(cargo, cbo_codigo, cbo_titulo, cbo_descricao)
+
+    # Propaga CBO para variantes do mesmo cargo (NIVEL I, II, III etc.)
+    cargo_norm = banco._normalizar_cargo(cargo)
+    todos_cargos = banco.buscar_cargos()
+    propagados = []
+    for c in todos_cargos:
+        if c == cargo:
+            continue
+        if banco._normalizar_cargo(c) == cargo_norm:
+            existente = banco.buscar_cargo_cbo(c)
+            # Só propaga se não tiver CBO próprio configurado
+            if not existente or not existente.get("cbo_codigo"):
+                banco.salvar_cargo_cbo(c, cbo_codigo, cbo_titulo, cbo_descricao)
+                propagados.append(c)
 
     # Salva riscos no PGR se informado
     if riscos:
@@ -1009,7 +1025,8 @@ async def salvar_os_config_cargo(cargo: str, dados: dict, _=Depends(verificar_ac
         extras.append(OS_DOC_ID)
     banco.salvar_docs_cargo(cargo, extras)
 
-    return {"ok": True, "cargo": cargo, "epis_count": len(epis)}
+    return {"ok": True, "cargo": cargo, "epis_count": len(epis),
+            "propagado_para": propagados}
 
 
 def _formatar_epis_texto(epis: list) -> str:

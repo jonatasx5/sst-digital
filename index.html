@@ -3595,10 +3595,11 @@ async function selecionarOSCargo(cargo) {
         document.getElementById('os-epis-preview').innerHTML = '<em>Nenhum EPI cadastrado no sistema ainda.</em>';
       } else {
         document.getElementById('os-epis-preview').innerHTML = episFiltrado.map(e => {
-          // Pré-marca se já está salvo no cargo OU se o nome bate com algum EPI do PGR
           const desc_norm = _norm(e.descricao || '');
           const viaCargoSalvo = episCargoIds.has(e.id);
-          const viaPgr = !viaCargoSalvo && episPgrNomes.some(p => p.length > 3 && (desc_norm.includes(p) || p.includes(desc_norm.split(' ')[0])));
+          // Só usa PGR para pré-marcar se o cargo ainda não tem EPIs salvos
+          const temEpisSalvos = episCargo.length > 0;
+          const viaPgr = !temEpisSalvos && episPgrNomes.some(p => p.length > 3 && (desc_norm.includes(p) || p.includes(desc_norm.split(' ')[0])));
           const chk = (viaCargoSalvo || viaPgr) ? 'checked' : '';
           const pgrLabel = viaPgr ? ' <small style="color:var(--verde);font-size:10px">(PGR)</small>' : '';
           const qtdCargo = episCargo.find(ec => (ec.epi_id||ec.id) === e.id);

@@ -1053,7 +1053,19 @@ async def salvar_os_config_cargo(cargo: str, dados: dict, _=Depends(verificar_ac
                 banco.salvar_cargo_cbo(c, cbo_codigo, cbo_titulo, cbo_descricao)
                 propagados.append(c)
 
-    # Riscos do PGR não são alterados aqui — o PGR é a fonte de verdade
+    # Salva riscos no PGR (substitui — não acumula)
+    riscos_detalhe = dados.get("riscos_detalhe", "").strip()
+    if riscos_detalhe:
+        pgr_atual = banco.buscar_pgr_cargo(cargo) or {}
+        banco.salvar_pgr_cargo(
+            cargo=cargo,
+            cbo=pgr_atual.get("cbo", cbo_codigo),
+            ambiente=pgr_atual.get("ambiente", ""),
+            atividades=pgr_atual.get("atividades", cbo_descricao),
+            riscos=riscos_detalhe,
+            epis=pgr_atual.get("epis", ""),
+            epcs=pgr_atual.get("epcs", ""),
+        )
 
     # Gera a OS modelo para o cargo (sem funcionário — com placeholders)
     modelo_base = banco.buscar_modelo("03_os_base")

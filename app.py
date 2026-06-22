@@ -372,7 +372,11 @@ async def listar_documentos(_=Depends(verificar_acesso)):
         docs.append({**d, "modelo_existe": existe_disco or existe_banco,
                      "modelo_no_banco": existe_banco, "modelo_no_disco": existe_disco, "extra": False})
     # Inclui documentos extras cadastrados pelo usuário
-    for e in banco.listar_documentos_extras():
+    try:
+        extras_lista = banco.listar_documentos_extras()
+    except Exception:
+        extras_lista = []
+    for e in extras_lista:
         existe_banco = e["id"] in modelos_banco
         docs.append({"id": e["id"], "nome": e["nome"], "obrig": False, "kit_padrao": False,
                      "modelo_existe": existe_banco, "modelo_no_banco": existe_banco,
@@ -422,7 +426,11 @@ async def listar_cargos(_=Depends(verificar_acesso)):
 @app.get("/api/cargos/configurados")
 async def listar_cargos_configurados(_=Depends(verificar_acesso)):
     """Cargos que têm EPIs ou OS configurados — para dropdowns de Kit e seleção."""
-    return banco.buscar_cargos_configurados()
+    try:
+        return banco.buscar_cargos_configurados()
+    except Exception as e:
+        print(f"[WARN] buscar_cargos_configurados: {e}")
+        return banco.buscar_cargos()
 
 # ══════════════════════════════════════════════════════════
 #  MODELOS .DOCX — CRUD

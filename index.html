@@ -2102,13 +2102,13 @@ const EPI_DOC_ID = '10_ficha_controle_epi';
 
 async function carregarModelos() {
   const [resDoc, resMod, resCargos] = await Promise.all([
-    apiFetch('/api/documentos'),
-    apiFetch('/api/modelos'),
-    apiFetch('/api/cargos/configurados')
+    apiFetch('/api/documentos').catch(()=>null),
+    apiFetch('/api/modelos').catch(()=>null),
+    apiFetch('/api/cargos/configurados').catch(()=>null)
   ]);
-  todosDocs = await resDoc.json();
-  const modelos = await resMod.json();
-  const cargos = await resCargos.json();
+  todosDocs = resDoc && resDoc.ok ? await resDoc.json() : [];
+  const modelos = resMod && resMod.ok ? await resMod.json() : [];
+  const cargos  = resCargos && resCargos.ok ? await resCargos.json() : [];
 
   // Build lookup from /api/modelos
   const modeloMap = {};

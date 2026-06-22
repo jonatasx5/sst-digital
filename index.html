@@ -3563,43 +3563,46 @@ async function carregarOSCargos() {
   }
 }
 
+function _renderCargoItem(c) {
+  const cargoEsc = c.cargo.replace(/\\/g,'\\\\').replace(/'/g,"\\'");
+  const ativo = osCargoAtual === c.cargo;
+  const variantes = (c.variantes || []);
+  const variantesHtml = variantes.length
+    ? `<div style="font-size:10px;color:var(--texto2);margin-top:2px">Inclui: ${variantes.join(', ')}</div>`
+    : '';
+  return `<div onclick="selecionarOSCargo('${cargoEsc}')"
+    style="padding:9px 12px;border-radius:8px;cursor:pointer;margin-bottom:3px;
+           background:${ativo?'var(--verde-light)':'#F9FAFB'};border:1px solid ${ativo?'var(--verde)':'var(--borda)'}">
+    <div style="display:flex;align-items:center;justify-content:space-between">
+      <div style="font-weight:500;font-size:13px;flex:1;margin-right:8px">${c.cargo}</div>
+      <span style="font-size:11px;padding:2px 8px;border-radius:10px;white-space:nowrap;
+        background:${c.configurado?'#d1fae5':'#fef3c7'};color:${c.configurado?'#065f46':'#92400e'}">${c.configurado?'✓ OK':'Pendente'}</span>
+    </div>
+    ${variantesHtml}
+  </div>`;
+}
+
 function renderOSCargos(lista) {
   const el = document.getElementById('os-lista-cargos');
   const pendentes = lista.filter(c=>!c.configurado).length;
+  const totalVariantes = lista.reduce((s,c)=>s+(c.variantes||[]).length,0);
   el.innerHTML = `
-    <div style="margin-bottom:8px;font-size:12px;color:var(--texto2)">${lista.length} cargo(s) · <span style="color:#92400e">${pendentes} pendente(s)</span></div>
+    <div style="margin-bottom:8px;font-size:12px;color:var(--texto2)">${lista.length} cargo(s)${totalVariantes?` · <span title="Variantes agrupadas por CBO">${totalVariantes} variante(s) agrupada(s)</span>`:''}${pendentes?` · <span style="color:#92400e">${pendentes} pendente(s)</span>`:''}</div>
     <input type="text" placeholder="Filtrar cargo..." oninput="filtrarOSCargos(this.value)"
       style="width:100%;padding:7px 10px;border:1px solid var(--borda);border-radius:8px;font-size:13px;margin-bottom:8px;box-sizing:border-box">
     <div id="os-cargos-lista">` +
-    lista.map(c => {
-      const cargoEsc = c.cargo.replace(/\\/g,'\\\\').replace(/'/g,"\\'");
-      const ativo = osCargoAtual===c.cargo;
-      return `<div onclick="selecionarOSCargo('${cargoEsc}')"
-        style="display:flex;align-items:center;justify-content:space-between;padding:9px 12px;border-radius:8px;cursor:pointer;margin-bottom:3px;
-               background:${ativo?'var(--verde-light)':'#F9FAFB'};border:1px solid ${ativo?'var(--verde)':'var(--borda)'}">
-        <div style="font-weight:500;font-size:13px;flex:1;margin-right:8px">${c.cargo}</div>
-        <span style="font-size:11px;padding:2px 8px;border-radius:10px;white-space:nowrap;
-          background:${c.configurado?'#d1fae5':'#fef3c7'};color:${c.configurado?'#065f46':'#92400e'}">${c.configurado?'✓ OK':'Pendente'}</span>
-      </div>`;
-    }).join('') + '</div>';
+    lista.map(_renderCargoItem).join('') + '</div>';
 }
 
 function filtrarOSCargos(termo) {
   const t = termo.trim().toLowerCase();
-  const filtrado = t ? _osCargosCache.filter(c=>c.cargo.toLowerCase().includes(t)) : _osCargosCache;
+  const filtrado = t ? _osCargosCache.filter(c =>
+    c.cargo.toLowerCase().includes(t) ||
+    (c.variantes||[]).some(v=>v.toLowerCase().includes(t))
+  ) : _osCargosCache;
   const listaEl = document.getElementById('os-cargos-lista');
   if (!listaEl) return;
-  listaEl.innerHTML = filtrado.map(c => {
-    const cargoEsc = c.cargo.replace(/\\/g,'\\\\').replace(/'/g,"\\'");
-    const ativo = osCargoAtual===c.cargo;
-    return `<div onclick="selecionarOSCargo('${cargoEsc}')"
-      style="display:flex;align-items:center;justify-content:space-between;padding:9px 12px;border-radius:8px;cursor:pointer;margin-bottom:3px;
-             background:${ativo?'var(--verde-light)':'#F9FAFB'};border:1px solid ${ativo?'var(--verde)':'var(--borda)'}">
-      <div style="font-weight:500;font-size:13px;flex:1;margin-right:8px">${c.cargo}</div>
-      <span style="font-size:11px;padding:2px 8px;border-radius:10px;white-space:nowrap;
-        background:${c.configurado?'#d1fae5':'#fef3c7'};color:${c.configurado?'#065f46':'#92400e'}">${c.configurado?'✓ OK':'Pendente'}</span>
-    </div>`;
-  }).join('');
+  listaEl.innerHTML = filtrado.map(_renderCargoItem).join('');
 }
 
 async function selecionarOSCargo(cargo) {

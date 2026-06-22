@@ -1028,20 +1028,43 @@ async def debug_os_config(_=Depends(verificar_acesso)):
 
 @app.get("/api/os/config")
 async def listar_os_config(_=Depends(verificar_acesso)):
-    """Lista todos os cargos com configuração de OS (CBO)."""
+    """Lista cargos agrupados por CBO — um representante por CBO."""
     try:
         cargos  = banco.buscar_cargos()
         cbo_map = {c["cargo"].upper(): c for c in banco.listar_cargos_cbo()}
-        result  = []
+
+        # Agrupa por CBO: mantém só um representante por código CBO
+        # Preferência: cargo já configurado > primeiro da lista
+        grupos_cbo = {}   # cbo_codigo -> item escolhido
+        sem_cbo    = []   # cargos sem CBO, listados individualmente
+
         for cargo in cargos:
             cbo = cbo_map.get(cargo.upper(), {})
-            result.append({
+            codigo = (cbo.get("cbo_codigo") or "").strip()
+            configurado = bool(cbo.get("cbo_codigo") or cbo.get("cbo_descricao"))
+            item = {
                 "cargo":         cargo,
                 "cbo_codigo":    cbo.get("cbo_codigo", ""),
                 "cbo_titulo":    cbo.get("cbo_titulo", ""),
                 "cbo_descricao": cbo.get("cbo_descricao", ""),
-                "configurado":   bool(cbo.get("cbo_codigo") or cbo.get("cbo_descricao")),
-            })
+                "configurado":   configurado,
+                "variantes":     [],
+            }
+            if not codigo:
+                sem_cbo.append(item)
+            elif codigo not in grupos_cbo:
+                grupos_cbo[codigo] = item
+            else:
+                # Já existe um representante — prefere o configurado
+                atual = grupos_cbo[codigo]
+                atual["variantes"].append(cargo)
+                if configurado and not atual["configurado"]:
+                    # Troca o representante pelo que está configurado
+                    item["variantes"] = atual["variantes"]
+                    grupos_cbo[codigo] = item
+
+        result = sorted(grupos_cbo.values(), key=lambda x: x["cargo"]) + \
+                 sorted(sem_cbo, key=lambda x: x["cargo"])
         return result
     except Exception as e:
         print(f"[ERRO /api/os/config] {e}")

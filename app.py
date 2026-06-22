@@ -1079,18 +1079,46 @@ async def salvar_os_config_cargo(cargo: str, dados: dict, _=Depends(verificar_ac
 
     banco.salvar_cargo_cbo(cargo, cbo_codigo, cbo_titulo, cbo_descricao)
 
-    # Propaga CBO para variantes do mesmo cargo (NIVEL I, II, III etc.)
-    cargo_norm = banco._normalizar_cargo(cargo)
+    # Propaga para todos os cargos com o mesmo CBO (mesma função, nomes diferentes)
     todos_cargos = banco.buscar_cargos()
     propagados = []
-    for c in todos_cargos:
-        if c == cargo:
-            continue
-        if banco._normalizar_cargo(c) == cargo_norm:
+    if cbo_codigo:
+        for c in todos_cargos:
+            if c == cargo:
+                continue
             existente = banco.buscar_cargo_cbo(c)
-            # Só propaga se não tiver CBO próprio configurado
-            if not existente or not existente.get("cbo_codigo"):
+            cbo_c = (existente or {}).get("cbo_codigo", "")
+            # Mesmo CBO → propaga EPIs, riscos, OS e Ficha EPI
+            if cbo_c and cbo_c.split("-")[0].strip() == cbo_codigo.split("-")[0].strip():
+                # Propaga CBO/título/descrição
                 banco.salvar_cargo_cbo(c, cbo_codigo, cbo_titulo, cbo_descricao)
+                # Propaga EPIs
+                if epis:
+                    banco.salvar_cargo_epis(c, [{"epi_id": e["epi_id"], "quantidade": e.get("quantidade", 1)} for e in epis])
+                # Propaga riscos no PGR
+                if riscos_detalhe:
+                    pgr_c = banco.buscar_pgr_cargo(c) or {}
+                    banco.salvar_pgr_cargo(
+                        cargo=c, cbo=cbo_codigo,
+                        ambiente=pgr_c.get("ambiente", ""),
+                        atividades=pgr_c.get("atividades", cbo_descricao),
+                        riscos=riscos_detalhe,
+                        epis=pgr_c.get("epis", ""),
+                        epcs=pgr_c.get("epcs", ""),
+                    )
+                # Gera OS e Ficha EPI para o cargo variante
+                func_c = {"nome": "{{NOME}}", "cpf": "{{CPF}}", "matricula": "{{MATRICULA}}",
+                          "cargo": c, "lotacao": "{{LOTACAO}}", "admissao": "{{DATA_ADMISSAO}}", "rg": "{{RG}}"}
+                if modelo_base := banco.buscar_modelo("03_os_base"):
+                    epis_c = banco.listar_epis_do_cargo(c)
+                    pgr_c2 = banco.buscar_pgr_cargo(c)
+                    riscos_c = pgr_c2.get("riscos", "") if pgr_c2 else ""
+                    os_bytes_c = processador.preencher_os_dinamica(func_c, cbo_descricao, _formatar_epis_texto(epis_c), modelo_base, riscos_texto=riscos_c)
+                    banco.salvar_modelo(OS_DOC_ID, "Ordem de Serviço", os_bytes_c, cargo=c)
+                    modelo_epi_b = banco.buscar_modelo("10_ficha_controle_epi")
+                    if modelo_epi_b and epis_c:
+                        ficha_c = processador.preencher_ficha_epi_dinamica(func_c, epis_c, modelo_epi_b)
+                        banco.salvar_modelo(EPI_DOC_ID, "Ficha de Controle de EPI", ficha_c, cargo=c)
                 propagados.append(c)
 
     # Salva riscos no PGR (substitui — não acumula)

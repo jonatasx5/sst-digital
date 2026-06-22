@@ -1043,9 +1043,12 @@ async def listar_os_config(_=Depends(verificar_acesso)):
             # Agrupa por CBO se disponível, senão por nome normalizado
             if codigo:
                 return f"cbo:{codigo}"
-            # Remove acentos e sufixos de nível (NIVEL I, NÍVEL II, NV III, etc.)
+            # Remove acentos, depois remove qualquer sufixo de nível no final
             norm = _sem_acento(cargo.upper())
-            norm = _re.sub(r'\s+(NIVEL|NV)\s*(I{1,3}V?|IV|\d+)\s*$', '', norm).strip()
+            # Remove: " NIVEL I", " NIVEL II", " NIVEL III", " NV I", " NV III", " NIVEL 1", etc.
+            norm = _re.sub(r'\s+(N[Ii]?[Vv][Ee][Ll]?|NV)\s*[\w]+\s*$', '', norm).strip()
+            # Segunda passagem mais simples: remove qualquer coisa após "NIVEL"
+            norm = _re.sub(r'\s+NIVEL\s*.*$', '', norm).strip()
             return f"nome:{norm}"
 
         grupos = {}   # chave -> item escolhido

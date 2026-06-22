@@ -649,6 +649,9 @@ tr:hover td { background:#F9FAFB; }
     <button class="os-tab-btn active" onclick="osAba('config')" id="os-tab-config" style="padding:8px 18px;border:none;background:none;cursor:pointer;font-size:13px;font-weight:600;color:var(--verde);border-bottom:2px solid var(--verde);margin-bottom:-2px">
       <i class="ti ti-settings"></i> Configurar por Cargo
     </button>
+    <button class="os-tab-btn" onclick="osAba('conferir')" id="os-tab-conferir" style="padding:8px 18px;border:none;background:none;cursor:pointer;font-size:13px;font-weight:500;color:var(--texto2);border-bottom:2px solid transparent;margin-bottom:-2px">
+      <i class="ti ti-list-check"></i> Conferir EPIs
+    </button>
     <button class="os-tab-btn" onclick="osAba('envio')" id="os-tab-envio" style="padding:8px 18px;border:none;background:none;cursor:pointer;font-size:13px;font-weight:500;color:var(--texto2);border-bottom:2px solid transparent;margin-bottom:-2px">
       <i class="ti ti-send"></i> Enviar OS
     </button>
@@ -742,6 +745,17 @@ tr:hover td { background:#F9FAFB; }
           <span id="os-salvar-status" style="font-size:12px;color:var(--verde);display:none"></span>
         </div>
       </div>
+    </div>
+  </div>
+
+  <!-- Aba: Conferir EPIs -->
+  <div id="os-aba-conferir" style="display:none">
+    <div class="card">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+        <div class="card-title" style="margin:0"><i class="ti ti-list-check"></i> EPIs e Uniformes por Cargo</div>
+        <button class="btn btn-outline btn-sm" onclick="carregarConferirEpis()"><i class="ti ti-refresh"></i> Atualizar</button>
+      </div>
+      <div id="os-conferir-lista" style="font-size:13px">Carregando...</div>
     </div>
   </div>
 
@@ -3405,15 +3419,17 @@ let osCargoAtual = null;
 let osTodosFuncs = [];
 
 function osAba(aba) {
-  document.getElementById('os-aba-config').style.display = aba==='config' ? '' : 'none';
-  document.getElementById('os-aba-envio').style.display  = aba==='envio'  ? '' : 'none';
+  document.getElementById('os-aba-config').style.display    = aba==='config'   ? '' : 'none';
+  document.getElementById('os-aba-conferir').style.display  = aba==='conferir' ? '' : 'none';
+  document.getElementById('os-aba-envio').style.display     = aba==='envio'    ? '' : 'none';
   document.querySelectorAll('.os-tab-btn').forEach(b => {
     const isAtivo = b.id === 'os-tab-'+aba;
     b.style.color = isAtivo ? 'var(--verde)' : 'var(--texto2)';
     b.style.fontWeight = isAtivo ? '600' : '500';
     b.style.borderBottom = isAtivo ? '2px solid var(--verde)' : '2px solid transparent';
   });
-  if (aba === 'envio') carregarOSFuncs();
+  if (aba === 'envio')    carregarOSFuncs();
+  if (aba === 'conferir') carregarConferirEpis();
 }
 
 async function baixarModeloOSBase() {
@@ -3784,6 +3800,52 @@ async function baixarOSCargo() {
   a.download = `OS_${osCargoAtual}.docx`;
   a.click();
   URL.revokeObjectURL(url);
+}
+
+async function carregarConferirEpis() {
+  const el = document.getElementById('os-conferir-lista');
+  el.innerHTML = '<p style="color:var(--texto2)">Carregando...</p>';
+  try {
+    const [configRes, catRes] = await Promise.all([
+      apiFetch('/api/os/config').then(r => r.json()),
+      apiFetch('/api/epis/catalogo').then(r => r.json()),
+    ]);
+    const catMap = {};
+    (catRes||[]).forEach(e => catMap[e.id] = e);
+
+    // Para cada cargo configurado, busca EPIs salvos
+    const cargos = (configRes||[]).filter(c => c.configurado);
+    if (!cargos.length) { el.innerHTML = '<p>Nenhum cargo configurado ainda.</p>'; return; }
+
+    const rows = await Promise.all(cargos.map(async c => {
+      const r = await apiFetch(`/api/epis/cargo/${encodeURIComponent(c.cargo)}`);
+      const epis = r && r.ok ? await r.json() : [];
+      return { cargo: c.cargo, epis };
+    }));
+
+    el.innerHTML = `
+      <table style="width:100%;border-collapse:collapse;font-size:12px">
+        <thead>
+          <tr style="background:var(--fundo2);text-align:left">
+            <th style="padding:8px 10px;border-bottom:2px solid var(--borda);width:220px">Cargo</th>
+            <th style="padding:8px 10px;border-bottom:2px solid var(--borda)">EPIs e Uniformes</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${rows.map(r => `
+            <tr style="border-bottom:1px solid var(--borda);vertical-align:top">
+              <td style="padding:8px 10px;font-weight:600;color:var(--texto1)">${r.cargo}</td>
+              <td style="padding:8px 10px;color:var(--texto2)">
+                ${r.epis.length
+                  ? r.epis.map(e => `<span style="display:inline-block;background:#f0fdf4;border:1px solid var(--verde);color:#065f46;padding:2px 8px;border-radius:10px;margin:2px;font-size:11px">${e.descricao}${e.ca?' (C.A: '+e.ca+')':''}</span>`).join('')
+                  : '<em style="color:#aaa">Nenhum EPI configurado</em>'}
+              </td>
+            </tr>`).join('')}
+        </tbody>
+      </table>`;
+  } catch(e) {
+    el.innerHTML = `<p style="color:var(--danger)">Erro: ${e.message}</p>`;
+  }
 }
 
 async function carregarOSFuncs() {

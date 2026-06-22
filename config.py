@@ -43,6 +43,8 @@ KIT_PADRAO = [
     "09_treinamento_produtos_quimicos",
     "11_pop",
     "12_treinamento_direcao_defensiva",
+    "03_os",
+    "10_ficha_controle_epi",
 ]
 
 DOCUMENTOS = [

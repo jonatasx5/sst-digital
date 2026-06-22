@@ -2085,15 +2085,7 @@ async function carregarModelos() {
   modelos.forEach(m => modeloMap[m.id] = m);
 
   // Renderiza Kit Padrão
-  const KIT_PADRAO = [
-    "01_treinamento_admissional",
-    "02_politica_de_seguranca",
-    "04_treinamento_nr06",
-    "05_treinamento_nr18",
-    "09_treinamento_produtos_quimicos",
-    "11_pop",
-    "12_treinamento_direcao_defensiva",
-  ];
+  const KIT_PADRAO = KIT_PADRAO_IDS;
   const kitDiv = document.getElementById('kit-padrao-lista');
   kitDiv.innerHTML = '';
   KIT_PADRAO.forEach(id => {
@@ -2241,7 +2233,8 @@ async function selecionarKitCargo(cargo, label) {
 
 const KIT_PADRAO_IDS = [
   "01_treinamento_admissional","02_politica_de_seguranca","04_treinamento_nr06",
-  "05_treinamento_nr18","09_treinamento_produtos_quimicos","11_pop","12_treinamento_direcao_defensiva"
+  "05_treinamento_nr18","09_treinamento_produtos_quimicos","11_pop","12_treinamento_direcao_defensiva",
+  "03_os","10_ficha_controle_epi"
 ];
 const AUTO_IDS = ["03_os", "10_ficha_controle_epi"]; // sempre incluídos se existirem
 

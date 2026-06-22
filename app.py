@@ -364,23 +364,27 @@ async def importar_planilha(file: UploadFile = File(...), _=Depends(verificar_ac
 @app.get("/api/documentos")
 async def listar_documentos(_=Depends(verificar_acesso)):
     from config import MODELOS_DIR
-    modelos_banco = {m["id"] for m in banco.listar_modelos() if m.get("tem_conteudo")}
+    try:
+        modelos_banco = {m["id"] for m in banco.listar_modelos() if m.get("tem_conteudo")}
+    except Exception:
+        modelos_banco = set()
     docs = []
     for d in DOCUMENTOS:
-        existe_disco = os.path.exists(os.path.join(MODELOS_DIR, f"{d['id']}.docx"))
+        try:
+            existe_disco = os.path.exists(os.path.join(MODELOS_DIR, f"{d['id']}.docx"))
+        except Exception:
+            existe_disco = False
         existe_banco = d["id"] in modelos_banco
         docs.append({**d, "modelo_existe": existe_disco or existe_banco,
                      "modelo_no_banco": existe_banco, "modelo_no_disco": existe_disco, "extra": False})
-    # Inclui documentos extras cadastrados pelo usuário
     try:
-        extras_lista = banco.listar_documentos_extras()
-    except Exception:
-        extras_lista = []
-    for e in extras_lista:
-        existe_banco = e["id"] in modelos_banco
-        docs.append({"id": e["id"], "nome": e["nome"], "obrig": False, "kit_padrao": False,
-                     "modelo_existe": existe_banco, "modelo_no_banco": existe_banco,
-                     "modelo_no_disco": False, "extra": True})
+        for e in banco.listar_documentos_extras():
+            existe_banco = e["id"] in modelos_banco
+            docs.append({"id": e["id"], "nome": e["nome"], "obrig": False, "kit_padrao": False,
+                         "modelo_existe": existe_banco, "modelo_no_banco": existe_banco,
+                         "modelo_no_disco": False, "extra": True})
+    except Exception as ex:
+        print(f"[WARN] documentos_extras: {ex}")
     return docs
 
 
@@ -390,14 +394,25 @@ async def adicionar_documento(
     file: UploadFile = File(...),
     _=Depends(verificar_acesso)
 ):
-    """Cadastra um novo documento extra e salva o modelo."""
+    """Cadastra um documento — se nome bater com doc existente, atualiza o modelo desse doc."""
     import re
+    conteudo = await file.read()
+    # Verifica se corresponde a um documento já cadastrado (match por nome normalizado)
+    nome_norm = re.sub(r"[^a-z0-9]+", " ", nome.lower()).strip()
+    doc_encontrado = None
+    for d in DOCUMENTOS:
+        d_norm = re.sub(r"[^a-z0-9]+", " ", d["nome"].lower()).strip()
+        if nome_norm == d_norm or nome_norm in d_norm or d_norm in nome_norm:
+            doc_encontrado = d
+            break
+    if doc_encontrado:
+        banco.salvar_modelo(doc_encontrado["id"], doc_encontrado["nome"], conteudo)
+        return {"ok": True, "id": doc_encontrado["id"], "nome": doc_encontrado["nome"]}
+    # Documento novo — cria como extra
     slug = re.sub(r"[^a-z0-9]+", "_", nome.lower()).strip("_")
     if not slug:
-        from fastapi import HTTPException
         raise HTTPException(status_code=400, detail="Nome inválido")
     doc_id = f"extra_{slug}"
-    conteudo = await file.read()
     banco.salvar_documento_extra(doc_id, nome)
     banco.salvar_modelo(doc_id, nome, conteudo)
     return {"ok": True, "id": doc_id, "nome": nome}

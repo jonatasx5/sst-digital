@@ -432,6 +432,53 @@ async def adicionar_documento(
 async def docs_do_cargo(cargo: str, _=Depends(verificar_acesso)):
     return banco.docs_do_cargo(cargo)
 
+
+@app.get("/api/documentos/{doc_id}/texto")
+async def get_documento_texto(doc_id: str, _=Depends(verificar_acesso)):
+    """Retorna o conteúdo de texto de um modelo para edição."""
+    import io as _io
+    conteudo = banco.buscar_modelo(doc_id)
+    if not conteudo:
+        from config import MODELOS_DIR
+        disco = os.path.join(MODELOS_DIR, f"{doc_id}.docx")
+        if os.path.exists(disco):
+            with open(disco, "rb") as f:
+                conteudo = f.read()
+    if not conteudo:
+        raise HTTPException(status_code=404, detail="Modelo não encontrado")
+    texto = processador.extrair_texto_docx(conteudo)
+    return {"texto": texto}
+
+
+@app.post("/api/documentos/{doc_id}/texto")
+async def save_documento_texto(doc_id: str, dados: dict, _=Depends(verificar_acesso)):
+    """Salva conteúdo editado de um modelo."""
+    texto = dados.get("texto", "")
+    nome = next((d["nome"] for d in DOCUMENTOS if d["id"] == doc_id), doc_id)
+    conteudo = processador.texto_para_docx(texto)
+    banco.salvar_modelo(doc_id, nome, conteudo)
+    return {"ok": True}
+
+
+@app.get("/api/documentos/{doc_id}/download")
+async def download_documento(doc_id: str, _=Depends(verificar_acesso)):
+    """Baixa o .docx original de um modelo."""
+    from fastapi.responses import Response
+    conteudo = banco.buscar_modelo(doc_id)
+    if not conteudo:
+        from config import MODELOS_DIR
+        disco = os.path.join(MODELOS_DIR, f"{doc_id}.docx")
+        if os.path.exists(disco):
+            with open(disco, "rb") as f:
+                conteudo = f.read()
+    if not conteudo:
+        raise HTTPException(status_code=404, detail="Modelo não encontrado")
+    return Response(
+        content=conteudo,
+        media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        headers={"Content-Disposition": f"attachment; filename={doc_id}.docx"}
+    )
+
 @app.post("/api/matriz/{cargo}")
 async def salvar_matriz(cargo: str, dados: dict, _=Depends(verificar_acesso)):
     from config import KIT_PADRAO

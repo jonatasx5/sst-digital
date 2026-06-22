@@ -1026,6 +1026,7 @@ tr:hover td { background:#F9FAFB; }
       <div>O editor de texto simplifica a formatação. Para edições complexas com tabelas e logos, use <strong>Download → Word → Upload</strong>.</div>
     </div>
     <input type="hidden" id="editor-tipo">
+    <input type="hidden" id="editor-docid">
     <div class="field">
       <label>Conteúdo do documento</label>
       <textarea id="editor-conteudo" style="min-height:400px;font-family:monospace;font-size:12px;line-height:1.5"></textarea>
@@ -2119,8 +2120,11 @@ async function carregarModelos() {
         <div style="display:flex;gap:4px">`;
 
     if (temArquivo) {
-      html += `<button class="btn btn-outline btn-sm" title="Baixar para editar" onclick="downloadModelo('${d.id}')">
+      html += `<button class="btn btn-outline btn-sm" title="Baixar .docx" onclick="downloadModelo('${d.id}')">
         <i class="ti ti-download"></i>
+      </button>`;
+      html += `<button class="btn btn-outline btn-sm" title="Editar conteúdo" onclick="editarDocumento('${d.id}','${nomeSeguro}')">
+        <i class="ti ti-pencil"></i>
       </button>`;
     }
     html += `<button class="btn btn-outline btn-sm" title="Upload" onclick="abrirUploadModelo('${d.id}','${nomeSeguro}')">
@@ -2195,8 +2199,10 @@ function toggleEpiCargos(btn) {
 }
 
 async function downloadModelo(docId, cargo) {
-  let url = `/api/modelos/${docId}/download`;
-  if (cargo) url += `?cargo=${encodeURIComponent(cargo)}`;
+  // Usa endpoint de documentos para treinamentos, modelos para OS/EPI específicos de cargo
+  let url = cargo
+    ? `/api/modelos/${docId}/download?cargo=${encodeURIComponent(cargo)}`
+    : `/api/documentos/${docId}/download`;
   window.location.href = url;
 }
 
@@ -2831,6 +2837,7 @@ async function editarTexto(tipo) {
   const label = tipo === 'epi' ? `EPI — ${cargo}` : `OS — ${cargo}`;
   document.getElementById('editor-titulo').textContent = `Editar ${label}`;
   document.getElementById('editor-tipo').value = tipo;
+  document.getElementById('editor-docid').value = '';
   document.getElementById('editor-result').innerHTML = '';
   document.getElementById('editor-conteudo').value = 'Carregando...';
   abrirModal('modal-editor-texto');
@@ -2839,12 +2846,31 @@ async function editarTexto(tipo) {
   document.getElementById('editor-conteudo').value = data.texto || '';
 }
 
+async function editarDocumento(docId, nome) {
+  document.getElementById('editor-titulo').textContent = `Editar — ${nome}`;
+  document.getElementById('editor-tipo').value = 'doc';
+  document.getElementById('editor-docid').value = docId;
+  document.getElementById('editor-result').innerHTML = '';
+  document.getElementById('editor-conteudo').value = 'Carregando...';
+  abrirModal('modal-editor-texto');
+  const res  = await apiFetch(`/api/documentos/${encodeURIComponent(docId)}/texto`);
+  const data = await res.json();
+  document.getElementById('editor-conteudo').value = data.texto || '';
+}
+
 async function salvarTextoEditor() {
   const tipo  = document.getElementById('editor-tipo').value;
-  const cargo = document.getElementById('sel-cargo-epi').value;
+  const docId = document.getElementById('editor-docid').value;
+  const cargo = document.getElementById('sel-cargo-epi') ? document.getElementById('sel-cargo-epi').value : '';
   const texto = document.getElementById('editor-conteudo').value;
   document.getElementById('editor-result').innerHTML = '<div class="alert al-info"><i class="ti ti-loader-2"></i>Salvando...</div>';
-  const res  = await apiFetch(`/api/${tipo}/${encodeURIComponent(cargo)}/texto`, {
+  let url;
+  if (tipo === 'doc') {
+    url = `/api/documentos/${encodeURIComponent(docId)}/texto`;
+  } else {
+    url = `/api/${tipo}/${encodeURIComponent(cargo)}/texto`;
+  }
+  const res  = await apiFetch(url, {
     method:'POST', headers:{'Content-Type':'application/json'},
     body: JSON.stringify({texto})
   });

@@ -130,9 +130,12 @@ def ler_planilha(caminho: str) -> tuple[list[dict], list[str]]:
 # ══════════════════════════════════════════════════════════
 
 def _substituir_texto(texto: str, variaveis: dict) -> str:
-    """Substitui {{VARIAVEL}} pelo valor correspondente."""
+    """Substitui {{VARIAVEL}} e @variavel pelo valor correspondente."""
     for chave, valor in variaveis.items():
         texto = texto.replace(f"{{{{{chave}}}}}", str(valor) if valor else "")
+    # Também substitui formato @variavel (usado pelos documentos de treinamento)
+    for chave, valor in variaveis.items():
+        texto = texto.replace(f"@{chave.lower()}", str(valor) if valor else "")
     return texto
 
 
@@ -140,12 +143,12 @@ def _processar_paragrafo(paragrafo, variaveis: dict):
     """Preserva formatação ao substituir variáveis no parágrafo."""
     # Primeiro tenta substituição simples em cada run
     for run in paragrafo.runs:
-        if "{{" in run.text:
+        if "{{" in run.text or "@" in run.text:
             run.text = _substituir_texto(run.text, variaveis)
 
     # Se ainda há variável espalhada entre runs, une e redistribui
     texto_completo = "".join(r.text for r in paragrafo.runs)
-    if "{{" in texto_completo:
+    if "{{" in texto_completo or "@" in texto_completo:
         texto_novo = _substituir_texto(texto_completo, variaveis)
         if paragrafo.runs:
             paragrafo.runs[0].text = texto_novo
@@ -174,6 +177,19 @@ def preencher_docx(modelo_id: str, funcionario: dict, pasta_saida: str) -> str |
         "EMPRESA":       EMPRESA,
         "RESP_SST":      RESP_SST,
         "CNPJ":          CNPJ,
+        # Aliases para formato @variavel usado nos treinamentos
+        "funcao":        funcionario.get("cargo", ""),
+        "dt_adm":        funcionario.get("admissao", ""),
+        "resp_tecnico":  RESP_SST,
+        "lotacao":       funcionario.get("lotacao", ""),
+        "matricula":     funcionario.get("matricula", funcionario.get("cpf", "")),
+        "ctps":          funcionario.get("ctps", ""),
+        "rg":            funcionario.get("rg", ""),
+        "cpf":           funcionario.get("cpf", ""),
+        "nome":          funcionario.get("nome", ""),
+        "empresa":       EMPRESA,
+        "cargo":         funcionario.get("cargo", ""),
+        "data_hoje":     date.today().strftime("%d/%m/%Y"),
     }
 
     # Tenta banco primeiro, fallback para disco

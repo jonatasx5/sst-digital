@@ -7,7 +7,6 @@
 
 # Arquivos gerados
 output/
-modelos/
 
 # Python
 __pycache__/

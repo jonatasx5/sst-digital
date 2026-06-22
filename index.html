@@ -630,15 +630,21 @@ tr:hover td { background:#F9FAFB; }
       <div class="page-title">Ordens de Serviço</div>
       <div class="page-sub">Configure o CBO, riscos (PGR) por cargo e envie a OS para assinatura</div>
     </div>
-    <div style="display:flex;gap:8px;align-items:center">
-      <button class="btn btn-outline btn-sm" onclick="baixarModeloOSBase()" title="Baixar o modelo base da OS para editar">
-        <i class="ti ti-download"></i> Modelo Base
+    <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+      <span style="font-size:11px;color:var(--texto2);font-weight:600">OS:</span>
+      <button class="btn btn-outline btn-sm" onclick="baixarModeloOSBase()" title="Baixar modelo base da OS">
+        <i class="ti ti-download"></i> Baixar Modelo OS
       </button>
-      <label class="btn btn-outline btn-sm" style="cursor:pointer;margin:0" title="Enviar novo modelo base da OS">
-        <i class="ti ti-upload"></i> Subir Modelo
+      <label class="btn btn-outline btn-sm" style="cursor:pointer;margin:0" title="Subir modelo base da OS">
+        <i class="ti ti-upload"></i> Subir Modelo OS
         <input type="file" accept=".docx" style="display:none" onchange="uploadModeloOSBase(this)">
       </label>
-      <button class="btn btn-outline btn-sm" onclick="importarPGR()" title="Importa riscos e EPIs do PGR para todos os cargos">
+      <span style="font-size:11px;color:var(--texto2);font-weight:600;margin-left:4px">Ficha EPI:</span>
+      <label class="btn btn-outline btn-sm" style="cursor:pointer;margin:0" title="Subir modelo base da Ficha de EPI">
+        <i class="ti ti-upload"></i> Subir Modelo Ficha EPI
+        <input type="file" accept=".docx" style="display:none" onchange="uploadModeloFichaEpi(this)">
+      </label>
+      <button class="btn btn-outline btn-sm" onclick="importarPGR()" title="Importa riscos e EPIs do PGR">
         <i class="ti ti-shield-lock"></i> Importar PGR
       </button>
     </div>
@@ -3451,7 +3457,19 @@ async function uploadModeloOSBase(input) {
   fd.append('file', file);
   const res = await apiFetch('/api/modelos/03_os_base/upload', { method: 'POST', body: fd });
   const data = await res.json();
-  if (data.ok) alert('Modelo base atualizado com sucesso!');
+  if (data.ok) alert('Modelo base da OS atualizado com sucesso!');
+  else alert('Erro ao subir modelo: ' + JSON.stringify(data));
+  input.value = '';
+}
+
+async function uploadModeloFichaEpi(input) {
+  const file = input.files[0];
+  if (!file) return;
+  const fd = new FormData();
+  fd.append('file', file);
+  const res = await apiFetch('/api/modelos/10_ficha_controle_epi/upload', { method: 'POST', body: fd });
+  const data = await res.json();
+  if (data.ok) alert('Modelo base da Ficha de EPI carregado! Agora ao salvar qualquer cargo, a ficha será gerada automaticamente.');
   else alert('Erro ao subir modelo: ' + JSON.stringify(data));
   input.value = '';
 }

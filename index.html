@@ -2101,14 +2101,16 @@ function dropPlanilha(e) {
 const EPI_DOC_ID = '10_ficha_controle_epi';
 
 async function carregarModelos() {
-  const [resDoc, resMod, resCargos] = await Promise.all([
+  const [resDoc, resMod, resOSConfig] = await Promise.all([
     apiFetch('/api/documentos').catch(()=>null),
     apiFetch('/api/modelos').catch(()=>null),
-    apiFetch('/api/cargos/configurados').catch(()=>null)
+    apiFetch('/api/os/config').catch(()=>null)
   ]);
   todosDocs = resDoc && resDoc.ok ? await resDoc.json() : [];
   const modelos = resMod && resMod.ok ? await resMod.json() : [];
-  const cargos  = resCargos && resCargos.ok ? await resCargos.json() : [];
+  // Usa a mesma lista agrupada da OS (mesmo nome, mesmo CBO, sem NIVEL)
+  const osConfig = resOSConfig && resOSConfig.ok ? await resOSConfig.json() : [];
+  const cargos = osConfig.map(c => ({ cargo: c.cargo, label: c.nome_display || c.cargo }));
 
   // Build lookup from /api/modelos
   const modeloMap = {};
@@ -2194,12 +2196,12 @@ async function carregarModelos() {
   // Cargos no select da matriz
   const sel = document.getElementById('sel-cargo');
   sel.innerHTML = '<option value="">-- Selecione --</option>';
-  cargos.forEach(c => sel.innerHTML += `<option value="${c}">${c}</option>`);
+  cargos.forEach(c => sel.innerHTML += `<option value="${c.cargo}">${c.label}</option>`);
 
   // Cargos no select de EPI/OS
   const selEpi = document.getElementById('sel-cargo-epi');
   selEpi.innerHTML = '<option value="">-- Selecione --</option>';
-  cargos.forEach(c => selEpi.innerHTML += `<option value="${c}">${c}</option>`);
+  cargos.forEach(c => selEpi.innerHTML += `<option value="${c.cargo}">${c.label}</option>`);
 }
 
 async function adicionarNovoDocumento() {

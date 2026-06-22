@@ -71,6 +71,14 @@ async def startup_event():
     except Exception as e:
         print(f"[WARN] migração documentos_extras: {e}")
 
+    # Limpa documentos extras duplicados (subidos em caps como "01 - TREINAMENTO ADMISSIONAL")
+    try:
+        removidos = banco.limpar_todos_extras()
+        if removidos:
+            print(f"[INFO] {removidos} documentos extras removidos do banco.")
+    except Exception as e:
+        print(f"[WARN] limpeza extras: {e}")
+
     _garantir_os_base()
     # Seed PGR: insere cargos sem entrada E corrige riscos com duplicatas acumuladas
     try:

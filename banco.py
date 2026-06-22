@@ -1454,6 +1454,44 @@ def listar_documentos_extras() -> list:
         conn.close()
 
 
+def deletar_documento_extra(doc_id: str):
+    conn = conectar()
+    try:
+        cur = conn.cursor()
+        if USE_POSTGRES:
+            cur.execute("DELETE FROM documentos_extras WHERE id=%s", (doc_id,))
+            cur.execute("DELETE FROM modelos WHERE id=%s AND cargo IS NULL", (doc_id,))
+        else:
+            cur.execute("DELETE FROM documentos_extras WHERE id=?", (doc_id,))
+            cur.execute("DELETE FROM modelos WHERE id=? AND cargo IS NULL", (doc_id,))
+        conn.commit()
+    finally:
+        conn.close()
+
+
+def limpar_todos_extras():
+    """Remove todos os documentos extras e seus modelos do banco."""
+    conn = conectar()
+    try:
+        cur = conn.cursor()
+        if USE_POSTGRES:
+            cur.execute("SELECT id FROM documentos_extras")
+            ids = [r[0] for r in cur.fetchall()]
+            cur.execute("DELETE FROM documentos_extras")
+            for doc_id in ids:
+                cur.execute("DELETE FROM modelos WHERE id=%s AND cargo IS NULL", (doc_id,))
+        else:
+            cur.execute("SELECT id FROM documentos_extras")
+            ids = [r[0] for r in cur.fetchall()]
+            cur.execute("DELETE FROM documentos_extras")
+            for doc_id in ids:
+                cur.execute("DELETE FROM modelos WHERE id=? AND cargo IS NULL", (doc_id,))
+        conn.commit()
+        return len(ids)
+    finally:
+        conn.close()
+
+
 # ── USUÁRIOS ──────────────────────────────────────────────
 
 def criar_usuario(nome: str, login: str, senha_hash: str, perfil: str = "usuario", permissoes: list = None) -> int:

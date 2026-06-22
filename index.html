@@ -2193,17 +2193,20 @@ async function carregarModelos() {
 async function popularSelectEditor() {
   const sel = document.getElementById('editor-doc-select');
   if (!sel) return;
-  // Limpa e repopula sempre
   sel.innerHTML = '<option value="">Selecione...</option>';
-  // Usa todosDocs se já carregado, senão busca
   let docs = todosDocs;
   if (!docs || !docs.length) {
     try {
       const res = await apiFetch('/api/documentos');
       docs = res.ok ? await res.json() : [];
+      todosDocs = docs;
     } catch(e) { docs = []; }
   }
-  docs.forEach(d => {
+  // Mostra apenas documentos que têm arquivo, sem duplicatas por ID
+  const vistos = new Set();
+  docs.filter(d => d.modelo_existe).forEach(d => {
+    if (vistos.has(d.id)) return;
+    vistos.add(d.id);
     const opt = document.createElement('option');
     opt.value = d.id;
     opt.textContent = d.nome;

@@ -71,28 +71,6 @@ async def startup_event():
     except Exception as e:
         print(f"[WARN] migração documentos_extras: {e}")
 
-    # Limpa modelos de treinamento do banco (serão resubidos pelo usuário)
-    _LIMPAR_MODELOS = [
-        "01_treinamento_admissional","02_politica_de_seguranca",
-        "04_treinamento_nr06","05_treinamento_nr18","06_treinamento_nr21",
-        "07_treinamento_nr26","08_treinamento_nr12","09_treinamento_produtos_quimicos",
-        "11_pop","12_treinamento_direcao_defensiva","13_treinamento_vias_urbanas",
-        "14_primeiros_socorros",
-    ]
-    try:
-        conn = banco.conectar()
-        cur = conn.cursor()
-        for doc_id in _LIMPAR_MODELOS:
-            if banco.USE_POSTGRES:
-                cur.execute("DELETE FROM modelos WHERE id=%s AND cargo IS NULL", (doc_id,))
-            else:
-                cur.execute("DELETE FROM modelos WHERE id=? AND cargo IS NULL", (doc_id,))
-        conn.commit()
-        conn.close()
-        print("[INFO] Modelos de treinamento limpos do banco.")
-    except Exception as e:
-        print(f"[WARN] limpeza modelos treinamento: {e}")
-
     _garantir_os_base()
     # Seed PGR: insere cargos sem entrada E corrige riscos com duplicatas acumuladas
     try:
@@ -432,10 +410,14 @@ async def adicionar_documento(
     import re
     conteudo = await file.read()
     # Verifica se corresponde a um documento já cadastrado (match por nome normalizado)
-    nome_norm = re.sub(r"[^a-z0-9]+", " ", nome.lower()).strip()
+    def _norm(s):
+        # Remove número inicial (ex: "01 -"), acento, pontuação, espaços extras
+        s = re.sub(r"^\d+\s*[-–]\s*", "", s)  # tira "01 - " do início
+        return re.sub(r"[^a-z0-9]+", " ", s.lower()).strip()
+    nome_norm = _norm(nome)
     doc_encontrado = None
     for d in DOCUMENTOS:
-        d_norm = re.sub(r"[^a-z0-9]+", " ", d["nome"].lower()).strip()
+        d_norm = _norm(d["nome"])
         if nome_norm == d_norm or nome_norm in d_norm or d_norm in nome_norm:
             doc_encontrado = d
             break

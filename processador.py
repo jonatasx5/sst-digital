@@ -400,15 +400,18 @@ def preencher_ficha_epi_dinamica(funcionario: dict, epis: list, modelo_bytes: by
             epi_rows.append(ri)
 
         # Preenche as linhas disponíveis com os EPIs
+        epi_rows_set = set(epi_rows)
         for i, ri in enumerate(epi_rows):
             row = table.rows[ri]
-            # Limpa todas as células primeiro
+            # Limpa todas as células (deduplicando células mescladas)
+            seen_clear = set()
             for cell in row.cells:
+                if id(cell._tc) in seen_clear:
+                    continue
+                seen_clear.add(id(cell._tc))
                 for para in cell.paragraphs:
                     for run in para.runs:
                         run.text = ""
-                    if para.runs:
-                        para.runs[0].text = ""
 
             if i < len(epis):
                 epi = epis[i]
@@ -440,9 +443,16 @@ def preencher_ficha_epi_dinamica(funcionario: dict, epis: list, modelo_bytes: by
                     if p.runs: p.runs[0].text = qtd
                     else: p.add_run(qtd)
 
-        # Preenche variáveis restantes na tabela (NOME, EMPRESA etc.)
-        for row in table.rows:
+        # Preenche variáveis nas demais linhas da tabela (NOME, EMPRESA etc.)
+        # Pula as linhas de EPI que já foram preenchidas diretamente
+        for ri, row in enumerate(table.rows):
+            if ri in epi_rows_set:
+                continue
+            seen_cell = set()
             for cell in row.cells:
+                if id(cell._tc) in seen_cell:
+                    continue
+                seen_cell.add(id(cell._tc))
                 for para in cell.paragraphs:
                     _processar_paragrafo(para, variaveis)
 

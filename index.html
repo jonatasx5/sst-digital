@@ -2235,6 +2235,12 @@ async function downloadModelo(docId, cargo) {
   window.location.href = url;
 }
 
+const KIT_PADRAO_IDS = [
+  "01_treinamento_admissional","02_politica_de_seguranca","04_treinamento_nr06",
+  "05_treinamento_nr18","09_treinamento_produtos_quimicos","11_pop","12_treinamento_direcao_defensiva"
+];
+const AUTO_IDS = ["03_os", "10_ficha_controle_epi"]; // sempre incluídos se existirem
+
 async function carregarMatriz() {
   const cargo = document.getElementById('sel-cargo').value;
   if (!cargo) return;
@@ -2242,12 +2248,23 @@ async function carregarMatriz() {
   const docIds = await res.json();
   const div = document.getElementById('docs-checks');
   div.innerHTML = '';
-  const KIT_PADRAO = [
-    "01_treinamento_admissional","02_politica_de_seguranca","04_treinamento_nr06",
-    "05_treinamento_nr18","09_treinamento_produtos_quimicos","11_pop","12_treinamento_direcao_defensiva"
-  ];
-  div.innerHTML = '<div style="font-size:11px;color:var(--texto2);margin-bottom:8px">Documentos adicionais ao Kit Padrão:</div>';
-  todosDocs.filter(d => !KIT_PADRAO.includes(d.id)).forEach(d => {
+
+  // Documentos automáticos (OS + Ficha EPI) — mostrar como fixos
+  const autoPresentes = todosDocs.filter(d => AUTO_IDS.includes(d.id) && docIds.includes(d.id));
+  if (autoPresentes.length) {
+    div.innerHTML += `<div style="font-size:11px;color:var(--verde);font-weight:600;margin-bottom:6px">
+      <i class="ti ti-lock"></i> Incluídos automaticamente:</div>`;
+    autoPresentes.forEach(d => {
+      div.innerHTML += `<div class="chk-item" style="margin-bottom:4px;opacity:0.7">
+        <input type="checkbox" checked disabled>
+        <label style="font-size:12px;cursor:default">${d.nome}</label>
+      </div>`;
+    });
+    div.innerHTML += `<div style="border-top:1px solid var(--borda);margin:10px 0"></div>`;
+  }
+
+  div.innerHTML += '<div style="font-size:11px;color:var(--texto2);font-weight:600;margin-bottom:8px">Selecione os documentos para este cargo:</div>';
+  todosDocs.filter(d => !KIT_PADRAO_IDS.includes(d.id) && !AUTO_IDS.includes(d.id)).forEach(d => {
     const chk = docIds.includes(d.id) ? 'checked' : '';
     div.innerHTML += `<div class="chk-item" style="margin-bottom:6px">
       <input type="checkbox" id="chk-${d.id}" value="${d.id}" ${chk}>
@@ -2259,17 +2276,16 @@ async function carregarMatriz() {
 async function salvarMatriz() {
   const cargo = document.getElementById('sel-cargo').value;
   if (!cargo) { alert('Selecione um cargo.'); return; }
-  const doc_ids = [...document.querySelectorAll('#docs-checks input:checked')].map(i=>i.value);
-  await apiFetch(`/api/matriz/${encodeURIComponent(cargo)}`, {
+  const doc_ids = [...document.querySelectorAll('#docs-checks input:not([disabled]):checked')].map(i=>i.value);
+  const res = await apiFetch(`/api/matriz/${encodeURIComponent(cargo)}`, {
     method:'POST', headers:{'Content-Type':'application/json'},
     body: JSON.stringify({doc_ids})
   });
-  const KIT_PADRAO = [
-    "01_treinamento_admissional","02_politica_de_seguranca","04_treinamento_nr06",
-    "05_treinamento_nr18","09_treinamento_produtos_quimicos","11_pop","12_treinamento_direcao_defensiva"
-  ];
-  const total = KIT_PADRAO.length + doc_ids.length;
-  alert(`Kit do cargo "${cargo}" salvo!\n\n✅ ${KIT_PADRAO.length} documentos do Kit Padrão\n➕ ${doc_ids.length} documento(s) específico(s) do cargo\n\nTotal: ${total} documento(s)`);
+  const data = await res.json();
+  // Recarrega para mostrar os automáticos atualizados
+  carregarMatriz();
+  const btn = document.querySelector('#docs-checks')?.closest('.card')?.querySelector('.btn-primary');
+  if (btn) { btn.textContent = '✓ Salvo!'; setTimeout(()=>{ btn.innerHTML='<i class="ti ti-device-floppy"></i>Salvar kit do cargo'; },2000); }
 }
 
 function abrirUploadModelo(docId, docNome, cargo) {

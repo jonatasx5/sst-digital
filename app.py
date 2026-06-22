@@ -404,7 +404,15 @@ async def docs_do_cargo(cargo: str, _=Depends(verificar_acesso)):
 
 @app.post("/api/matriz/{cargo}")
 async def salvar_matriz(cargo: str, dados: dict, _=Depends(verificar_acesso)):
-    banco.salvar_docs_cargo(cargo, dados.get("doc_ids", []))
+    from config import KIT_PADRAO
+    doc_ids = dados.get("doc_ids", [])
+    # Inclui automaticamente OS e Ficha EPI se existirem para este cargo
+    tem_os  = bool(banco.buscar_modelo(OS_DOC_ID,  cargo=cargo))
+    tem_epi = bool(banco.buscar_modelo(EPI_DOC_ID, cargo=cargo))
+    extras = list(dict.fromkeys(doc_ids))  # dedup mantendo ordem
+    if tem_os  and OS_DOC_ID  not in extras: extras.append(OS_DOC_ID)
+    if tem_epi and EPI_DOC_ID not in extras: extras.append(EPI_DOC_ID)
+    banco.salvar_docs_cargo(cargo, extras)
     return {"ok": True}
 
 @app.get("/api/cargos")

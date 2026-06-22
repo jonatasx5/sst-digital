@@ -312,7 +312,7 @@ tr:hover td { background:#F9FAFB; }
             </div>
             <div class="field" style="margin:0">
               <label style="font-size:11px">Arquivo .docx</label>
-              <input id="novo-doc-file" type="file" accept=".docx" style="font-size:12px;padding:4px 6px">
+              <input id="novo-doc-file" type="file" accept=".docx" style="font-size:12px;padding:4px 6px" onchange="preencherNomeDocumento(this)">
             </div>
             <button class="btn btn-primary btn-sm" onclick="adicionarNovoDocumento()" style="white-space:nowrap"><i class="ti ti-upload"></i>Enviar</button>
           </div>
@@ -2202,6 +2202,13 @@ async function carregarModelos() {
   const selEpi = document.getElementById('sel-cargo-epi');
   selEpi.innerHTML = '<option value="">-- Selecione --</option>';
   cargos.forEach(c => selEpi.innerHTML += `<option value="${c.cargo}">${c.label}</option>`);
+}
+
+function preencherNomeDocumento(input) {
+  if (!input.files[0]) return;
+  const nome = input.files[0].name.replace(/\.docx$/i, '').replace(/_/g, ' ').trim();
+  const campo = document.getElementById('novo-doc-nome');
+  if (!campo.value) campo.value = nome;
 }
 
 async function adicionarNovoDocumento() {

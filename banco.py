@@ -1120,14 +1120,12 @@ def buscar_cargos():
     conn = conectar()
     try:
         cur = conn.cursor()
-        # Combina cargos de funcionários + cargos configurados no PGR/OS
+        # Cargos de funcionários cadastrados + cargos que tiveram EPIs configurados pelo usuário
         cur.execute("""
             SELECT DISTINCT cargo FROM (
                 SELECT cargo FROM funcionarios WHERE cargo IS NOT NULL AND cargo != ''
                 UNION
-                SELECT cargo FROM pgr_inventario WHERE cargo IS NOT NULL AND cargo != ''
-                UNION
-                SELECT cargo FROM cargo_epis WHERE cargo IS NOT NULL AND cargo != ''
+                SELECT DISTINCT cargo FROM cargo_epis WHERE cargo IS NOT NULL AND cargo != ''
             ) t ORDER BY cargo
         """)
         rows = cur.fetchall()

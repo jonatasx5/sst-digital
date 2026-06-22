@@ -1981,7 +1981,7 @@ function irPara(aba) {
     if (b.getAttribute('onclick')?.includes("'"+aba+"'")) b.classList.add('active');
   });
   if (aba==='funcionarios')  carregarFuncionarios();
-  if (aba==='modelos')       { carregarModelos(); carregarTabelaEpiOs(); }
+  if (aba==='modelos')       { carregarModelos(); carregarTabelaEpiOs(); popularSelectEditor(); }
   if (aba==='cadastro-epi')  carregarPainelCadEpi();
   if (aba==='envio-epi')     { buscarFuncEpi(); filtrarEpiLote(); }
   if (aba==='lote')          { filtrarLote(); renderLoteSel(); }
@@ -2190,10 +2190,20 @@ async function carregarModelos() {
 
 }
 
-function popularSelectEditor() {
+async function popularSelectEditor() {
   const sel = document.getElementById('editor-doc-select');
-  if (!sel || sel.options.length > 1) return;
-  (todosDocs.length ? todosDocs : []).forEach(d => {
+  if (!sel) return;
+  // Limpa e repopula sempre
+  sel.innerHTML = '<option value="">Selecione...</option>';
+  // Usa todosDocs se já carregado, senão busca
+  let docs = todosDocs;
+  if (!docs || !docs.length) {
+    try {
+      const res = await apiFetch('/api/documentos');
+      docs = res.ok ? await res.json() : [];
+    } catch(e) { docs = []; }
+  }
+  docs.forEach(d => {
     const opt = document.createElement('option');
     opt.value = d.id;
     opt.textContent = d.nome;

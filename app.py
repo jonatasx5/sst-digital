@@ -377,6 +377,7 @@ async def listar_documentos(_=Depends(verificar_acesso)):
         pass
     # Aliases: modelos com ID alternativo no banco
     _aliases = {"03_os": "03_os_base"}
+    docs = []
     for d in DOCUMENTOS:
         try:
             existe_disco = os.path.exists(os.path.join(MODELOS_DIR, f"{d['id']}.docx"))

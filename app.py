@@ -369,12 +369,17 @@ async def listar_documentos(_=Depends(verificar_acesso)):
     except Exception:
         modelos_banco = set()
     docs = []
+    # Aliases: doc que tem modelo salvo sob ID alternativo
+    _aliases = {"03_os": "03_os_base"}
     for d in DOCUMENTOS:
         try:
             existe_disco = os.path.exists(os.path.join(MODELOS_DIR, f"{d['id']}.docx"))
         except Exception:
             existe_disco = False
         existe_banco = d["id"] in modelos_banco
+        # Verifica alias (ex: 03_os usa modelo 03_os_base)
+        if not existe_banco and d["id"] in _aliases:
+            existe_banco = _aliases[d["id"]] in modelos_banco
         docs.append({**d, "modelo_existe": existe_disco or existe_banco,
                      "modelo_no_banco": existe_banco, "modelo_no_disco": existe_disco, "extra": False})
     try:

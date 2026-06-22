@@ -3919,6 +3919,7 @@ async function carregarConferirEpis() {
           <tr style="background:var(--fundo2);text-align:left">
             <th style="padding:8px 10px;border-bottom:2px solid var(--borda);width:220px">Cargo</th>
             <th style="padding:8px 10px;border-bottom:2px solid var(--borda)">EPIs e Uniformes</th>
+            <th style="padding:8px 10px;border-bottom:2px solid var(--borda);width:110px"></th>
           </tr>
         </thead>
         <tbody>
@@ -3930,12 +3931,29 @@ async function carregarConferirEpis() {
                   ? r.epis.map(e => `<span style="display:inline-block;background:#f0fdf4;border:1px solid var(--verde);color:#065f46;padding:2px 8px;border-radius:10px;margin:2px;font-size:11px">${e.descricao}${e.ca?' (C.A: '+e.ca+')':''}</span>`).join('')
                   : '<em style="color:#aaa">Nenhum EPI configurado</em>'}
               </td>
+              <td style="padding:8px 10px">
+                <button class="btn btn-outline btn-sm" onclick="baixarFichaEpiPorCargo('${r.cargo.replace(/'/g,"\\'")}')">
+                  <i class="ti ti-download"></i> Ficha EPI
+                </button>
+              </td>
             </tr>`).join('')}
         </tbody>
       </table>`;
   } catch(e) {
     el.innerHTML = `<p style="color:var(--danger)">Erro: ${e.message}</p>`;
   }
+}
+
+async function baixarFichaEpiPorCargo(cargo) {
+  const res = await apiFetch(`/api/ficha-epi/${encodeURIComponent(cargo)}/download`);
+  if (!res || !res.ok) { alert('Ficha de EPI não gerada para este cargo. Configure e salve a OS primeiro.'); return; }
+  const blob = await res.blob();
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `FichaEPI_${cargo}.docx`;
+  a.click();
+  URL.revokeObjectURL(url);
 }
 
 async function carregarOSFuncs() {

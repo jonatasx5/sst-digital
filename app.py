@@ -760,6 +760,17 @@ async def download_os(cargo: str, _=Depends(verificar_acesso)):
         headers={"Content-Disposition": f'attachment; filename="OS_{cargo}.docx"'})
 
 
+@app.get("/api/ficha-epi/{cargo}/download")
+async def download_ficha_epi(cargo: str, _=Depends(verificar_acesso)):
+    from fastapi.responses import Response
+    conteudo = banco.buscar_modelo(EPI_DOC_ID, cargo=cargo)
+    if not conteudo:
+        raise HTTPException(status_code=404, detail="Ficha de EPI não gerada para este cargo. Salve a configuração da OS primeiro.")
+    return Response(content=conteudo,
+        media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        headers={"Content-Disposition": f'attachment; filename="FichaEPI_{cargo}.docx"'})
+
+
 @app.delete("/api/os/{cargo}")
 async def deletar_os(cargo: str, _=Depends(verificar_acesso)):
     from config import KIT_PADRAO

@@ -763,6 +763,9 @@ tr:hover td { background:#F9FAFB; }
           <button class="btn btn-outline" onclick="baixarOSCargo()" id="os-btn-baixar" disabled title="Baixar OS gerada para este cargo">
             <i class="ti ti-download"></i> Ver OS
           </button>
+          <button class="btn btn-outline" onclick="baixarFichaEpiCargo()" id="os-btn-baixar-epi" disabled title="Baixar Ficha de EPI gerada para este cargo">
+            <i class="ti ti-download"></i> Ver Ficha EPI
+          </button>
           <span id="os-salvar-status" style="font-size:12px;color:var(--verde);display:none"></span>
         </div>
       </div>
@@ -3589,6 +3592,7 @@ async function selecionarOSCargo(cargo) {
   document.getElementById('os-cargo-nome').textContent = cargo;
   document.getElementById('os-btn-salvar').disabled = false;
   document.getElementById('os-btn-baixar').disabled = false;
+  document.getElementById('os-btn-baixar-epi').disabled = false;
   document.getElementById('os-salvar-status').style.display = 'none';
 
   try {
@@ -3853,6 +3857,19 @@ async function baixarOSCargo() {
   const a    = document.createElement('a');
   a.href     = url;
   a.download = `OS_${osCargoAtual}.docx`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+async function baixarFichaEpiCargo() {
+  if (!osCargoAtual) return;
+  const res = await apiFetch(`/api/ficha-epi/${encodeURIComponent(osCargoAtual)}/download`);
+  if (!res || !res.ok) { alert('Ficha de EPI ainda não gerada para este cargo. Clique em Salvar primeiro (e verifique se o modelo base da Ficha de EPI foi enviado).'); return; }
+  const blob = await res.blob();
+  const url  = URL.createObjectURL(blob);
+  const a    = document.createElement('a');
+  a.href     = url;
+  a.download = `FichaEPI_${osCargoAtual}.docx`;
   a.click();
   URL.revokeObjectURL(url);
 }

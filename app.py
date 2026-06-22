@@ -54,6 +54,23 @@ def _garantir_os_base():
 
 @app.on_event("startup")
 async def startup_event():
+    # Garante tabelas novas que podem não existir em bancos antigos
+    try:
+        conn = banco.conectar()
+        cur = conn.cursor()
+        if banco.USE_POSTGRES:
+            cur.execute("""CREATE TABLE IF NOT EXISTS documentos_extras (
+                id TEXT PRIMARY KEY, nome TEXT NOT NULL,
+                kit_padrao BOOLEAN DEFAULT FALSE, criado_em TIMESTAMP DEFAULT NOW())""")
+        else:
+            cur.execute("""CREATE TABLE IF NOT EXISTS documentos_extras (
+                id TEXT PRIMARY KEY, nome TEXT NOT NULL,
+                kit_padrao INTEGER DEFAULT 0, criado_em TEXT DEFAULT (datetime('now','localtime')))""")
+        conn.commit()
+        conn.close()
+    except Exception as e:
+        print(f"[WARN] migração documentos_extras: {e}")
+
     _garantir_os_base()
     # Seed PGR: insere cargos sem entrada E corrige riscos com duplicatas acumuladas
     try:

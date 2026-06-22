@@ -1034,12 +1034,18 @@ async def listar_os_config(_=Depends(verificar_acesso)):
         cbo_map = {c["cargo"].upper(): c for c in banco.listar_cargos_cbo()}
 
         import re as _re
+        import unicodedata as _ud
+
+        def _sem_acento(s):
+            return ''.join(c for c in _ud.normalize('NFD', s) if _ud.category(c) != 'Mn')
 
         def _chave_grupo(cargo, codigo):
-            # Agrupa por CBO se disponível, senão por nome normalizado (remove NIVEL I/II/III/IV)
+            # Agrupa por CBO se disponível, senão por nome normalizado
             if codigo:
                 return f"cbo:{codigo}"
-            norm = _re.sub(r'\s+(NIVEL|NV|N\.?)\s*(I{1,3}V?|IV|V?\d*)\s*$', '', cargo.upper()).strip()
+            # Remove acentos e sufixos de nível (NIVEL I, NÍVEL II, NV III, etc.)
+            norm = _sem_acento(cargo.upper())
+            norm = _re.sub(r'\s+(NIVEL|NV)\s*(I{1,3}V?|IV|\d+)\s*$', '', norm).strip()
             return f"nome:{norm}"
 
         grupos = {}   # chave -> item escolhido

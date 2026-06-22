@@ -2251,6 +2251,26 @@ async function carregarMatriz(cargo) {
     const r = await apiFetch('/api/documentos').catch(()=>null);
     todosDocs = r && r.ok ? await r.json() : [];
   }
+  // Fallback: lista fixa caso API falhe
+  if (!todosDocs || !todosDocs.length) {
+    todosDocs = [
+      {id:"01_treinamento_admissional", nome:"01 - Treinamento Admissional"},
+      {id:"02_politica_de_seguranca",   nome:"02 - Política de Segurança"},
+      {id:"03_os_ajudante",             nome:"03 - OS Ajudante"},
+      {id:"03_os",                      nome:"03 - Ordem de Serviço"},
+      {id:"04_treinamento_nr06",        nome:"04 - Treinamento NR 06"},
+      {id:"05_treinamento_nr18",        nome:"05 - Treinamento NR 18"},
+      {id:"06_treinamento_nr21",        nome:"06 - Treinamento NR 21"},
+      {id:"07_treinamento_nr26",        nome:"07 - Treinamento NR 26"},
+      {id:"08_treinamento_nr12",        nome:"08 - Treinamento NR 12"},
+      {id:"09_treinamento_produtos_quimicos", nome:"09 - Treinamento Produtos Químicos"},
+      {id:"10_ficha_controle_epi",      nome:"10 - Ficha de Controle de EPI"},
+      {id:"11_pop",                     nome:"11 - POP"},
+      {id:"12_treinamento_direcao_defensiva", nome:"12 - Treinamento Direção Defensiva"},
+      {id:"13_treinamento_vias_urbanas", nome:"13 - Treinamento Trabalho em Vias Urbanas"},
+      {id:"14_primeiros_socorros",      nome:"14 - Primeiros Socorros"},
+    ];
+  }
   div.innerHTML = '';
 
   // Documentos automáticos (OS + Ficha EPI) — mostrar como fixos

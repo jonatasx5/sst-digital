@@ -323,6 +323,29 @@ tr:hover td { background:#F9FAFB; }
 
   </div>
 
+  <!-- Editor de Documentos -->
+  <div class="card" style="margin-top:16px">
+    <div class="card-title"><i class="ti ti-pencil"></i>Editor de Documentos</div>
+    <p style="font-size:12px;color:var(--texto2);margin-bottom:12px">Selecione um documento para editar o conteúdo diretamente no sistema.</p>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end">
+      <div class="field" style="margin:0;flex:1;min-width:200px">
+        <label style="font-size:11px">Documento</label>
+        <select id="editor-doc-select" style="font-size:13px;padding:7px 10px;border:1px solid var(--borda);border-radius:8px;width:100%">
+          <option value="">Selecione...</option>
+        </select>
+      </div>
+      <button class="btn btn-primary" onclick="abrirEditorDoc()" style="white-space:nowrap">
+        <i class="ti ti-pencil"></i>Editar
+      </button>
+      <button class="btn btn-outline" onclick="baixarDocEditor()" style="white-space:nowrap" title="Baixar .docx para editar no Word">
+        <i class="ti ti-download"></i>Baixar
+      </button>
+    </div>
+    <div style="font-size:11px;color:var(--texto2);margin-top:8px">
+      <i class="ti ti-info-circle"></i> Para edições simples de texto e variáveis use o editor. Para alterar layout/tabelas, baixe o .docx, edite no Word e suba pelo botão de upload acima.
+    </div>
+  </div>
+
   <!-- Kit por Cargo — layout igual à OS -->
   <div class="card" style="margin-top:16px">
     <div class="card-title"><i class="ti ti-table"></i>Kit por Cargo</div>
@@ -2157,11 +2180,40 @@ async function carregarModelos() {
     lista.innerHTML += html;
   });
 
+  // Popula select do editor de documentos
+  popularSelectEditor();
+
   // Cargos no select da matriz
   // Renderiza lista de cargos no Kit por Cargo
   _kitCargosCache = cargos;
   renderKitCargos(cargos);
 
+}
+
+function popularSelectEditor() {
+  const sel = document.getElementById('editor-doc-select');
+  if (!sel || sel.options.length > 1) return;
+  (todosDocs.length ? todosDocs : []).forEach(d => {
+    const opt = document.createElement('option');
+    opt.value = d.id;
+    opt.textContent = d.nome;
+    sel.appendChild(opt);
+  });
+}
+
+async function abrirEditorDoc() {
+  const sel = document.getElementById('editor-doc-select');
+  const docId = sel.value;
+  if (!docId) { alert('Selecione um documento'); return; }
+  const nome = sel.options[sel.selectedIndex].text;
+  await editarDocumento(docId, nome);
+}
+
+function baixarDocEditor() {
+  const sel = document.getElementById('editor-doc-select');
+  const docId = sel.value;
+  if (!docId) { alert('Selecione um documento'); return; }
+  window.location.href = `/api/documentos/${encodeURIComponent(docId)}/download`;
 }
 
 function preencherNomeDocumento(input) {

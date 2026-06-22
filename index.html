@@ -2146,7 +2146,10 @@ async function carregarModelos() {
 
   const lista = document.getElementById('modelos-lista');
   lista.innerHTML = '';
-  todosDocs.forEach(d => {
+  // Não mostra OS e Ficha EPI na lista — gerenciados em seções próprias
+  const OCULTOS_LISTA = ["03_os", "10_ficha_controle_epi"];
+
+  todosDocs.filter(d => !OCULTOS_LISTA.includes(d.id)).forEach(d => {
     const info = modeloMap[d.id] || {};
     const temArquivo = info.tem_arquivo || d.modelo_existe;
     const badgeCor = temArquivo ? 'var(--verde)' : 'var(--danger)';
@@ -2156,26 +2159,28 @@ async function carregarModelos() {
     const isEpi = d.id === EPI_DOC_ID;
     const nomeSeguro = d.nome.replace(/'/g, "\\'");
 
-    let html = `<div id="modelo-row-${d.id}" style="padding:8px 0;border-bottom:1px solid var(--borda)">
+    let html = `<div id="modelo-row-${d.id}" style="padding:10px 0;border-bottom:1px solid var(--borda)">
       <div style="display:flex;align-items:center;justify-content:space-between">
-        <div style="font-size:12px;font-weight:500">
+        <div style="font-size:13px;font-weight:500">
           ${d.nome}
           <span style="${badgeStyle}">${badgeTexto}</span>
-          ${info.no_banco ? '<span style="font-size:10px;color:var(--verde);margin-left:4px" title="Salvo no banco de dados"><i class="ti ti-database"></i></span>' : ''}
         </div>
-        <div style="display:flex;gap:4px">`;
+        <div style="display:flex;gap:6px">`;
 
     if (temArquivo) {
       html += `<button class="btn btn-outline btn-sm" title="Baixar .docx" onclick="downloadModelo('${d.id}')">
         <i class="ti ti-download"></i>
       </button>`;
-      html += `<button class="btn btn-outline btn-sm" title="Editar conteúdo" onclick="editarDocumento('${d.id}','${nomeSeguro}')">
+      html += `<button class="btn btn-outline btn-sm" title="Editar" onclick="editarDocumento('${d.id}','${nomeSeguro}')">
         <i class="ti ti-pencil"></i>
       </button>`;
     }
-    html += `<button class="btn btn-outline btn-sm" title="Upload" onclick="abrirUploadModelo('${d.id}','${nomeSeguro}')">
-        <i class="ti ti-upload"></i>
-      </button>`;
+
+    // Botão de upload sempre visível
+    const uploadStyle = temArquivo ? '' : 'background:var(--verde);color:#fff;border-color:var(--verde)';
+    html += `<button class="btn btn-outline btn-sm" title="Subir arquivo" style="${uploadStyle}" onclick="uploadModeloRapido('${d.id}','${nomeSeguro}')">
+      <i class="ti ti-upload"></i> ${temArquivo ? '' : 'Subir'}
+    </button>`;
 
     if (isEpi) {
       html += `<button class="btn btn-outline btn-sm" title="Upload por cargo" onclick="toggleEpiCargos(this)">
@@ -2411,6 +2416,31 @@ function abrirUploadModelo(docId, docNome, cargo) {
   document.getElementById('modelo-result').innerHTML = '';
   document.getElementById('inp-modelo').value = '';
   abrirModal('modal-modelo');
+}
+
+function uploadModeloRapido(docId, docNome) {
+  // Cria input invisível, dispara clique e faz upload ao selecionar arquivo
+  const inp = document.createElement('input');
+  inp.type = 'file';
+  inp.accept = '.docx';
+  inp.onchange = async () => {
+    if (!inp.files[0]) return;
+    const row = document.getElementById(`modelo-row-${docId}`);
+    if (row) row.style.opacity = '0.5';
+    const fd = new FormData();
+    fd.append('nome', docNome);
+    fd.append('file', inp.files[0]);
+    const res = await apiFetch('/api/documentos/novo', { method:'POST', body:fd });
+    const data = await res.json();
+    if (data.ok) {
+      carregarModelos();
+      popularSelectEditor();
+    } else {
+      alert('Erro ao enviar arquivo');
+      if (row) row.style.opacity = '1';
+    }
+  };
+  inp.click();
 }
 
 async function uploadModelo(inp) {

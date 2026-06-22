@@ -2236,7 +2236,7 @@ const KIT_PADRAO_IDS = [
   "05_treinamento_nr18","09_treinamento_produtos_quimicos","11_pop","12_treinamento_direcao_defensiva",
   "03_os","10_ficha_controle_epi"
 ];
-const AUTO_IDS = ["03_os", "10_ficha_controle_epi"]; // sempre incluídos se existirem
+const AUTO_IDS = ["03_os", "10_ficha_controle_epi", "03_os_ajudante"]; // sempre excluídos dos checkboxes
 
 async function carregarMatriz(cargo) {
   cargo = cargo || _kitCargoAtual;

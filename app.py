@@ -1039,6 +1039,14 @@ async def listar_os_config(_=Depends(verificar_acesso)):
         def _sem_acento(s):
             return ''.join(c for c in _ud.normalize('NFD', s) if _ud.category(c) != 'Mn')
 
+        def _nome_limpo(cargo):
+            """Remove sufixo NIVEL X do nome para exibição."""
+            norm = _sem_acento(cargo.upper())
+            norm = _re.sub(r'\s+NIVEL\s*.*$', '', norm).strip()
+            # Mantém capitalização original mas sem o sufixo
+            idx = len(norm)
+            return cargo[:idx].strip()
+
         def _chave_grupo(cargo, codigo):
             # Agrupa por CBO se disponível, senão por nome normalizado
             if codigo:
@@ -1059,6 +1067,7 @@ async def listar_os_config(_=Depends(verificar_acesso)):
             configurado = bool(cbo.get("cbo_codigo") or cbo.get("cbo_descricao"))
             item = {
                 "cargo":         cargo,
+                "nome_display":  _nome_limpo(cargo),
                 "cbo_codigo":    cbo.get("cbo_codigo", ""),
                 "cbo_titulo":    cbo.get("cbo_titulo", ""),
                 "cbo_descricao": cbo.get("cbo_descricao", ""),

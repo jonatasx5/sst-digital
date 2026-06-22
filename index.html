@@ -3574,7 +3574,7 @@ function _renderCargoItem(c) {
     style="padding:9px 12px;border-radius:8px;cursor:pointer;margin-bottom:3px;
            background:${ativo?'var(--verde-light)':'#F9FAFB'};border:1px solid ${ativo?'var(--verde)':'var(--borda)'}">
     <div style="display:flex;align-items:center;justify-content:space-between">
-      <div style="font-weight:500;font-size:13px;flex:1;margin-right:8px">${c.cargo}</div>
+      <div style="font-weight:500;font-size:13px;flex:1;margin-right:8px">${c.nome_display || c.cargo}</div>
       <span style="font-size:11px;padding:2px 8px;border-radius:10px;white-space:nowrap;
         background:${c.configurado?'#d1fae5':'#fef3c7'};color:${c.configurado?'#065f46':'#92400e'}">${c.configurado?'✓ OK':'Pendente'}</span>
     </div>

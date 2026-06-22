@@ -2113,11 +2113,12 @@ async function carregarModelos() {
   const KIT_PADRAO = KIT_PADRAO_IDS;
   const kitDiv = document.getElementById('kit-padrao-lista');
   kitDiv.innerHTML = '';
+  const SEMPRE_VERDE = ["03_os", "10_ficha_controle_epi"];
   KIT_PADRAO.forEach(id => {
     const doc = todosDocs.find(d => d.id === id);
     if (!doc) return;
     const info = modeloMap[id] || {};
-    const tem = info.tem_arquivo || doc.modelo_existe;
+    const tem = SEMPRE_VERDE.includes(id) || info.tem_arquivo || doc.modelo_existe;
     const cor = tem ? '#10B981' : '#EF4444';
     kitDiv.innerHTML += `<span style="padding:4px 10px;border-radius:20px;font-size:12px;font-weight:500;color:#fff;background:${cor}">${doc.nome}</span>`;
   });

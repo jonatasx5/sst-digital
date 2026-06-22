@@ -1120,7 +1120,16 @@ def buscar_cargos():
     conn = conectar()
     try:
         cur = conn.cursor()
-        cur.execute("SELECT DISTINCT cargo FROM funcionarios WHERE cargo IS NOT NULL AND cargo != '' ORDER BY cargo")
+        # Combina cargos de funcionários + cargos configurados no PGR/OS
+        cur.execute("""
+            SELECT DISTINCT cargo FROM (
+                SELECT cargo FROM funcionarios WHERE cargo IS NOT NULL AND cargo != ''
+                UNION
+                SELECT cargo FROM pgr_inventario WHERE cargo IS NOT NULL AND cargo != ''
+                UNION
+                SELECT cargo FROM cargo_epis WHERE cargo IS NOT NULL AND cargo != ''
+            ) t ORDER BY cargo
+        """)
         rows = cur.fetchall()
         return [r[0] for r in rows]
     finally:

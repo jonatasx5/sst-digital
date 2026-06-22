@@ -321,21 +321,35 @@ tr:hover td { background:#F9FAFB; }
       </div>
     </div>
 
-    <!-- Matriz cargo × docs -->
-    <div>
-      <div class="card">
-        <div class="card-title"><i class="ti ti-table"></i>Kit por Cargo</div>
-        <div class="field">
-          <label>Selecione o cargo</label>
-          <select id="sel-cargo" onchange="carregarMatriz()">
-            <option value="">-- Selecione --</option>
-          </select>
+  </div>
+
+  <!-- Kit por Cargo — layout igual à OS -->
+  <div class="card" style="margin-top:16px">
+    <div class="card-title"><i class="ti ti-table"></i>Kit por Cargo</div>
+    <div class="grid2" style="gap:16px;align-items:start">
+
+      <!-- Lista de cargos -->
+      <div style="border:1px solid var(--borda);border-radius:10px;padding:14px">
+        <div style="font-size:12px;font-weight:600;color:var(--texto2);margin-bottom:8px">CARGOS</div>
+        <input type="text" placeholder="Filtrar cargo..." oninput="filtrarKitCargos(this.value)"
+          style="width:100%;padding:7px 10px;border:1px solid var(--borda);border-radius:8px;font-size:12px;margin-bottom:8px;box-sizing:border-box">
+        <div id="kit-lista-cargos" style="font-size:13px;color:var(--texto2)">Carregando...</div>
+      </div>
+
+      <!-- Documentos do cargo selecionado -->
+      <div style="border:1px solid var(--borda);border-radius:10px;padding:14px">
+        <div style="font-size:12px;font-weight:600;color:var(--texto2);margin-bottom:10px">
+          DOCUMENTOS — <span id="kit-cargo-nome" style="color:var(--verde)">Selecione um cargo</span>
         </div>
-        <div id="docs-checks"></div>
-        <div style="margin-top:12px">
-          <button class="btn btn-primary" onclick="salvarMatriz()"><i class="ti ti-device-floppy"></i>Salvar kit do cargo</button>
+        <div id="docs-checks" style="min-height:60px"></div>
+        <div style="margin-top:14px;border-top:1px solid var(--borda);padding-top:12px">
+          <button class="btn btn-primary" id="kit-btn-salvar" onclick="salvarMatriz()" disabled>
+            <i class="ti ti-device-floppy"></i> Salvar kit do cargo
+          </button>
+          <span id="kit-salvar-status" style="font-size:12px;color:var(--verde);margin-left:8px;display:none">✓ Salvo!</span>
         </div>
       </div>
+
     </div>
   </div>
 
@@ -2194,9 +2208,9 @@ async function carregarModelos() {
   });
 
   // Cargos no select da matriz
-  const sel = document.getElementById('sel-cargo');
-  sel.innerHTML = '<option value="">-- Selecione --</option>';
-  cargos.forEach(c => sel.innerHTML += `<option value="${c.cargo}">${c.label}</option>`);
+  // Renderiza lista de cargos no Kit por Cargo
+  _kitCargosCache = cargos;
+  renderKitCargos(cargos);
 
   // Cargos no select de EPI/OS
   const selEpi = document.getElementById('sel-cargo-epi');
@@ -2244,14 +2258,45 @@ async function downloadModelo(docId, cargo) {
   window.location.href = url;
 }
 
+let _kitCargosCache = [];
+let _kitCargoAtual = null;
+
+function renderKitCargos(lista) {
+  const el = document.getElementById('kit-lista-cargos');
+  if (!lista.length) { el.innerHTML = '<p style="color:var(--texto2);font-size:12px">Nenhum cargo configurado.</p>'; return; }
+  el.innerHTML = lista.map(c => {
+    const ativo = _kitCargoAtual === c.cargo;
+    return `<div onclick="selecionarKitCargo('${c.cargo.replace(/'/g,"\\'")}','${(c.label||c.cargo).replace(/'/g,"\\'")}' )"
+      style="padding:9px 12px;border-radius:8px;cursor:pointer;margin-bottom:3px;
+             background:${ativo?'var(--verde-light)':'#F9FAFB'};border:1px solid ${ativo?'var(--verde)':'var(--borda)'}">
+      <div style="font-weight:500;font-size:13px">${c.label || c.cargo}</div>
+    </div>`;
+  }).join('');
+}
+
+function filtrarKitCargos(termo) {
+  const t = termo.trim().toLowerCase();
+  const filtrado = t ? _kitCargosCache.filter(c => (c.label||c.cargo).toLowerCase().includes(t)) : _kitCargosCache;
+  renderKitCargos(filtrado);
+}
+
+async function selecionarKitCargo(cargo, label) {
+  _kitCargoAtual = cargo;
+  document.getElementById('kit-cargo-nome').textContent = label || cargo;
+  document.getElementById('kit-btn-salvar').disabled = false;
+  document.getElementById('kit-salvar-status').style.display = 'none';
+  renderKitCargos(_kitCargosCache);
+  await carregarMatriz(cargo);
+}
+
 const KIT_PADRAO_IDS = [
   "01_treinamento_admissional","02_politica_de_seguranca","04_treinamento_nr06",
   "05_treinamento_nr18","09_treinamento_produtos_quimicos","11_pop","12_treinamento_direcao_defensiva"
 ];
 const AUTO_IDS = ["03_os", "10_ficha_controle_epi"]; // sempre incluídos se existirem
 
-async function carregarMatriz() {
-  const cargo = document.getElementById('sel-cargo').value;
+async function carregarMatriz(cargo) {
+  cargo = cargo || _kitCargoAtual;
   if (!cargo) return;
   const res = await apiFetch(`/api/matriz/${encodeURIComponent(cargo)}`);
   const docIds = await res.json();
@@ -2290,18 +2335,17 @@ async function carregarMatriz() {
 }
 
 async function salvarMatriz() {
-  const cargo = document.getElementById('sel-cargo').value;
+  const cargo = _kitCargoAtual;
   if (!cargo) { alert('Selecione um cargo.'); return; }
   const doc_ids = [...document.querySelectorAll('#docs-checks input:not([disabled]):checked')].map(i=>i.value);
-  const res = await apiFetch(`/api/matriz/${encodeURIComponent(cargo)}`, {
+  await apiFetch(`/api/matriz/${encodeURIComponent(cargo)}`, {
     method:'POST', headers:{'Content-Type':'application/json'},
     body: JSON.stringify({doc_ids})
   });
-  const data = await res.json();
-  // Recarrega para mostrar os automáticos atualizados
-  carregarMatriz();
-  const btn = document.querySelector('#docs-checks')?.closest('.card')?.querySelector('.btn-primary');
-  if (btn) { btn.textContent = '✓ Salvo!'; setTimeout(()=>{ btn.innerHTML='<i class="ti ti-device-floppy"></i>Salvar kit do cargo'; },2000); }
+  await carregarMatriz(cargo);
+  const status = document.getElementById('kit-salvar-status');
+  status.style.display = 'inline';
+  setTimeout(() => status.style.display = 'none', 2000);
 }
 
 function abrirUploadModelo(docId, docNome, cargo) {

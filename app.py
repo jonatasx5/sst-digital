@@ -408,17 +408,30 @@ async def adicionar_documento(
 ):
     """Cadastra um documento — se nome bater com doc existente, atualiza o modelo desse doc."""
     import re
+    import unicodedata
     conteudo = await file.read()
-    # Verifica se corresponde a um documento já cadastrado (match por nome normalizado)
+
     def _norm(s):
-        # Remove número inicial (ex: "01 -"), acento, pontuação, espaços extras
-        s = re.sub(r"^\d+\s*[-–]\s*", "", s)  # tira "01 - " do início
+        s = re.sub(r"^\d+\s*[-–]\s*", "", s)  # remove "01 - " do início
+        s = unicodedata.normalize("NFD", s)
+        s = "".join(c for c in s if unicodedata.category(c) != "Mn")  # remove acentos
         return re.sub(r"[^a-z0-9]+", " ", s.lower()).strip()
+
+    # Também tenta match pelo número do documento (ex: "02" bate com 02_*)
+    def _num(s):
+        m = re.match(r"^(\d+)", s.strip())
+        return m.group(1) if m else ""
+
     nome_norm = _norm(nome)
+    nome_num  = _num(nome)
     doc_encontrado = None
     for d in DOCUMENTOS:
         d_norm = _norm(d["nome"])
+        d_num  = _num(d["nome"])
         if nome_norm == d_norm or nome_norm in d_norm or d_norm in nome_norm:
+            doc_encontrado = d
+            break
+        if nome_num and d_num and nome_num == d_num:
             doc_encontrado = d
             break
     if doc_encontrado:

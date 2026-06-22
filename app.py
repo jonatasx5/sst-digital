@@ -1091,12 +1091,20 @@ async def salvar_os_config_cargo(cargo: str, dados: dict, _=Depends(verificar_ac
     )
     banco.salvar_modelo(OS_DOC_ID, "Ordem de Serviço", docx_bytes, cargo=cargo)
 
-    # Auto-adiciona ao kit do cargo
+    # Gera Ficha de EPI automaticamente com os mesmos EPIs da OS
+    modelo_epi_base = banco.buscar_modelo("10_ficha_controle_epi")
+    if modelo_epi_base and epis:
+        ficha_bytes = processador.preencher_ficha_epi_dinamica(func_template, epis, modelo_epi_base)
+        banco.salvar_modelo(EPI_DOC_ID, "Ficha de Controle de EPI", ficha_bytes, cargo=cargo)
+
+    # Auto-adiciona OS e Ficha EPI ao kit do cargo
     from config import KIT_PADRAO
     docs = banco.docs_do_cargo(cargo)
     extras = [d for d in docs if d not in KIT_PADRAO]
     if OS_DOC_ID not in extras:
         extras.append(OS_DOC_ID)
+    if epis and EPI_DOC_ID not in extras:
+        extras.append(EPI_DOC_ID)
     banco.salvar_docs_cargo(cargo, extras)
 
     return {"ok": True, "cargo": cargo, "epis_count": len(epis),

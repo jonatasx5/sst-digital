@@ -303,6 +303,21 @@ tr:hover td { background:#F9FAFB; }
           Use variáveis como <strong>{{NOME}}</strong>, <strong>{{CPF}}</strong>, <strong>{{CARGO}}</strong> nos documentos Word.
         </div>
         <div id="modelos-lista"></div>
+        <div style="margin-top:14px;padding-top:12px;border-top:1px dashed var(--borda)">
+          <div style="font-size:12px;font-weight:600;margin-bottom:8px;color:var(--texto2)"><i class="ti ti-plus"></i> Adicionar novo documento</div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end">
+            <div class="field" style="margin:0;flex:1;min-width:160px">
+              <label style="font-size:11px">Nome do documento</label>
+              <input id="novo-doc-nome" type="text" placeholder="Ex: Treinamento CIPA" style="font-size:12px;padding:6px 10px">
+            </div>
+            <div class="field" style="margin:0">
+              <label style="font-size:11px">Arquivo .docx</label>
+              <input id="novo-doc-file" type="file" accept=".docx" style="font-size:12px;padding:4px 6px">
+            </div>
+            <button class="btn btn-primary btn-sm" onclick="adicionarNovoDocumento()" style="white-space:nowrap"><i class="ti ti-upload"></i>Enviar</button>
+          </div>
+          <div id="novo-doc-result" style="margin-top:6px"></div>
+        </div>
       </div>
     </div>
 
@@ -2179,6 +2194,28 @@ async function carregarModelos() {
   const selEpi = document.getElementById('sel-cargo-epi');
   selEpi.innerHTML = '<option value="">-- Selecione --</option>';
   cargos.forEach(c => selEpi.innerHTML += `<option value="${c}">${c}</option>`);
+}
+
+async function adicionarNovoDocumento() {
+  const nome = document.getElementById('novo-doc-nome').value.trim();
+  const fileInput = document.getElementById('novo-doc-file');
+  const res_div = document.getElementById('novo-doc-result');
+  if (!nome) { res_div.innerHTML = '<div class="alert al-error">Informe o nome do documento.</div>'; return; }
+  if (!fileInput.files[0]) { res_div.innerHTML = '<div class="alert al-error">Selecione o arquivo .docx.</div>'; return; }
+  const fd = new FormData();
+  fd.append('nome', nome);
+  fd.append('file', fileInput.files[0]);
+  res_div.innerHTML = '<div class="alert al-info"><i class="ti ti-loader"></i> Enviando...</div>';
+  const resp = await apiFetch('/api/documentos/novo', { method: 'POST', body: fd });
+  const data = await resp.json();
+  if (data.ok) {
+    res_div.innerHTML = `<div class="alert al-success"><i class="ti ti-check"></i> Documento "${data.nome}" adicionado com sucesso!</div>`;
+    document.getElementById('novo-doc-nome').value = '';
+    fileInput.value = '';
+    carregarModelos();
+  } else {
+    res_div.innerHTML = '<div class="alert al-error">Erro ao adicionar documento.</div>';
+  }
 }
 
 function toggleEpiCargos(btn) {

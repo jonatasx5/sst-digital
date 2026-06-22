@@ -347,15 +347,39 @@ async def importar_planilha(file: UploadFile = File(...), _=Depends(verificar_ac
 @app.get("/api/documentos")
 async def listar_documentos(_=Depends(verificar_acesso)):
     from config import MODELOS_DIR
-    # Modelos salvos no banco
     modelos_banco = {m["id"] for m in banco.listar_modelos() if m.get("tem_conteudo")}
     docs = []
     for d in DOCUMENTOS:
         existe_disco = os.path.exists(os.path.join(MODELOS_DIR, f"{d['id']}.docx"))
         existe_banco = d["id"] in modelos_banco
         docs.append({**d, "modelo_existe": existe_disco or existe_banco,
-                     "modelo_no_banco": existe_banco, "modelo_no_disco": existe_disco})
+                     "modelo_no_banco": existe_banco, "modelo_no_disco": existe_disco, "extra": False})
+    # Inclui documentos extras cadastrados pelo usuário
+    for e in banco.listar_documentos_extras():
+        existe_banco = e["id"] in modelos_banco
+        docs.append({"id": e["id"], "nome": e["nome"], "obrig": False, "kit_padrao": False,
+                     "modelo_existe": existe_banco, "modelo_no_banco": existe_banco,
+                     "modelo_no_disco": False, "extra": True})
     return docs
+
+
+@app.post("/api/documentos/novo")
+async def adicionar_documento(
+    nome: str = Form(...),
+    file: UploadFile = File(...),
+    _=Depends(verificar_acesso)
+):
+    """Cadastra um novo documento extra e salva o modelo."""
+    import re
+    slug = re.sub(r"[^a-z0-9]+", "_", nome.lower()).strip("_")
+    if not slug:
+        from fastapi import HTTPException
+        raise HTTPException(status_code=400, detail="Nome inválido")
+    doc_id = f"extra_{slug}"
+    conteudo = await file.read()
+    banco.salvar_documento_extra(doc_id, nome)
+    banco.salvar_modelo(doc_id, nome, conteudo)
+    return {"ok": True, "id": doc_id, "nome": nome}
 
 @app.get("/api/matriz/{cargo}")
 async def docs_do_cargo(cargo: str, _=Depends(verificar_acesso)):

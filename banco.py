@@ -153,6 +153,14 @@ def criar_banco():
                     UNIQUE(id, cargo)
                 )
             """)
+            cur.execute("""
+                CREATE TABLE IF NOT EXISTS documentos_extras (
+                    id TEXT PRIMARY KEY,
+                    nome TEXT NOT NULL,
+                    kit_padrao BOOLEAN DEFAULT FALSE,
+                    criado_em TIMESTAMP DEFAULT NOW()
+                )
+            """)
             conn.commit()
         else:
             cur = conn.cursor()
@@ -183,6 +191,11 @@ def criar_banco():
                 cargo TEXT DEFAULT NULL,
                 criado_em TEXT DEFAULT (datetime('now','localtime')),
                 UNIQUE(id, cargo))""")
+            cur.execute("""CREATE TABLE IF NOT EXISTS documentos_extras (
+                id TEXT PRIMARY KEY,
+                nome TEXT NOT NULL,
+                kit_padrao INTEGER DEFAULT 0,
+                criado_em TEXT DEFAULT (datetime('now','localtime')))""")
             conn.commit()
 
         # Tabela catálogo de EPIs
@@ -1385,6 +1398,39 @@ def deletar_modelo(doc_id: str, cargo: str = None):
             else:
                 cur.execute("DELETE FROM modelos WHERE id=? AND cargo=?", (doc_id, cargo))
         conn.commit()
+    finally:
+        conn.close()
+
+
+# ── DOCUMENTOS EXTRAS ─────────────────────────────────────
+
+def salvar_documento_extra(doc_id: str, nome: str) -> bool:
+    conn = conectar()
+    try:
+        cur = conn.cursor()
+        if USE_POSTGRES:
+            cur.execute(
+                "INSERT INTO documentos_extras(id, nome) VALUES(%s,%s) ON CONFLICT(id) DO UPDATE SET nome=EXCLUDED.nome",
+                (doc_id, nome)
+            )
+        else:
+            cur.execute(
+                "INSERT OR REPLACE INTO documentos_extras(id, nome) VALUES(?,?)",
+                (doc_id, nome)
+            )
+        conn.commit()
+        return True
+    finally:
+        conn.close()
+
+
+def listar_documentos_extras() -> list:
+    conn = conectar()
+    try:
+        cur = conn.cursor()
+        cur.execute("SELECT id, nome FROM documentos_extras ORDER BY nome")
+        rows = cur.fetchall()
+        return [{"id": r[0], "nome": r[1]} for r in rows]
     finally:
         conn.close()
 

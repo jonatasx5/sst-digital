@@ -365,11 +365,17 @@ async def importar_planilha(file: UploadFile = File(...), _=Depends(verificar_ac
 async def listar_documentos(_=Depends(verificar_acesso)):
     from config import MODELOS_DIR
     try:
-        modelos_banco = {m["id"] for m in banco.listar_modelos() if m.get("tem_conteudo")}
+        modelos_banco = {m["id"] for m in banco.listar_modelos() if m.get("tem_conteudo") and not m.get("cargo")}
     except Exception:
         modelos_banco = set()
-    docs = []
-    # Aliases: doc que tem modelo salvo sob ID alternativo
+    # Adiciona modelos no disco também ao lookup
+    try:
+        for f in os.listdir(MODELOS_DIR):
+            if f.endswith(".docx"):
+                modelos_banco.add(f.replace(".docx", ""))
+    except Exception:
+        pass
+    # Aliases: modelos com ID alternativo no banco
     _aliases = {"03_os": "03_os_base"}
     for d in DOCUMENTOS:
         try:

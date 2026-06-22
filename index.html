@@ -655,6 +655,9 @@ tr:hover td { background:#F9FAFB; }
         <input type="file" accept=".docx" style="display:none" onchange="uploadModeloOSBase(this)">
       </label>
       <span style="font-size:11px;color:var(--texto2);font-weight:600;margin-left:4px">Ficha EPI:</span>
+      <button class="btn btn-outline btn-sm" onclick="baixarModeloFichaEpiBase()" title="Baixar modelo base da Ficha de EPI">
+        <i class="ti ti-download"></i> Baixar Modelo Ficha EPI
+      </button>
       <label class="btn btn-outline btn-sm" style="cursor:pointer;margin:0" title="Subir modelo base da Ficha de EPI">
         <i class="ti ti-upload"></i> Subir Modelo Ficha EPI
         <input type="file" accept=".docx" style="display:none" onchange="uploadModeloFichaEpi(this)">
@@ -3500,6 +3503,18 @@ async function uploadModeloOSBase(input) {
   if (data.ok) alert('Modelo base da OS atualizado com sucesso!');
   else alert('Erro ao subir modelo: ' + JSON.stringify(data));
   input.value = '';
+}
+
+async function baixarModeloFichaEpiBase() {
+  const res = await apiFetch('/api/modelos/10_ficha_controle_epi/download');
+  if (!res || !res.ok) { alert('Modelo base da Ficha de EPI ainda não enviado.'); return; }
+  const blob = await res.blob();
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'modelo_ficha_epi_base.docx';
+  a.click();
+  URL.revokeObjectURL(url);
 }
 
 async function uploadModeloFichaEpi(input) {

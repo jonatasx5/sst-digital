@@ -2249,6 +2249,13 @@ async function carregarMatriz() {
   const res = await apiFetch(`/api/matriz/${encodeURIComponent(cargo)}`);
   const docIds = await res.json();
   const div = document.getElementById('docs-checks');
+  div.innerHTML = '<div style="color:var(--texto2);font-size:12px">Carregando...</div>';
+
+  // Garante que todosDocs está carregado
+  if (!todosDocs || !todosDocs.length) {
+    const r = await apiFetch('/api/documentos').catch(()=>null);
+    todosDocs = r && r.ok ? await r.json() : [];
+  }
   div.innerHTML = '';
 
   // Documentos automáticos (OS + Ficha EPI) — mostrar como fixos

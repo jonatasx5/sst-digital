@@ -2104,7 +2104,7 @@ async function carregarModelos() {
   const [resDoc, resMod, resCargos] = await Promise.all([
     apiFetch('/api/documentos'),
     apiFetch('/api/modelos'),
-    apiFetch('/api/cargos')
+    apiFetch('/api/cargos/configurados')
   ]);
   todosDocs = await resDoc.json();
   const modelos = await resMod.json();

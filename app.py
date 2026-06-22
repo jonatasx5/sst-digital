@@ -394,6 +394,11 @@ async def salvar_matriz(cargo: str, dados: dict, _=Depends(verificar_acesso)):
 async def listar_cargos(_=Depends(verificar_acesso)):
     return banco.buscar_cargos()
 
+@app.get("/api/cargos/configurados")
+async def listar_cargos_configurados(_=Depends(verificar_acesso)):
+    """Cargos que têm EPIs ou OS configurados — para dropdowns de Kit e seleção."""
+    return banco.buscar_cargos_configurados()
+
 # ══════════════════════════════════════════════════════════
 #  MODELOS .DOCX — CRUD
 # ══════════════════════════════════════════════════════════

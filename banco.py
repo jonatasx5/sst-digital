@@ -1117,10 +1117,22 @@ def salvar_docs_cargo(cargo, doc_ids):
 
 
 def buscar_cargos():
+    """Cargos de funcionários cadastrados — usado na lista da OS."""
     conn = conectar()
     try:
         cur = conn.cursor()
-        # Cargos de funcionários cadastrados + cargos que tiveram EPIs configurados pelo usuário
+        cur.execute("SELECT DISTINCT cargo FROM funcionarios WHERE cargo IS NOT NULL AND cargo != '' ORDER BY cargo")
+        rows = cur.fetchall()
+        return [r[0] for r in rows]
+    finally:
+        conn.close()
+
+
+def buscar_cargos_configurados():
+    """Cargos com EPIs ou OS configurados — usado nos dropdowns de Kit e seleção."""
+    conn = conectar()
+    try:
+        cur = conn.cursor()
         cur.execute("""
             SELECT DISTINCT cargo FROM (
                 SELECT cargo FROM funcionarios WHERE cargo IS NOT NULL AND cargo != ''

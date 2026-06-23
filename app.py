@@ -532,10 +532,20 @@ async def upload_modelo(doc_id: str, file: UploadFile = File(...),
                         cargo: str = None, _=Depends(verificar_acesso)):
     from config import MODELOS_DIR
     conteudo = await file.read()
+    tamanho = len(conteudo)
+    print(f"[UPLOAD] doc_id={doc_id!r} cargo={cargo!r} tamanho={tamanho} bytes filename={file.filename!r}")
+
+    if tamanho == 0:
+        return {"ok": False, "erro": "Arquivo vazio"}
 
     # Salva no banco
     nome_doc = next((d["nome"] for d in DOCUMENTOS if d["id"] == doc_id), doc_id)
     banco.salvar_modelo(doc_id, nome_doc, conteudo, cargo=cargo)
+
+    # Verifica se foi salvo corretamente
+    verificado = banco.buscar_modelo(doc_id, cargo=cargo)
+    tamanho_salvo = len(verificado) if verificado else 0
+    print(f"[UPLOAD] salvo e verificado: {tamanho_salvo} bytes (esperado {tamanho})")
 
     # Também salva no disco (compatibilidade), apenas quando não é cargo-específico
     if cargo is None:
@@ -544,7 +554,15 @@ async def upload_modelo(doc_id: str, file: UploadFile = File(...),
         with open(dest, "wb") as f:
             f.write(conteudo)
 
-    return {"ok": True, "arquivo": f"{doc_id}.docx", "salvo_banco": True, "cargo": cargo}
+    return {"ok": True, "arquivo": f"{doc_id}.docx", "salvo_banco": True,
+            "cargo": cargo, "tamanho_bytes": tamanho_salvo}
+
+
+@app.delete("/api/modelos/{doc_id}")
+async def deletar_modelo_endpoint(doc_id: str, cargo: str = None, _=Depends(verificar_acesso)):
+    """Deleta um modelo do banco (para forçar re-upload limpo)."""
+    banco.deletar_modelo(doc_id, cargo=cargo)
+    return {"ok": True, "doc_id": doc_id, "cargo": cargo}
 
 
 @app.get("/api/modelos")
@@ -1706,7 +1724,6 @@ async def diagnostico_modelos(_=Depends(verificar_acesso)):
     """Lista todos os modelos salvos no banco para diagnóstico."""
     modelos = banco.listar_modelos()
     extras  = banco.listar_documentos_extras()
-    # Verifica quais IDs do KIT_PADRAO têm conteúdo no banco
     from config import KIT_PADRAO, MODELOS_DIR
     kit_status = []
     for doc_id in KIT_PADRAO:
@@ -1716,11 +1733,20 @@ async def diagnostico_modelos(_=Depends(verificar_acesso)):
             "id": doc_id,
             "no_banco": bool(conteudo),
             "no_disco": existe_disco,
-            "tamanho_bytes": len(conteudo) if conteudo else 0
+            "tamanho_bytes": len(conteudo) if conteudo else 0,
+            "fonte": "banco" if conteudo else ("disco" if existe_disco else "ausente"),
+        })
+    todos_modelos = []
+    for m in modelos:
+        conteudo = banco.buscar_modelo(m["id"], cargo=m.get("cargo"))
+        todos_modelos.append({
+            "id": m["id"],
+            "cargo": m.get("cargo"),
+            "tamanho_bytes": len(conteudo) if conteudo else 0,
         })
     return {
         "kit_padrao_status": kit_status,
-        "modelos_banco": [{"id": m["id"], "cargo": m.get("cargo"), "tem_conteudo": m.get("tem_conteudo")} for m in modelos],
+        "modelos_banco": todos_modelos,
         "extras": extras,
     }
 

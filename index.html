@@ -2181,6 +2181,11 @@ async function carregarModelos() {
     html += `<button class="btn btn-outline btn-sm" title="Subir arquivo" style="${uploadStyle}" onclick="uploadModeloRapido('${d.id}','${nomeSeguro}')">
       <i class="ti ti-upload"></i> ${temArquivo ? '' : 'Subir'}
     </button>`;
+    if (temArquivo) {
+      html += ` <button class="btn btn-outline btn-sm" title="Substituir arquivo (limpa banco antes)" style="color:var(--danger);border-color:var(--danger)" onclick="limparEReenviarModelo('${d.id}','${nomeSeguro}')">
+        <i class="ti ti-refresh"></i>
+      </button>`;
+    }
 
     if (isEpi) {
       html += `<button class="btn btn-outline btn-sm" title="Upload por cargo" onclick="toggleEpiCargos(this)">
@@ -2428,17 +2433,36 @@ function uploadModeloRapido(docId, docNome) {
     if (row) row.style.opacity = '0.5';
     const fd = new FormData();
     fd.append('file', inp.files[0]);
-    const res = await apiFetch(`/api/modelos/upload/${encodeURIComponent(docId)}`, { method:'POST', body:fd });
-    const data = await res.json();
-    if (data.ok) {
-      await carregarModelos();
-      await popularSelectEditor();
-    } else {
-      alert('Erro ao enviar arquivo');
+    try {
+      const res = await apiFetch(`/api/modelos/upload/${encodeURIComponent(docId)}`, { method:'POST', body:fd });
+      const data = await res.json();
+      if (data.ok) {
+        console.log(`[upload] ${docId} salvo: ${data.tamanho_bytes} bytes`);
+        await carregarModelos();
+        await popularSelectEditor();
+      } else {
+        alert('Erro ao enviar arquivo: ' + (data.erro || 'desconhecido'));
+        if (row) row.style.opacity = '1';
+      }
+    } catch(e) {
+      alert('Erro na conexão: ' + e.message);
       if (row) row.style.opacity = '1';
     }
   };
   inp.click();
+}
+
+async function limparEReenviarModelo(docId, docNome) {
+  if (!confirm(`Limpar o modelo "${docNome}" do banco e reenviar um novo arquivo?`)) return;
+  // Deleta o modelo antigo do banco
+  try {
+    await apiFetch(`/api/modelos/${encodeURIComponent(docId)}`, { method:'DELETE' });
+    console.log(`[limpar] ${docId} removido do banco`);
+  } catch(e) {
+    console.warn('[limpar] erro ao deletar:', e);
+  }
+  // Abre seletor de arquivo para re-upload
+  uploadModeloRapido(docId, docNome);
 }
 
 async function uploadModelo(inp) {
@@ -3345,7 +3369,7 @@ async function elEnviar() {
                 <input type="text" value="${d.link||''}" readonly style="min-width:0;flex:1">
                 <button class="btn btn-primary btn-sm" onclick="copiar('${d.link}',this)"><i class="ti ti-copy"></i>Copiar</button>
               </div>
-              <button class="btn btn-secondary btn-sm" onclick="histAbrirWhatsApp({celular:'${f.celular||''}',nome:'${f.nome.replace(/'/g,"\\'")}'},'${(d.link||'').replace(/'/g,"\\'")}')">
+              <button class="btn btn-secondary btn-sm" onclick="histAbrirWhatsApp(null,'${(d.link||'').replace(/'/g,"\\'")}','${(f.celular||'').replace(/\D/g,'')}','${f.nome.replace(/'/g,"\\'")}','${(d.doc||'').replace(/'/g,"\\'")}',this)">
                 <i class="ti ti-brand-whatsapp"></i>WhatsApp
               </button>
             </div>
@@ -3501,10 +3525,12 @@ function histAbrirWhatsApp(envioId, link, celular, nomeFuncionario, nomeDoc, btn
   document.getElementById('wpp-numero').value = num;
   document.getElementById('wpp-link-hidden').value = link;
 
-  // Mensagem padrão
-  const primeiroNome = nomeFuncionario.split(' ')[0];
-  document.getElementById('wpp-mensagem').value =
-    `Olá ${primeiroNome}, segue o link para assinar o documento "${nomeDoc}":\n\n${link}\n\nQualquer dúvida estamos à disposição.`;
+  // Mensagem padrão SST
+  const primeiroNome = (nomeFuncionario||'').split(' ')[0];
+  const msgPadrao = nomeDoc
+    ? `Olá ${primeiroNome}, segue o documento de segurança do trabalho para assinar:\n\n${link}`
+    : `Olá ${primeiroNome}, segue o documento de segurança do trabalho para assinar:\n\n${link}`;
+  document.getElementById('wpp-mensagem').value = msgPadrao;
 
   // Atualiza o botão "Abrir WhatsApp" dinamicamente conforme digita o número
   const atualizarLink = () => {

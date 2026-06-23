@@ -195,14 +195,17 @@ def preencher_docx(modelo_id: str, funcionario: dict, pasta_saida: str) -> str |
     # Tenta banco primeiro, fallback para disco
     import banco as _banco
     import io
-    conteudo_banco = _banco.buscar_modelo(modelo_id, cargo=funcionario.get("cargo"))
+    cargo_func = funcionario.get("cargo", "")
+    conteudo_banco = _banco.buscar_modelo(modelo_id, cargo=cargo_func)
     if conteudo_banco:
+        print(f"  ✅ [{modelo_id}] usando banco ({len(conteudo_banco)} bytes, cargo={cargo_func!r})")
         doc = Document(io.BytesIO(conteudo_banco))
     else:
         modelo_path = os.path.join(MODELOS_DIR, f"{modelo_id}.docx")
         if not os.path.exists(modelo_path):
-            print(f"⚠️  Modelo não encontrado: {modelo_path}")
+            print(f"  ❌ [{modelo_id}] não encontrado no banco nem no disco")
             return None
+        print(f"  ⚠️  [{modelo_id}] usando disco (não está no banco)")
         doc = Document(modelo_path)
 
     # Processa parágrafos do corpo

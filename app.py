@@ -1462,16 +1462,29 @@ async def listar_lotes(_=Depends(verificar_acesso)):
 @app.post("/api/lotes/preview")
 async def preview_lote(dados: dict, _=Depends(verificar_acesso)):
     """Retorna preview do lote sem enviar."""
+    from config import MODELOS_DIR
     func_ids = dados.get("func_ids", [])
     todos = banco.buscar_funcionarios("")
     preview = []
     total_docs = 0
+    avisos = []
     for fid in func_ids:
         f = next((x for x in todos if x["id"] == fid), None)
         if not f:
             continue
         doc_ids = banco.docs_do_cargo(f["cargo"])
-        docs_nomes = [d["nome"] for d in DOCUMENTOS if d["id"] in doc_ids]
+        # Verifica disponibilidade de modelo para cada doc
+        docs_info = []
+        for doc_id in doc_ids:
+            nome_doc = next((d["nome"] for d in DOCUMENTOS if d["id"] == doc_id), doc_id)
+            conteudo = banco.buscar_modelo(doc_id, cargo=f["cargo"])
+            tem_modelo = bool(conteudo)
+            if not tem_modelo:
+                # Fallback disco
+                tem_modelo = os.path.exists(os.path.join(MODELOS_DIR, f"{doc_id}.docx"))
+            if not tem_modelo:
+                avisos.append(f"{f['nome']} / {nome_doc}: modelo não encontrado")
+            docs_info.append({"id": doc_id, "nome": nome_doc, "tem_modelo": tem_modelo})
         total_docs += len(doc_ids)
         preview.append({
             "id":       f["id"],
@@ -1480,9 +1493,10 @@ async def preview_lote(dados: dict, _=Depends(verificar_acesso)):
             "lotacao":  f.get("lotacao",""),
             "celular":  f.get("celular",""),
             "doc_ids":  doc_ids,
-            "docs_nomes": docs_nomes,
+            "docs_nomes": [d["nome"] for d in docs_info],
+            "docs_info":  docs_info,
         })
-    return {"funcionarios": preview, "total_docs": total_docs}
+    return {"funcionarios": preview, "total_docs": total_docs, "avisos": avisos}
 
 @app.post("/api/lotes/enviar")
 async def enviar_lote(dados: dict, _=Depends(verificar_acesso)):

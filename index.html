@@ -3113,6 +3113,15 @@ async function montarPreviewEnvio() {
 
   document.getElementById('envio-sub').textContent = `${lotePreview.length} funcionário(s) · ${data.total_docs} documento(s)`;
 
+  // Avisos de modelos ausentes
+  if (data.avisos && data.avisos.length) {
+    document.getElementById('envio-sub').insertAdjacentHTML('afterend',
+      `<div class="alert al-error" style="margin:8px 0;font-size:12px">
+        <i class="ti ti-alert-triangle"></i>
+        <div><strong>Modelos não encontrados:</strong><br>${data.avisos.join('<br>')}</div>
+      </div>`);
+  }
+
   const lista = document.getElementById('envio-preview-lista');
   lista.innerHTML = '';
   lotePreview.forEach(f => {
@@ -3133,7 +3142,11 @@ async function montarPreviewEnvio() {
         </div>
       </div>
       <div class="preview-body">
-        ${f.docs_nomes.map(d=>`<span class="doc-pill"><i class="ti ti-file-check" style="font-size:11px"></i>${d}</span>`).join('')}
+        ${(f.docs_info||f.docs_nomes.map(n=>({nome:n,tem_modelo:true}))).map(d=>{
+          const cor = d.tem_modelo ? 'var(--verde)' : 'var(--danger)';
+          const ico = d.tem_modelo ? 'ti-file-check' : 'ti-file-x';
+          return `<span class="doc-pill" style="border-color:${cor};color:${cor}"><i class="ti ${ico}" style="font-size:11px"></i>${d.nome}</span>`;
+        }).join('')}
       </div>
     </div>`;
   });

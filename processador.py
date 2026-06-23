@@ -197,6 +197,29 @@ def preencher_docx(modelo_id: str, funcionario: dict, pasta_saida: str) -> str |
     import io
     cargo_func = funcionario.get("cargo", "")
     conteudo_banco = _banco.buscar_modelo(modelo_id, cargo=cargo_func)
+
+    # Fallback especial: gera OS a partir do 03_os_base quando não há OS salvo para o cargo
+    if not conteudo_banco and modelo_id == "03_os":
+        base_bytes = _banco.buscar_modelo("03_os_base")
+        if base_bytes:
+            try:
+                pgr = _banco.buscar_pgr_cargo(cargo_func) or {}
+                epis_list = _banco.listar_epis_do_cargo(cargo_func) or []
+                epis_texto = "\n".join(
+                    f"- {e.get('descricao','')} (CA: {e.get('ca','')})"
+                    for e in epis_list
+                ) or "—"
+                conteudo_banco = preencher_os_dinamica(
+                    funcionario=funcionario,
+                    descricao_atividades=pgr.get("atividades", ""),
+                    epis_texto=epis_texto,
+                    modelo_bytes=base_bytes,
+                    riscos_texto=pgr.get("riscos", ""),
+                )
+                print(f"  ✅ [{modelo_id}] OS gerada automaticamente do base para cargo={cargo_func!r}")
+            except Exception as _e:
+                print(f"  ⚠️  [{modelo_id}] falha ao gerar OS automática: {_e}")
+
     if conteudo_banco:
         print(f"  ✅ [{modelo_id}] usando banco ({len(conteudo_banco)} bytes, cargo={cargo_func!r})")
         doc = Document(io.BytesIO(conteudo_banco))

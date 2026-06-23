@@ -1319,68 +1319,58 @@ def listar_lotes():
 
 
 def salvar_modelo(doc_id: str, nome: str, conteudo_bytes: bytes, cargo: str = None):
-    """Salva ou atualiza um modelo .docx no banco."""
+    """
+    Salva modelo .docx no banco.
+    Faz DELETE de todas as linhas duplicadas para (id, cargo) antes de INSERT,
+    garantindo que sempre existe exatamente uma linha com o conteúdo mais recente.
+    Isso corrige o bug do PostgreSQL onde UNIQUE(id, cargo) não bloqueia NULL duplicado
+    em tabelas existentes criadas antes da constraint ser adicionada.
+    """
     conn = conectar()
     try:
+        cur = conn.cursor()
         if USE_POSTGRES:
-            cur = conn.cursor()
-            cur.execute("SELECT pk FROM modelos WHERE id=%s AND cargo IS NOT DISTINCT FROM %s", (doc_id, cargo))
-            existe = cur.fetchone()
-            if existe:
-                cur.execute("UPDATE modelos SET nome=%s, conteudo=%s WHERE id=%s AND cargo IS NOT DISTINCT FROM %s",
-                            (nome, conteudo_bytes, doc_id, cargo))
-            else:
-                cur.execute("INSERT INTO modelos (id, nome, conteudo, cargo) VALUES (%s,%s,%s,%s)",
-                            (doc_id, nome, conteudo_bytes, cargo))
+            cur.execute("DELETE FROM modelos WHERE id=%s AND cargo IS NOT DISTINCT FROM %s", (doc_id, cargo))
+            cur.execute("INSERT INTO modelos (id, nome, conteudo, cargo) VALUES (%s,%s,%s,%s)",
+                        (doc_id, nome, conteudo_bytes, cargo))
         else:
-            cur = conn.cursor()
             if cargo is None:
-                cur.execute("SELECT pk FROM modelos WHERE id=? AND cargo IS NULL", (doc_id,))
+                cur.execute("DELETE FROM modelos WHERE id=? AND cargo IS NULL", (doc_id,))
             else:
-                cur.execute("SELECT pk FROM modelos WHERE id=? AND cargo=?", (doc_id, cargo))
-            existe = cur.fetchone()
-            if existe:
-                if cargo is None:
-                    cur.execute("UPDATE modelos SET nome=?, conteudo=? WHERE id=? AND cargo IS NULL",
-                                (nome, conteudo_bytes, doc_id))
-                else:
-                    cur.execute("UPDATE modelos SET nome=?, conteudo=? WHERE id=? AND cargo=?",
-                                (nome, conteudo_bytes, doc_id, cargo))
-            else:
-                cur.execute("INSERT INTO modelos (id, nome, conteudo, cargo) VALUES (?,?,?,?)",
-                            (doc_id, nome, conteudo_bytes, cargo))
+                cur.execute("DELETE FROM modelos WHERE id=? AND cargo=?", (doc_id, cargo))
+            cur.execute("INSERT INTO modelos (id, nome, conteudo, cargo) VALUES (?,?,?,?)",
+                        (doc_id, nome, conteudo_bytes, cargo))
         conn.commit()
+        print(f"[salvar_modelo] {doc_id} cargo={cargo!r} salvo ({len(conteudo_bytes)} bytes)")
     finally:
         conn.close()
 
 
 def buscar_modelo(doc_id: str, cargo: str = None) -> bytes | None:
     """
-    Retorna bytes do modelo .docx.
+    Retorna bytes do modelo .docx mais recente (ORDER BY pk DESC).
     Tenta cargo específico primeiro, depois fallback para modelo geral (cargo IS NULL).
     """
     conn = conectar()
     try:
         if USE_POSTGRES:
             cur = conn.cursor()
-            # Tenta específico de cargo primeiro
             if cargo:
-                cur.execute("SELECT conteudo FROM modelos WHERE id=%s AND cargo=%s", (doc_id, cargo))
+                cur.execute("SELECT conteudo FROM modelos WHERE id=%s AND cargo=%s ORDER BY pk DESC LIMIT 1", (doc_id, cargo))
                 row = cur.fetchone()
                 if row and row[0]:
                     return bytes(row[0])
-            # Fallback geral
-            cur.execute("SELECT conteudo FROM modelos WHERE id=%s AND cargo IS NULL", (doc_id,))
+            cur.execute("SELECT conteudo FROM modelos WHERE id=%s AND cargo IS NULL ORDER BY pk DESC LIMIT 1", (doc_id,))
             row = cur.fetchone()
             return bytes(row[0]) if row and row[0] else None
         else:
             cur = conn.cursor()
             if cargo:
-                cur.execute("SELECT conteudo FROM modelos WHERE id=? AND cargo=?", (doc_id, cargo))
+                cur.execute("SELECT conteudo FROM modelos WHERE id=? AND cargo=? ORDER BY pk DESC LIMIT 1", (doc_id, cargo))
                 row = cur.fetchone()
                 if row and row[0]:
                     return bytes(row[0])
-            cur.execute("SELECT conteudo FROM modelos WHERE id=? AND cargo IS NULL", (doc_id,))
+            cur.execute("SELECT conteudo FROM modelos WHERE id=? AND cargo IS NULL ORDER BY pk DESC LIMIT 1", (doc_id,))
             row = cur.fetchone()
             return bytes(row[0]) if row and row[0] else None
     finally:

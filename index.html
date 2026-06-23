@@ -2419,7 +2419,6 @@ function abrirUploadModelo(docId, docNome, cargo) {
 }
 
 function uploadModeloRapido(docId, docNome) {
-  // Cria input invisível, dispara clique e faz upload ao selecionar arquivo
   const inp = document.createElement('input');
   inp.type = 'file';
   inp.accept = '.docx';
@@ -2428,13 +2427,12 @@ function uploadModeloRapido(docId, docNome) {
     const row = document.getElementById(`modelo-row-${docId}`);
     if (row) row.style.opacity = '0.5';
     const fd = new FormData();
-    fd.append('nome', docNome);
     fd.append('file', inp.files[0]);
-    const res = await apiFetch('/api/documentos/novo', { method:'POST', body:fd });
+    const res = await apiFetch(`/api/modelos/upload/${encodeURIComponent(docId)}`, { method:'POST', body:fd });
     const data = await res.json();
     if (data.ok) {
-      carregarModelos();
-      popularSelectEditor();
+      await carregarModelos();
+      await popularSelectEditor();
     } else {
       alert('Erro ao enviar arquivo');
       if (row) row.style.opacity = '1';

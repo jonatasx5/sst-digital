@@ -1706,11 +1706,22 @@ async def diagnostico_modelos(_=Depends(verificar_acesso)):
     """Lista todos os modelos salvos no banco para diagnóstico."""
     modelos = banco.listar_modelos()
     extras  = banco.listar_documentos_extras()
+    # Verifica quais IDs do KIT_PADRAO têm conteúdo no banco
+    from config import KIT_PADRAO, MODELOS_DIR
+    kit_status = []
+    for doc_id in KIT_PADRAO:
+        conteudo = banco.buscar_modelo(doc_id)
+        existe_disco = os.path.exists(os.path.join(MODELOS_DIR, f"{doc_id}.docx"))
+        kit_status.append({
+            "id": doc_id,
+            "no_banco": bool(conteudo),
+            "no_disco": existe_disco,
+            "tamanho_bytes": len(conteudo) if conteudo else 0
+        })
     return {
+        "kit_padrao_status": kit_status,
         "modelos_banco": [{"id": m["id"], "cargo": m.get("cargo"), "tem_conteudo": m.get("tem_conteudo")} for m in modelos],
         "extras": extras,
-        "total_modelos": len(modelos),
-        "total_extras": len(extras),
     }
 
 @app.get("/api/zapsign/verificar")

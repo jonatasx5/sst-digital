@@ -1708,6 +1708,19 @@ async def enviar_ficha_epi(dados: dict, _=Depends(verificar_acesso)):
 async def get_config(_=Depends(verificar_acesso)):
     return {"empresa": EMPRESA}
 
+
+@app.get("/api/diagnostico/modelos")
+async def diagnostico_modelos(_=Depends(verificar_acesso)):
+    """Lista todos os modelos salvos no banco para diagnóstico."""
+    modelos = banco.listar_modelos()
+    extras  = banco.listar_documentos_extras()
+    return {
+        "modelos_banco": [{"id": m["id"], "cargo": m.get("cargo"), "tem_conteudo": m.get("tem_conteudo")} for m in modelos],
+        "extras": extras,
+        "total_modelos": len(modelos),
+        "total_extras": len(extras),
+    }
+
 @app.get("/api/zapsign/verificar")
 async def verificar_zapsign(_=Depends(verificar_acesso)):
     ok, msg = zapsign.verificar_token()

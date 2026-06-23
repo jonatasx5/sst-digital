@@ -1733,6 +1733,18 @@ async def get_config(_=Depends(verificar_acesso)):
     return {"empresa": EMPRESA}
 
 
+@app.post("/api/modelos/purgar-padrao")
+async def purgar_modelos_padrao(_=Depends(verificar_acesso)):
+    """
+    Apaga todos os modelos genéricos (cargo=NULL) dos documentos padrão do banco.
+    Use antes de re-enviar os arquivos atualizados pelo painel Modelos & Funções.
+    Preserva modelos cargo-específicos (OS e EPI por cargo).
+    """
+    deletados = banco.purgar_modelos_padrao()
+    print(f"[PURGE] {len(deletados)} modelos removidos: {deletados}")
+    return {"ok": True, "deletados": deletados, "total": len(deletados)}
+
+
 @app.get("/api/diagnostico/modelos")
 async def diagnostico_modelos(_=Depends(verificar_acesso)):
     """Lista todos os modelos salvos no banco para diagnóstico."""

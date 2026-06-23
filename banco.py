@@ -1403,6 +1403,31 @@ def listar_modelos() -> list:
         conn.close()
 
 
+def purgar_modelos_padrao() -> list:
+    """
+    Deleta TODOS os registros de modelos (cargo IS NULL) para os IDs do Kit Padrão
+    e documentos padrão (01-14). Preserva modelos cargo-específicos (OS e EPI por cargo).
+    Retorna lista de ids deletados.
+    """
+    from config import DOCUMENTOS
+    ids_padrao = [d["id"] for d in DOCUMENTOS]
+    conn = conectar()
+    deletados = []
+    try:
+        cur = conn.cursor()
+        for doc_id in ids_padrao:
+            if USE_POSTGRES:
+                cur.execute("DELETE FROM modelos WHERE id=%s AND cargo IS NULL", (doc_id,))
+            else:
+                cur.execute("DELETE FROM modelos WHERE id=? AND cargo IS NULL", (doc_id,))
+            if cur.rowcount:
+                deletados.append(doc_id)
+        conn.commit()
+    finally:
+        conn.close()
+    return deletados
+
+
 def deletar_modelo(doc_id: str, cargo: str = None):
     """Remove um modelo do banco."""
     conn = conectar()

@@ -284,6 +284,9 @@ tr:hover td { background:#F9FAFB; }
 <div class="panel" id="panel-modelos">
   <div class="page-header">
     <div><div class="page-title">Modelos & Funções</div><div class="page-sub">Configure os documentos por cargo</div></div>
+    <button class="btn btn-outline btn-sm" style="color:var(--danger);border-color:var(--danger)" onclick="purgarEReenviar()" title="Apaga todos os modelos antigos do banco e permite re-enviar os arquivos atualizados">
+      <i class="ti ti-trash"></i> Limpar banco e re-enviar
+    </button>
   </div>
 
   <!-- Kit Padrão -->
@@ -2450,6 +2453,28 @@ function uploadModeloRapido(docId, docNome) {
     }
   };
   inp.click();
+}
+
+async function purgarEReenviar() {
+  if (!confirm('Isso vai APAGAR todos os modelos antigos do banco (documentos genéricos, sem cargo específico).\n\nDepois você re-envia os arquivos atualizados pelo botão "Subir" de cada documento.\n\nContinuar?')) return;
+  const btn = event.currentTarget;
+  btn.disabled = true;
+  btn.innerHTML = '<i class="ti ti-loader"></i> Limpando...';
+  try {
+    const res = await apiFetch('/api/modelos/purgar-padrao', { method: 'POST' });
+    const data = await res.json();
+    if (data.ok) {
+      alert(`Banco limpo! ${data.total} modelo(s) removido(s):\n\n${(data.deletados||[]).join('\n')}\n\nAgora use o botão "Subir" em cada documento para enviar os arquivos atualizados.`);
+      await carregarModelos();
+    } else {
+      alert('Erro ao limpar banco.');
+    }
+  } catch(e) {
+    alert('Erro: ' + e.message);
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = '<i class="ti ti-trash"></i> Limpar banco e re-enviar';
+  }
 }
 
 async function limparEReenviarModelo(docId, docNome) {

@@ -1574,7 +1574,8 @@ async def enviar_os_lotacao(dados: dict, _=Depends(verificar_acesso)):
                                        funcionario=f, sandbox=sandbox)
         if ret["sucesso"]:
             resultados.append({"id": f["id"], "nome": f["nome"],
-                                "cargo": f["cargo"], "link": ret.get("link", "")})
+                                "cargo": f["cargo"], "link": ret.get("link", ""),
+                                "celular": f.get("celular", "")})
             try:
                 banco.registrar_envio({
                     "funcionario_id": f["id"],

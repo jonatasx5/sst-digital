@@ -4364,13 +4364,21 @@ async function gerarOSLotacao() {
     let html = `<div class="card"><div class="card-title"><i class="ti ti-check"></i>Resultado — ${lot}</div>
       <p style="font-size:13px;margin-bottom:12px">Enviados: <strong>${data.enviados}</strong> | Erros: <strong>${data.erros?.length||0}</strong></p>`;
     if (data.resultados?.length) {
-      html += '<table><thead><tr><th>Funcionário</th><th>Cargo</th><th>Link Assinatura</th></tr></thead><tbody>';
+      html += '<table><thead><tr><th>Funcionário</th><th>Cargo</th><th>Ações</th></tr></thead><tbody>';
       for (const f of data.resultados) {
+        const cel = (f.celular||'').replace(/\D/g,'');
+        const nomeEsc = (f.nome||'').replace(/'/g,"\\'");
+        const linkEsc = (f.link||'').replace(/'/g,"\\'");
+        const wppBtn = f.link
+          ? `<button class="btn btn-outline btn-sm" style="background:#f0fdf4;color:#16a34a;border-color:#86efac"
+               onclick="histAbrirWhatsApp(null,'${linkEsc}','${cel}','${nomeEsc}','Ordem de Serviço',this)">
+               <i class="ti ti-brand-whatsapp"></i>WhatsApp</button>`
+          : '';
         const linkBtn = f.link
-          ? `<a href="${f.link}" target="_blank" class="btn btn-outline btn-sm" style="margin-right:4px">Assinar</a>
-             <button class="btn btn-outline btn-sm" onclick="navigator.clipboard.writeText('${f.link}');this.textContent='Copiado!'">Copiar</button>`
+          ? `<a href="${f.link}" target="_blank" class="btn btn-outline btn-sm">Assinar</a>
+             <button class="btn btn-outline btn-sm" onclick="navigator.clipboard.writeText('${linkEsc}');this.textContent='Copiado!'">Copiar</button>`
           : '—';
-        html += `<tr><td>${f.nome}</td><td>${f.cargo}</td><td>${linkBtn}</td></tr>`;
+        html += `<tr><td>${f.nome}</td><td>${f.cargo}</td><td style="display:flex;gap:4px;flex-wrap:wrap">${linkBtn}${wppBtn}</td></tr>`;
       }
       html += '</tbody></table>';
     }

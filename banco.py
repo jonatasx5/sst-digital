@@ -847,12 +847,12 @@ def listar_epis_do_cargo(cargo: str) -> list:
             cur = conn.cursor(cursor_factory=_psycopg2_extras.RealDictCursor)
             cur.execute("""SELECT ce.id, ce.epi_id, c.descricao, c.ca, ce.quantidade
                 FROM cargo_epis ce JOIN catalogo_epis c ON c.id=ce.epi_id
-                WHERE ce.cargo=%s ORDER BY c.descricao""", (cargo,))
+                WHERE UPPER(ce.cargo)=UPPER(%s) ORDER BY c.descricao""", (cargo,))
         else:
             cur = conn.cursor()
             cur.execute("""SELECT ce.id, ce.epi_id, c.descricao, c.ca, ce.quantidade
                 FROM cargo_epis ce JOIN catalogo_epis c ON c.id=ce.epi_id
-                WHERE ce.cargo=? ORDER BY c.descricao""", (cargo,))
+                WHERE UPPER(ce.cargo)=UPPER(?) ORDER BY c.descricao""", (cargo,))
         rows = cur.fetchall()
         return [dict(r) for r in rows]
     finally:

@@ -1400,7 +1400,7 @@ async def salvar_os_config_cargo(cargo: str, dados: dict, _=Depends(verificar_ac
 
     # Gera Ficha de EPI automaticamente com os mesmos EPIs da OS
     modelo_epi_base = banco.buscar_modelo("10_ficha_controle_epi")
-    if modelo_epi_base and epis:
+    if modelo_epi_base:
         ficha_bytes = processador.preencher_ficha_epi_dinamica(func_template, epis, modelo_epi_base)
         banco.salvar_modelo(EPI_DOC_ID, "Ficha de Controle de EPI", ficha_bytes, cargo=cargo)
 

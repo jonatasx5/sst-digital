@@ -207,8 +207,17 @@ def preencher_docx(modelo_id: str, funcionario: dict, pasta_saida: str) -> str |
             if os.path.exists(_disco_epi):
                 with open(_disco_epi, "rb") as _f:
                     base_bytes = _f.read()
+        # Fallback: usa qualquer ficha cargo-específica como template base
         if not base_bytes:
-            print(f"  ❌ [{modelo_id}] template base não encontrado")
+            _todos = _banco.listar_modelos()
+            for _m in _todos:
+                if _m["id"] == "10_ficha_controle_epi" and _m.get("cargo") and _m.get("tem_conteudo"):
+                    base_bytes = _banco.buscar_modelo("10_ficha_controle_epi", cargo=_m["cargo"])
+                    if base_bytes:
+                        print(f"  ⚠️  [{modelo_id}] usando ficha de cargo={_m['cargo']!r} como template base")
+                        break
+        if not base_bytes:
+            print(f"  ❌ [{modelo_id}] template base não encontrado em nenhuma fonte")
             return None
         try:
             epis_list = _banco.listar_epis_do_cargo(cargo_func) or []
@@ -541,6 +550,11 @@ def preencher_ficha_epi_dinamica(funcionario: dict, epis: list, modelo_bytes: by
 
         print(f"[ficha_epi] tabela preenchida: {len(epis)} EPI(s) em {len(epi_rows)} linha(s)")
         break  # Processa só a primeira tabela principal
+    else:
+        if epis:
+            print(f"[ficha_epi] AVISO: nenhuma tabela compatível encontrada no template — {len(epis)} EPI(s) não preenchidos. Tabelas no doc: {len(doc.tables)}")
+            for ti, t in enumerate(doc.tables):
+                print(f"  tabela[{ti}]: {len(t.rows)} linhas x {len(t.columns)} colunas | header[0]={[c.text.strip() for c in t.rows[0].cells]}")
 
     buf = io.BytesIO()
     doc.save(buf)

@@ -197,51 +197,45 @@ def preencher_docx(modelo_id: str, funcionario: dict, pasta_saida: str) -> str |
     import io
     cargo_func = funcionario.get("cargo", "")
 
-    # Ficha de EPI: sempre gera dinamicamente com os EPIs do cargo
+    # Ficha de EPI: SEMPRE gera dinamicamente com os EPIs atuais do cargo
+    # (nunca usa ficha pré-salva que pode estar desatualizada)
     if modelo_id == "10_ficha_controle_epi":
-        # Busca ficha já gerada especificamente para esse cargo
-        conteudo_banco = _banco.buscar_modelo_cargo_especifico(modelo_id, cargo_func)
-        if not conteudo_banco:
-            # Busca template base (cargo=None) para usar como molde
-            base_bytes = _banco.buscar_modelo("10_ficha_controle_epi")
-            if not base_bytes:
-                _disco_epi = os.path.join(MODELOS_DIR, "10_ficha_controle_epi.docx")
-                if os.path.exists(_disco_epi):
-                    with open(_disco_epi, "rb") as _f:
-                        base_bytes = _f.read()
-            if base_bytes:
-                try:
-                    epis_list = _banco.listar_epis_do_cargo(cargo_func) or []
-                    if epis_list:
-                        conteudo_banco = preencher_ficha_epi_dinamica(funcionario, epis_list, base_bytes)
-                        print(f"  ✅ [{modelo_id}] Ficha EPI gerada com {len(epis_list)} EPIs do cargo={cargo_func!r}")
-                    else:
-                        conteudo_banco = base_bytes
-                        print(f"  ⚠️  [{modelo_id}] sem EPIs cadastrados para cargo={cargo_func!r}")
-                except Exception as _e:
-                    conteudo_banco = base_bytes
-                    print(f"  ⚠️  [{modelo_id}] erro ao gerar EPI dinâmica: {_e}")
-        if conteudo_banco:
-            print(f"  ✅ [{modelo_id}] Ficha EPI pronta ({len(conteudo_banco)} bytes)")
-            import io as _io
-            doc = Document(_io.BytesIO(conteudo_banco))
-            # Preenche variáveis no cabeçalho/rodapé e parágrafos (tabela já preenchida)
-            for para in doc.paragraphs:
-                _processar_paragrafo(para, variaveis)
-            for section in doc.sections:
-                for para in section.header.paragraphs:
-                    _processar_paragrafo(para, variaveis)
-                for para in section.footer.paragraphs:
-                    _processar_paragrafo(para, variaveis)
-            buf = _io.BytesIO()
-            doc.save(buf)
-            caminho = os.path.join(pasta_saida, f"{modelo_id}.docx")
-            with open(caminho, "wb") as _fout:
-                _fout.write(buf.getvalue())
-            return caminho
-        else:
+        # Busca template base (cargo=None) para usar como molde
+        base_bytes = _banco.buscar_modelo("10_ficha_controle_epi")
+        if not base_bytes:
+            _disco_epi = os.path.join(MODELOS_DIR, "10_ficha_controle_epi.docx")
+            if os.path.exists(_disco_epi):
+                with open(_disco_epi, "rb") as _f:
+                    base_bytes = _f.read()
+        if not base_bytes:
             print(f"  ❌ [{modelo_id}] template base não encontrado")
             return None
+        try:
+            epis_list = _banco.listar_epis_do_cargo(cargo_func) or []
+            if epis_list:
+                conteudo_banco = preencher_ficha_epi_dinamica(funcionario, epis_list, base_bytes)
+                print(f"  ✅ [{modelo_id}] Ficha EPI gerada com {len(epis_list)} EPIs do cargo={cargo_func!r}")
+            else:
+                conteudo_banco = base_bytes
+                print(f"  ⚠️  [{modelo_id}] sem EPIs cadastrados para cargo={cargo_func!r}, usando template base")
+        except Exception as _e:
+            conteudo_banco = base_bytes
+            print(f"  ⚠️  [{modelo_id}] erro ao gerar EPI dinâmica: {_e}")
+        import io as _io
+        doc = Document(_io.BytesIO(conteudo_banco))
+        for para in doc.paragraphs:
+            _processar_paragrafo(para, variaveis)
+        for section in doc.sections:
+            for para in section.header.paragraphs:
+                _processar_paragrafo(para, variaveis)
+            for para in section.footer.paragraphs:
+                _processar_paragrafo(para, variaveis)
+        buf = _io.BytesIO()
+        doc.save(buf)
+        caminho = os.path.join(pasta_saida, f"{modelo_id}.docx")
+        with open(caminho, "wb") as _fout:
+            _fout.write(buf.getvalue())
+        return caminho
 
     conteudo_banco = _banco.buscar_modelo(modelo_id, cargo=cargo_func)
 

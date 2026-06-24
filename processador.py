@@ -465,21 +465,17 @@ def preencher_ficha_epi_dinamica(funcionario: dict, epis: list, modelo_bytes: by
         return cells
 
     def _escrever_celula(cell, texto):
-        """Apaga todo conteúdo da célula via XML e escreve apenas texto puro."""
-        tc = cell._tc
-        # Remove todos os elementos <w:r> (runs) dentro de cada <w:p>
-        for p_el in tc.findall(f".//{WNS}p"):
-            for r_el in p_el.findall(f"{WNS}r"):
-                p_el.remove(r_el)
-            # Cria um run novo com o texto
-            r_new = copy.deepcopy(p_el)  # só para pegar namespace; usamos lxml diretamente
-            import lxml.etree as _le
-            r_el = _le.SubElement(p_el, f"{WNS}r")
-            t_el = _le.SubElement(r_el, f"{WNS}t")
-            t_el.text = str(texto)
-            if texto and (texto[0] == " " or texto[-1] == " "):
-                t_el.set("{http://www.w3.org/XML/1998/namespace}space", "preserve")
-            break  # apenas o primeiro parágrafo da célula
+        """Remove todos os runs do primeiro parágrafo e escreve texto puro."""
+        if not cell.paragraphs:
+            return
+        para = cell.paragraphs[0]
+        p = para._p
+        # Remove todos os <w:r> filhos diretos do parágrafo
+        for r in list(p.findall(f"{WNS}r")):
+            p.remove(r)
+        # Adiciona um run limpo com o texto desejado
+        if texto:
+            para.add_run(str(texto))
 
     def _clonar_linha(table, row_ref):
         new_tr = copy.deepcopy(row_ref._tr)

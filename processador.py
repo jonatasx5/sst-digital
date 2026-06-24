@@ -449,75 +449,91 @@ def preencher_ficha_epi_dinamica(funcionario: dict, epis: list, modelo_bytes: by
             _processar_paragrafo(para, variaveis)
 
     # Encontra a tabela principal e preenche as linhas de EPI
+    import copy
+    import lxml.etree as _etree
     data_hoje = date.today().strftime("%d/%m/%Y")
+
+    def _celulas_unicas(row):
+        seen, cells = set(), []
+        for cell in row.cells:
+            if id(cell._tc) not in seen:
+                seen.add(id(cell._tc))
+                cells.append(cell)
+        return cells
+
+    def _limpar_row(row):
+        for cell in _celulas_unicas(row):
+            for para in cell.paragraphs:
+                for run in para.runs:
+                    run.text = ""
+
+    def _preencher_row(row, epi, data_hoje):
+        cells = _celulas_unicas(row)
+        if len(cells) >= 4:
+            for idx, val in enumerate([data_hoje, epi.get("descricao",""), str(epi.get("ca","")), str(epi.get("quantidade",1))]):
+                p = cells[idx].paragraphs[0]
+                if p.runs:
+                    p.runs[0].text = val
+                else:
+                    p.add_run(val)
+
+    def _clonar_linha(table, row_ref):
+        """Clona uma linha de referência e insere antes da linha de assinatura."""
+        import copy
+        new_tr = copy.deepcopy(row_ref._tr)
+        # Limpa texto dos runs na cópia
+        for tc in new_tr.findall('.//{http://schemas.openxmlformats.org/wordprocessingml/2006/main}r'):
+            for t in tc.findall('{http://schemas.openxmlformats.org/wordprocessingml/2006/main}t'):
+                t.text = ""
+        table._tbl.append(new_tr)
+        # Retorna o último row (o recém adicionado)
+        return table.rows[-1]
+
     for table in doc.tables:
-        # Identifica a linha de cabeçalho dos itens (ENTREGA / DESCRIÇÃO / C.A / QUANTIDADE)
+        # Identifica a linha de cabeçalho (ENTREGA / DESCRIÇÃO / C.A / QUANTIDADE)
         header_row = None
         for ri, row in enumerate(table.rows):
-            celulas = [c.text.strip() for c in row.cells]
-            if any("ENTREGA" in c or "DESCRI" in c for c in celulas):
+            celulas = [c.text.strip().upper() for c in row.cells]
+            if any("ENTREGA" in c or "DESCRI" in c or "C.A" in c for c in celulas):
                 header_row = ri
                 break
+
+        # Fallback: tenta qualquer tabela com 4+ colunas
+        if header_row is None:
+            if len(table.columns) >= 4 and len(table.rows) >= 2:
+                header_row = 0
 
         if header_row is None:
             continue
 
-        # Linhas de dados começam depois do cabeçalho
+        # Localiza linhas de dados (entre cabeçalho e seção de assinatura)
+        sig_keywords = ("assinatura", "declaro", "ciente", "___", "funcionário:", "trabalhador")
         epi_rows = []
+        sig_row = None
         for ri in range(header_row + 1, len(table.rows)):
             row = table.rows[ri]
-            celulas = [c.text.strip() for c in row.cells]
-            # Para quando chega na seção de assinatura
-            if any("Assinatura" in c or "Declaro" in c or "___" in c for c in celulas):
+            texto = " ".join(c.text.strip().lower() for c in row.cells)
+            if any(kw in texto for kw in sig_keywords):
+                sig_row = ri
                 break
             epi_rows.append(ri)
 
-        # Preenche as linhas disponíveis com os EPIs
+        # Se não há linhas de dados, adiciona clonando a última linha disponível
+        row_template = table.rows[epi_rows[-1]] if epi_rows else table.rows[header_row]
+        while len(epi_rows) < len(epis):
+            new_row = _clonar_linha(table, row_template)
+            epi_rows.append(len(table.rows) - 1)
+
         epi_rows_set = set(epi_rows)
+
+        # Preenche as linhas de EPI
         for i, ri in enumerate(epi_rows):
             row = table.rows[ri]
-            # Limpa todas as células (deduplicando células mescladas)
-            seen_clear = set()
-            for cell in row.cells:
-                if id(cell._tc) in seen_clear:
-                    continue
-                seen_clear.add(id(cell._tc))
-                for para in cell.paragraphs:
-                    for run in para.runs:
-                        run.text = ""
-
+            _limpar_row(row)
             if i < len(epis):
-                epi = epis[i]
-                celulas_unicas = []
-                seen_ids = set()
-                for cell in row.cells:
-                    if id(cell._tc) not in seen_ids:
-                        seen_ids.add(id(cell._tc))
-                        celulas_unicas.append(cell)
+                _preencher_row(row, epis[i], data_hoje)
 
-                if len(celulas_unicas) >= 4:
-                    # ENTREGA
-                    p = celulas_unicas[0].paragraphs[0]
-                    if p.runs: p.runs[0].text = data_hoje
-                    else: p.add_run(data_hoje)
-                    # DESCRIÇÃO
-                    p = celulas_unicas[1].paragraphs[0]
-                    desc = epi.get("descricao", "")
-                    if p.runs: p.runs[0].text = desc
-                    else: p.add_run(desc)
-                    # CA
-                    p = celulas_unicas[2].paragraphs[0]
-                    ca = str(epi.get("ca", ""))
-                    if p.runs: p.runs[0].text = ca
-                    else: p.add_run(ca)
-                    # QUANTIDADE
-                    p = celulas_unicas[3].paragraphs[0]
-                    qtd = str(epi.get("quantidade", 1))
-                    if p.runs: p.runs[0].text = qtd
-                    else: p.add_run(qtd)
-
-        # Preenche variáveis nas demais linhas da tabela (NOME, EMPRESA etc.)
-        # Pula as linhas de EPI que já foram preenchidas diretamente
+        # Preenche variáveis nas demais linhas (NOME, EMPRESA etc.)
         for ri, row in enumerate(table.rows):
             if ri in epi_rows_set:
                 continue
@@ -529,6 +545,7 @@ def preencher_ficha_epi_dinamica(funcionario: dict, epis: list, modelo_bytes: by
                 for para in cell.paragraphs:
                     _processar_paragrafo(para, variaveis)
 
+        print(f"[ficha_epi] tabela preenchida: {len(epis)} EPI(s) em {len(epi_rows)} linha(s)")
         break  # Processa só a primeira tabela principal
 
     buf = io.BytesIO()

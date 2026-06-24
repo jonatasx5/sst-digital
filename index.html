@@ -673,6 +673,9 @@ tr:hover td { background:#F9FAFB; }
     <button class="os-tab-btn" onclick="osAba('envio')" id="os-tab-envio" style="padding:8px 18px;border:none;background:none;cursor:pointer;font-size:13px;font-weight:500;color:var(--texto2);border-bottom:2px solid transparent;margin-bottom:-2px">
       <i class="ti ti-send"></i> Enviar OS
     </button>
+    <button class="os-tab-btn" onclick="osAba('lotacao')" id="os-tab-lotacao" style="padding:8px 18px;border:none;background:none;cursor:pointer;font-size:13px;font-weight:500;color:var(--texto2);border-bottom:2px solid transparent;margin-bottom:-2px">
+      <i class="ti ti-building"></i> Gerar por Lotação
+    </button>
   </div>
 
   <!-- Aba: Configurar por Cargo -->
@@ -803,6 +806,30 @@ tr:hover td { background:#F9FAFB; }
     </div>
 
     <div id="os-resultado-envio" style="margin-top:16px"></div>
+  </div>
+
+  <!-- Aba: Gerar por Lotação -->
+  <div id="os-aba-lotacao" style="display:none">
+    <div class="card">
+      <div class="card-title"><i class="ti ti-building"></i>Gerar OS por Lotação / Contrato</div>
+      <p style="font-size:13px;color:var(--texto2);margin-bottom:16px">Selecione uma lotação para gerar e enviar a Ordem de Serviço de todos os funcionários ativos daquele contrato.</p>
+      <div class="field" style="max-width:420px">
+        <label>Lotação / Contrato</label>
+        <select id="os-lot-sel" style="width:100%;padding:9px 12px;border:1.5px solid var(--borda);border-radius:8px;font-size:13px;background:var(--card)">
+          <option value="">-- Selecione a lotação --</option>
+        </select>
+      </div>
+      <div id="os-lot-preview" style="margin-top:12px;font-size:13px;color:var(--texto2)"></div>
+    </div>
+    <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-top:4px">
+      <button class="btn btn-primary" onclick="gerarOSLotacao()" id="os-lot-btn">
+        <i class="ti ti-send"></i> Gerar OS para todos
+      </button>
+      <label style="font-size:13px;display:flex;align-items:center;gap:6px">
+        <input type="checkbox" id="os-lot-sandbox"> Modo Teste (sandbox)
+      </label>
+    </div>
+    <div id="os-lot-resultado" style="margin-top:20px"></div>
   </div>
 </div>
 
@@ -3723,6 +3750,8 @@ function osAba(aba) {
   document.getElementById('os-aba-config').style.display    = aba==='config'   ? '' : 'none';
   document.getElementById('os-aba-conferir').style.display  = aba==='conferir' ? '' : 'none';
   document.getElementById('os-aba-envio').style.display     = aba==='envio'    ? '' : 'none';
+  document.getElementById('os-aba-lotacao').style.display   = aba==='lotacao'  ? '' : 'none';
+  if (aba === 'lotacao') carregarLotacoesOS();
   document.querySelectorAll('.os-tab-btn').forEach(b => {
     const isAtivo = b.id === 'os-tab-'+aba;
     b.style.color = isAtivo ? 'var(--verde)' : 'var(--texto2)';
@@ -4287,6 +4316,73 @@ async function enviarOSSelecionados() {
     res.innerHTML = html;
   } catch(e) { res.innerHTML=`<p style="color:var(--danger)">${e}</p>`; }
   finally { btn.disabled=false; btn.innerHTML='<i class="ti ti-send"></i> Enviar OS Selecionados'; }
+}
+
+// ── OS POR LOTAÇÃO ────────────────────────────────────
+
+async function carregarLotacoesOS() {
+  const sel = document.getElementById('os-lot-sel');
+  const prev = document.getElementById('os-lot-preview');
+  sel.innerHTML = '<option value="">-- Selecione a lotação --</option>';
+  try {
+    const r = await apiFetch('/api/funcionarios');
+    const funcs = await r.json();
+    const lotacoes = [...new Set(funcs.filter(f=>f.lotacao).map(f=>f.lotacao.trim()))].sort();
+    lotacoes.forEach(l => {
+      const qty = funcs.filter(f=>(f.lotacao||'').trim()===l).length;
+      const opt = document.createElement('option');
+      opt.value = l;
+      opt.textContent = `${l} (${qty} funcionário${qty!==1?'s':''})`;
+      sel.appendChild(opt);
+    });
+  } catch(e) { prev.innerHTML = `<span style="color:var(--danger)">Erro ao carregar lotações: ${e.message}</span>`; }
+  sel.onchange = () => {
+    const lot = sel.value;
+    if (!lot) { prev.innerHTML = ''; return; }
+    apiFetch('/api/funcionarios').then(r=>r.json()).then(funcs => {
+      const lista = funcs.filter(f=>(f.lotacao||'').trim()===lot);
+      prev.innerHTML = `<strong>${lista.length}</strong> funcionário(s) nesta lotação:<br><ul style="margin:6px 0 0 16px;font-size:13px">${lista.map(f=>`<li>${f.nome} — ${f.cargo}</li>`).join('')}</ul>`;
+    });
+  };
+}
+
+async function gerarOSLotacao() {
+  const lot = document.getElementById('os-lot-sel').value;
+  if (!lot) { alert('Selecione uma lotação.'); return; }
+  const sandbox = document.getElementById('os-lot-sandbox').checked;
+  const btn = document.getElementById('os-lot-btn');
+  const res = document.getElementById('os-lot-resultado');
+  btn.disabled = true;
+  btn.innerHTML = '<i class="ti ti-loader ti-spin"></i> Gerando...';
+  res.innerHTML = '<p style="color:var(--texto2);font-size:13px">Processando, aguarde...</p>';
+  try {
+    const r = await apiFetch('/api/os/enviar-lotacao', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({lotacao: lot, sandbox})
+    });
+    const data = await r.json();
+    let html = `<div class="card"><div class="card-title"><i class="ti ti-check"></i>Resultado — ${lot}</div>
+      <p style="font-size:13px;margin-bottom:12px">Enviados: <strong>${data.enviados}</strong> | Erros: <strong>${data.erros?.length||0}</strong></p>`;
+    if (data.resultados?.length) {
+      html += '<table><thead><tr><th>Funcionário</th><th>Cargo</th><th>Link Assinatura</th></tr></thead><tbody>';
+      for (const f of data.resultados) {
+        const linkBtn = f.link
+          ? `<a href="${f.link}" target="_blank" class="btn btn-outline btn-sm" style="margin-right:4px">Assinar</a>
+             <button class="btn btn-outline btn-sm" onclick="navigator.clipboard.writeText('${f.link}');this.textContent='Copiado!'">Copiar</button>`
+          : '—';
+        html += `<tr><td>${f.nome}</td><td>${f.cargo}</td><td>${linkBtn}</td></tr>`;
+      }
+      html += '</tbody></table>';
+    }
+    if (data.erros?.length) {
+      html += `<div style="margin-top:12px;padding:10px;background:#FEF2F2;border-radius:8px;font-size:12px;color:var(--danger)">
+        ${data.erros.map(e=>'⚠ '+e).join('<br>')}
+      </div>`;
+    }
+    html += '</div>';
+    res.innerHTML = html;
+  } catch(e) { res.innerHTML=`<p style="color:var(--danger)">Erro: ${e.message}</p>`; }
+  finally { btn.disabled=false; btn.innerHTML='<i class="ti ti-send"></i> Gerar OS para todos'; }
 }
 
 // Inicialização movida para entrarNoSistema() (após login)

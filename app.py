@@ -1522,9 +1522,78 @@ async def enviar_os(dados: dict, _=Depends(verificar_acesso)):
     return {"ok": True, "enviados": len(resultados), "resultados": resultados, "erros": erros}
 
 
-# ══════════════════════════════════════════════════════════
-#  LOTES
-# ══════════════════════════════════════════════════════════
+@app.post("/api/os/enviar-lotacao")
+async def enviar_os_lotacao(dados: dict, _=Depends(verificar_acesso)):
+    """Gera e envia OS para todos os funcionários de uma lotação."""
+    lotacao = dados.get("lotacao", "").strip()
+    sandbox = dados.get("sandbox", False)
+    if not lotacao:
+        raise HTTPException(status_code=400, detail="Lotação obrigatória.")
+
+    todos = banco.buscar_funcionarios("")
+    funcionarios = [f for f in todos if (f.get("lotacao") or "").strip().upper() == lotacao.upper()]
+    if not funcionarios:
+        return {"ok": True, "enviados": 0, "resultados": [], "erros": [f"Nenhum funcionário ativo na lotação '{lotacao}'."]}
+
+    pasta = processador.pasta_lote()
+    resultados = []
+    erros = []
+
+    for f in funcionarios:
+        modelo_bytes = banco.buscar_modelo(OS_DOC_ID, cargo=f["cargo"])
+        if not modelo_bytes:
+            erros.append(f"{f['nome']}: OS não configurada para o cargo '{f['cargo']}'")
+            continue
+
+        cbo = banco.buscar_cargo_cbo(f["cargo"])
+        cbo_descricao = cbo.get("cbo_descricao", "") if cbo else ""
+        epis = banco.listar_epis_do_cargo(f["cargo"])
+        epis_texto = _formatar_epis_texto(epis)
+        pgr = banco.buscar_pgr_cargo(f["cargo"])
+        riscos_texto = pgr.get("riscos", "") if pgr else ""
+
+        docx_bytes = processador.preencher_os_dinamica(f, cbo_descricao, epis_texto, modelo_bytes, riscos_texto=riscos_texto)
+
+        import re as _re
+        nome_seguro = _re.sub(r"[^\w\s-]", "", f["nome"])
+        nome_seguro = _re.sub(r"\s+", "_", nome_seguro.strip())
+        caminho_docx = os.path.join(pasta, f"OS_{nome_seguro}.docx")
+        with open(caminho_docx, "wb") as fw:
+            fw.write(docx_bytes)
+
+        caminho_pdf = processador.converter_para_pdf(caminho_docx)
+        if not caminho_pdf:
+            erros.append(f"{f['nome']}: falha ao converter OS para PDF")
+            continue
+
+        try: os.remove(caminho_docx)
+        except: pass
+
+        nome_doc = f"Ordem de Serviço — {f['nome']}"
+        ret = zapsign.enviar_documento(nome_documento=nome_doc, caminho_pdf=caminho_pdf,
+                                       funcionario=f, sandbox=sandbox)
+        if ret["sucesso"]:
+            resultados.append({"id": f["id"], "nome": f["nome"],
+                                "cargo": f["cargo"], "link": ret.get("link", "")})
+            try:
+                banco.registrar_envio({
+                    "funcionario_id": f["id"],
+                    "doc_id":         "03_os",
+                    "doc_nome":       nome_doc,
+                    "pdf_path":       caminho_pdf,
+                    "autentique_id":  ret.get("autentique_id", ""),
+                    "link_assinatura": ret.get("link", ""),
+                    "status":         "enviado",
+                })
+            except Exception as e:
+                print(f"WARN registrar_envio OS lotacao: {e}")
+        else:
+            erros.append(f"{f['nome']}: {ret['erro']}")
+
+    return {"ok": True, "enviados": len(resultados), "resultados": resultados, "erros": erros}
+
+
+
 
 @app.get("/api/lotes")
 async def listar_lotes(_=Depends(verificar_acesso)):

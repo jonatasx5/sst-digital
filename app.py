@@ -72,6 +72,36 @@ def _garantir_epi_base():
         print(f"[WARN] _garantir_epi_base: {e}")
 
 
+def _seed_modelos_do_disco():
+    """
+    Carrega do disco para o banco todos os arquivos .docx de modelos padrão
+    que ainda não estão no banco. Roda no startup para garantir que o banco
+    sempre tem os modelos mesmo após redeploy.
+    """
+    from config import MODELOS_DIR, DOCUMENTOS
+    seedados = []
+    try:
+        for d in DOCUMENTOS:
+            doc_id = d["id"]
+            disco = os.path.join(MODELOS_DIR, f"{doc_id}.docx")
+            if not os.path.exists(disco):
+                continue
+            existente = banco.buscar_modelo(doc_id)
+            if existente:
+                continue  # já no banco, não sobrescreve
+            with open(disco, "rb") as f:
+                conteudo = f.read()
+            if conteudo:
+                banco.salvar_modelo(doc_id, d["nome"], conteudo)
+                seedados.append(doc_id)
+        if seedados:
+            print(f"[STARTUP] seed do disco: {seedados}")
+        else:
+            print("[STARTUP] seed do disco: nenhum novo arquivo necessário")
+    except Exception as e:
+        print(f"[WARN] _seed_modelos_do_disco: {e}")
+
+
 @app.on_event("startup")
 async def startup_event():
     # Garante tabelas novas que podem não existir em bancos antigos
@@ -93,6 +123,7 @@ async def startup_event():
 
     _garantir_os_base()
     _garantir_epi_base()
+    _seed_modelos_do_disco()
     # Seed PGR: insere cargos sem entrada E corrige riscos com duplicatas acumuladas
     try:
         import re as _re
@@ -1771,9 +1802,14 @@ async def purgar_modelos_padrao(_=Depends(verificar_acesso)):
 @app.get("/api/diagnostico/modelos")
 async def diagnostico_modelos(_=Depends(verificar_acesso)):
     """Lista todos os modelos salvos no banco para diagnóstico."""
+    from config import KIT_PADRAO, MODELOS_DIR, DOCUMENTOS
     modelos = banco.listar_modelos()
     extras  = banco.listar_documentos_extras()
-    from config import KIT_PADRAO, MODELOS_DIR
+
+    # Raw DB rows (without fetching content) — just id/cargo/tem_conteudo
+    raw_rows = [{"id": m["id"], "cargo": m.get("cargo"), "tem_conteudo": m.get("tem_conteudo")} for m in modelos]
+
+    # Kit padrão status: verifica banco E disco
     kit_status = []
     for doc_id in KIT_PADRAO:
         conteudo = banco.buscar_modelo(doc_id)
@@ -1783,20 +1819,28 @@ async def diagnostico_modelos(_=Depends(verificar_acesso)):
             "no_banco": bool(conteudo),
             "no_disco": existe_disco,
             "tamanho_bytes": len(conteudo) if conteudo else 0,
-            "fonte": "banco" if conteudo else ("disco" if existe_disco else "ausente"),
+            "fonte": "banco" if conteudo else ("disco" if existe_disco else "AUSENTE"),
         })
-    todos_modelos = []
-    for m in modelos:
-        conteudo = banco.buscar_modelo(m["id"], cargo=m.get("cargo"))
-        todos_modelos.append({
-            "id": m["id"],
-            "cargo": m.get("cargo"),
+
+    # Documentos padrão status
+    docs_status = []
+    for d in DOCUMENTOS:
+        conteudo = banco.buscar_modelo(d["id"])
+        existe_disco = os.path.exists(os.path.join(MODELOS_DIR, f"{d['id']}.docx"))
+        docs_status.append({
+            "id": d["id"],
+            "nome": d["nome"],
+            "no_banco": bool(conteudo),
+            "no_disco": existe_disco,
             "tamanho_bytes": len(conteudo) if conteudo else 0,
         })
+
     return {
+        "use_postgres": banco.USE_POSTGRES,
+        "total_rows_modelos": len(raw_rows),
+        "raw_rows": raw_rows,
         "kit_padrao_status": kit_status,
-        "modelos_banco": todos_modelos,
-        "extras": extras,
+        "todos_docs_status": docs_status,
     }
 
 @app.get("/api/zapsign/verificar")

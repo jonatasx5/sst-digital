@@ -1326,22 +1326,38 @@ def salvar_modelo(doc_id: str, nome: str, conteudo_bytes: bytes, cargo: str = No
     Isso corrige o bug do PostgreSQL onde UNIQUE(id, cargo) não bloqueia NULL duplicado
     em tabelas existentes criadas antes da constraint ser adicionada.
     """
+    if not conteudo_bytes:
+        print(f"[salvar_modelo] AVISO: conteudo_bytes vazio para {doc_id}, ignorado")
+        return
     conn = conectar()
     try:
         cur = conn.cursor()
         if USE_POSTGRES:
+            # psycopg2.Binary garante encoding correto para coluna BYTEA
+            conteudo_pg = _psycopg2.Binary(conteudo_bytes)
             cur.execute("DELETE FROM modelos WHERE id=%s AND cargo IS NOT DISTINCT FROM %s", (doc_id, cargo))
+            deleted = cur.rowcount
             cur.execute("INSERT INTO modelos (id, nome, conteudo, cargo) VALUES (%s,%s,%s,%s)",
-                        (doc_id, nome, conteudo_bytes, cargo))
+                        (doc_id, nome, conteudo_pg, cargo))
         else:
+            deleted = 0
             if cargo is None:
                 cur.execute("DELETE FROM modelos WHERE id=? AND cargo IS NULL", (doc_id,))
+                deleted = cur.rowcount
             else:
                 cur.execute("DELETE FROM modelos WHERE id=? AND cargo=?", (doc_id, cargo))
+                deleted = cur.rowcount
             cur.execute("INSERT INTO modelos (id, nome, conteudo, cargo) VALUES (?,?,?,?)",
                         (doc_id, nome, conteudo_bytes, cargo))
         conn.commit()
-        print(f"[salvar_modelo] {doc_id} cargo={cargo!r} salvo ({len(conteudo_bytes)} bytes)")
+        print(f"[salvar_modelo] OK: {doc_id} cargo={cargo!r} | {len(conteudo_bytes)} bytes | deletou {deleted} linha(s) anterior(es)")
+    except Exception as e:
+        print(f"[salvar_modelo] ERRO ao salvar {doc_id} cargo={cargo!r}: {e}")
+        try:
+            conn.rollback()
+        except Exception:
+            pass
+        raise
     finally:
         conn.close()
 

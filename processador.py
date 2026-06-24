@@ -465,16 +465,17 @@ def preencher_ficha_epi_dinamica(funcionario: dict, epis: list, modelo_bytes: by
         return cells
 
     def _escrever_celula(cell, texto):
-        """Remove todos os runs do primeiro parágrafo e escreve texto puro."""
+        """Zera todos os runs da célula e escreve apenas o texto desejado."""
         if not cell.paragraphs:
             return
         para = cell.paragraphs[0]
-        p = para._p
-        # Remove todos os <w:r> filhos diretos do parágrafo
-        for r in list(p.findall(f"{WNS}r")):
-            p.remove(r)
-        # Adiciona um run limpo com o texto desejado
-        if texto:
+        # Esvazia todos os runs existentes
+        for run in para.runs:
+            run.text = ""
+        # Escreve no primeiro run, ou cria um novo
+        if para.runs:
+            para.runs[0].text = str(texto) if texto else ""
+        elif texto:
             para.add_run(str(texto))
 
     def _clonar_linha(table, row_ref):

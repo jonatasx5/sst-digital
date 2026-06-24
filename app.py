@@ -124,6 +124,21 @@ async def startup_event():
     _garantir_os_base()
     _garantir_epi_base()
     _seed_modelos_do_disco()
+    # Remove fichas EPI cargo-específicas salvas com código antigo (serão geradas dinamicamente)
+    try:
+        conn = banco.conectar()
+        cur = conn.cursor()
+        if banco.USE_POSTGRES:
+            cur.execute("DELETE FROM modelos WHERE id=%s AND cargo IS NOT NULL", (EPI_DOC_ID,))
+        else:
+            cur.execute("DELETE FROM modelos WHERE id=? AND cargo IS NOT NULL", (EPI_DOC_ID,))
+        n = cur.rowcount
+        conn.commit()
+        conn.close()
+        if n:
+            print(f"[STARTUP] {n} ficha(s) EPI cargo-específica(s) antigas removidas do banco")
+    except Exception as _e:
+        print(f"[WARN] limpeza fichas EPI cargo: {_e}")
     # Seed PGR: insere cargos sem entrada E corrige riscos com duplicatas acumuladas
     try:
         import re as _re
@@ -962,9 +977,14 @@ async def download_os(cargo: str, _=Depends(verificar_acesso)):
 @app.get("/api/ficha-epi/{cargo}/download")
 async def download_ficha_epi(cargo: str, _=Depends(verificar_acesso)):
     from fastapi.responses import Response
-    conteudo = banco.buscar_modelo(EPI_DOC_ID, cargo=cargo)
-    if not conteudo:
-        raise HTTPException(status_code=404, detail="Ficha de EPI não gerada para este cargo. Salve a configuração da OS primeiro.")
+    # Sempre gera dinamicamente — nunca retorna modelo pré-salvo (pode estar desatualizado)
+    modelo_base = banco.buscar_modelo(EPI_DOC_ID)
+    if not modelo_base:
+        raise HTTPException(status_code=404, detail="Template base da Ficha de EPI não encontrado. Envie o arquivo em Modelos & Funções.")
+    epis = banco.listar_epis_do_cargo(cargo)
+    func_vazio = {"nome": "", "cpf": "", "matricula": "", "cargo": cargo,
+                  "lotacao": "", "admissao": "", "rg": "", "ctps": ""}
+    conteudo = processador.preencher_ficha_epi_dinamica(func_vazio, epis, modelo_base)
     return Response(content=conteudo,
         media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
         headers={"Content-Disposition": f'attachment; filename="FichaEPI_{cargo}.docx"'})
@@ -1354,10 +1374,7 @@ async def salvar_os_config_cargo(cargo: str, dados: dict, _=Depends(verificar_ac
                     riscos_c = pgr_c2.get("riscos", "") if pgr_c2 else ""
                     os_bytes_c = processador.preencher_os_dinamica(func_c, cbo_descricao, _formatar_epis_texto(epis_c), modelo_base, riscos_texto=riscos_c)
                     banco.salvar_modelo(OS_DOC_ID, "Ordem de Serviço", os_bytes_c, cargo=c)
-                    modelo_epi_b = banco.buscar_modelo("10_ficha_controle_epi")
-                    if modelo_epi_b and epis_c:
-                        ficha_c = processador.preencher_ficha_epi_dinamica(func_c, epis_c, modelo_epi_b)
-                        banco.salvar_modelo(EPI_DOC_ID, "Ficha de Controle de EPI", ficha_c, cargo=c)
+                    # Ficha EPI: não salva por cargo — gerada dinamicamente no download/kit
                 propagados.append(c)
 
     # Salva riscos no PGR (substitui — não acumula)
@@ -1398,11 +1415,7 @@ async def salvar_os_config_cargo(cargo: str, dados: dict, _=Depends(verificar_ac
     )
     banco.salvar_modelo(OS_DOC_ID, "Ordem de Serviço", docx_bytes, cargo=cargo)
 
-    # Gera Ficha de EPI automaticamente com os mesmos EPIs da OS
-    modelo_epi_base = banco.buscar_modelo("10_ficha_controle_epi")
-    if modelo_epi_base:
-        ficha_bytes = processador.preencher_ficha_epi_dinamica(func_template, epis, modelo_epi_base)
-        banco.salvar_modelo(EPI_DOC_ID, "Ficha de Controle de EPI", ficha_bytes, cargo=cargo)
+    # Ficha de EPI: não salva por cargo — sempre gerada dinamicamente no download/kit
 
     # Auto-adiciona OS e Ficha EPI ao kit do cargo
     from config import KIT_PADRAO
@@ -1785,6 +1798,24 @@ async def enviar_ficha_epi(dados: dict, _=Depends(verificar_acesso)):
 @app.get("/api/config")
 async def get_config(_=Depends(verificar_acesso)):
     return {"empresa": EMPRESA}
+
+
+@app.post("/api/modelos/purgar-fichas-epi-cargo")
+async def purgar_fichas_epi_cargo(_=Depends(verificar_acesso)):
+    """Remove todas as fichas de EPI cargo-específicas do banco (serão geradas dinamicamente)."""
+    conn = banco.conectar()
+    try:
+        cur = conn.cursor()
+        if banco.USE_POSTGRES:
+            cur.execute("DELETE FROM modelos WHERE id=%s AND cargo IS NOT NULL", (EPI_DOC_ID,))
+        else:
+            cur.execute("DELETE FROM modelos WHERE id=? AND cargo IS NOT NULL", (EPI_DOC_ID,))
+        deletados = cur.rowcount
+        conn.commit()
+        print(f"[PURGE-EPI] {deletados} fichas cargo-específicas removidas")
+        return {"ok": True, "deletados": deletados}
+    finally:
+        conn.close()
 
 
 @app.post("/api/modelos/purgar-padrao")

@@ -1346,6 +1346,23 @@ def salvar_modelo(doc_id: str, nome: str, conteudo_bytes: bytes, cargo: str = No
         conn.close()
 
 
+def buscar_modelo_cargo_especifico(doc_id: str, cargo: str) -> bytes | None:
+    """Retorna bytes SOMENTE se existe registro com esse cargo exato (sem fallback NULL)."""
+    if not cargo:
+        return None
+    conn = conectar()
+    try:
+        cur = conn.cursor()
+        if USE_POSTGRES:
+            cur.execute("SELECT conteudo FROM modelos WHERE id=%s AND cargo=%s ORDER BY pk DESC LIMIT 1", (doc_id, cargo))
+        else:
+            cur.execute("SELECT conteudo FROM modelos WHERE id=? AND cargo=? ORDER BY pk DESC LIMIT 1", (doc_id, cargo))
+        row = cur.fetchone()
+        return bytes(row[0]) if row and row[0] else None
+    finally:
+        conn.close()
+
+
 def buscar_modelo(doc_id: str, cargo: str = None) -> bytes | None:
     """
     Retorna bytes do modelo .docx mais recente (ORDER BY pk DESC).

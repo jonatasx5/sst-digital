@@ -1634,15 +1634,15 @@ async def enviar_ficha_epi_custom(dados: dict, _=Depends(verificar_acesso)):
         return {"ok": False, "erro": "Funcionário não encontrado"}
 
     # Busca modelo base zerado
-    modelo_bytes = banco.buscar_modelo("10_ficha_epi_base")
+    modelo_bytes = banco.buscar_modelo("10_ficha_controle_epi")
     if not modelo_bytes:
         from config import MODELOS_DIR
-        path = os.path.join(MODELOS_DIR, "10_ficha_epi_base.docx")
+        path = os.path.join(MODELOS_DIR, "10_ficha_controle_epi.docx")
         if os.path.exists(path):
             with open(path, "rb") as f2:
                 modelo_bytes = f2.read()
     if not modelo_bytes:
-        return {"ok": False, "erro": "Modelo base da ficha de EPI não encontrado. Faça o upload do modelo zerado."}
+        return {"ok": False, "erro": "Modelo base da ficha de EPI não encontrado. Faça o upload do modelo em Modelos & Funções."}
 
     pasta = processador.pasta_lote()
     docx_bytes = processador.preencher_ficha_epi_dinamica(f, epis, modelo_bytes)

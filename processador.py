@@ -460,6 +460,13 @@ def preencher_ficha_epi_dinamica(funcionario: dict, epis: list, modelo_bytes: by
         "CTPS":          funcionario.get("ctps", ""),
         "RG":            funcionario.get("rg", ""),
         "TITULO_FICHA":  "FICHA DE ENTREGA DE EPI/EPC/UNIFORMES",
+        # Aliases para templates antigos com @funcao, @dt_adm, @nome, etc.
+        "FUNCAO":        funcionario.get("cargo", ""),
+        "DT_ADM":        funcionario.get("admissao", ""),
+        "ADMISSAO":      funcionario.get("admissao", ""),
+        "FUNCIONARIO":   funcionario.get("nome", ""),
+        "CPF_FUNC":      funcionario.get("cpf", ""),
+        "MAT":           funcionario.get("matricula", funcionario.get("cpf", "")),
     }
 
     # Preenche variáveis nos parágrafos e cabeçalho/rodapé

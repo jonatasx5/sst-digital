@@ -453,8 +453,8 @@ def preencher_ficha_epi_dinamica(funcionario: dict, epis: list, modelo_bytes: by
 
     # Encontra a tabela principal e preenche as linhas de EPI
     import copy
-    import lxml.etree as _etree
     data_hoje = date.today().strftime("%d/%m/%Y")
+    WNS = "{http://schemas.openxmlformats.org/wordprocessingml/2006/main}"
 
     def _celulas_unicas(row):
         seen, cells = set(), []
@@ -464,44 +464,41 @@ def preencher_ficha_epi_dinamica(funcionario: dict, epis: list, modelo_bytes: by
                 cells.append(cell)
         return cells
 
-    def _limpar_row(row):
-        for cell in _celulas_unicas(row):
-            for para in cell.paragraphs:
-                for run in para.runs:
-                    run.text = ""
-
-    def _preencher_row(row, epi, data_hoje):
-        cells = _celulas_unicas(row)
-        if len(cells) >= 4:
-            for idx, val in enumerate([data_hoje, epi.get("descricao",""), str(epi.get("ca","")), str(epi.get("quantidade",1))]):
-                p = cells[idx].paragraphs[0]
-                if p.runs:
-                    p.runs[0].text = val
-                else:
-                    p.add_run(val)
+    def _escrever_celula(cell, texto):
+        """Apaga todo conteúdo da célula via XML e escreve apenas texto puro."""
+        tc = cell._tc
+        # Remove todos os elementos <w:r> (runs) dentro de cada <w:p>
+        for p_el in tc.findall(f".//{WNS}p"):
+            for r_el in p_el.findall(f"{WNS}r"):
+                p_el.remove(r_el)
+            # Cria um run novo com o texto
+            r_new = copy.deepcopy(p_el)  # só para pegar namespace; usamos lxml diretamente
+            import lxml.etree as _le
+            r_el = _le.SubElement(p_el, f"{WNS}r")
+            t_el = _le.SubElement(r_el, f"{WNS}t")
+            t_el.text = str(texto)
+            if texto and (texto[0] == " " or texto[-1] == " "):
+                t_el.set("{http://www.w3.org/XML/1998/namespace}space", "preserve")
+            break  # apenas o primeiro parágrafo da célula
 
     def _clonar_linha(table, row_ref):
-        """Clona uma linha de referência e insere antes da linha de assinatura."""
-        import copy
         new_tr = copy.deepcopy(row_ref._tr)
-        # Limpa texto dos runs na cópia
-        for tc in new_tr.findall('.//{http://schemas.openxmlformats.org/wordprocessingml/2006/main}r'):
-            for t in tc.findall('{http://schemas.openxmlformats.org/wordprocessingml/2006/main}t'):
-                t.text = ""
+        # Limpa todos os <w:t> na cópia
+        for t_el in new_tr.findall(f".//{WNS}t"):
+            t_el.text = ""
         table._tbl.append(new_tr)
-        # Retorna o último row (o recém adicionado)
         return table.rows[-1]
 
     for table in doc.tables:
         # Identifica a linha de cabeçalho (ENTREGA / DESCRIÇÃO / C.A / QUANTIDADE)
         header_row = None
         for ri, row in enumerate(table.rows):
-            celulas = [c.text.strip().upper() for c in row.cells]
-            if any("ENTREGA" in c or "DESCRI" in c or "C.A" in c for c in celulas):
+            celulas_txt = [c.text.strip().upper() for c in row.cells]
+            if any("ENTREGA" in c or "DESCRI" in c or "C.A" in c for c in celulas_txt):
                 header_row = ri
                 break
 
-        # Fallback: tenta qualquer tabela com 4+ colunas
+        # Fallback: tabela com 4+ colunas
         if header_row is None:
             if len(table.columns) >= 4 and len(table.rows) >= 2:
                 header_row = 0
@@ -509,32 +506,63 @@ def preencher_ficha_epi_dinamica(funcionario: dict, epis: list, modelo_bytes: by
         if header_row is None:
             continue
 
+        # Mapeia colunas pelo texto do cabeçalho
+        header_cells = _celulas_unicas(table.rows[header_row])
+        col_entrega = col_desc = col_ca = col_qtd = None
+        for ci, cell in enumerate(header_cells):
+            t = cell.text.strip().upper()
+            if "ENTREGA" in t or ("DATA" in t and col_entrega is None):
+                col_entrega = ci
+            elif "DESCRI" in t:
+                col_desc = ci
+            elif "C.A" in t or t == "CA":
+                col_ca = ci
+            elif "QUANT" in t:
+                col_qtd = ci
+
+        # Fallback posicional se não detectou
+        if col_entrega is None: col_entrega = 0
+        if col_desc    is None: col_desc    = 1
+        if col_ca      is None: col_ca      = 2
+        if col_qtd     is None: col_qtd     = 3
+
+        print(f"[ficha_epi] colunas: entrega={col_entrega} desc={col_desc} ca={col_ca} qtd={col_qtd}")
+
         # Localiza linhas de dados (entre cabeçalho e seção de assinatura)
         sig_keywords = ("assinatura", "declaro", "ciente", "___", "funcionário:", "trabalhador")
         epi_rows = []
-        sig_row = None
         for ri in range(header_row + 1, len(table.rows)):
-            row = table.rows[ri]
-            texto = " ".join(c.text.strip().lower() for c in row.cells)
+            texto = " ".join(c.text.strip().lower() for c in table.rows[ri].cells)
             if any(kw in texto for kw in sig_keywords):
-                sig_row = ri
                 break
             epi_rows.append(ri)
 
-        # Se não há linhas de dados, adiciona clonando a última linha disponível
+        # Clona linhas extras se necessário
         row_template = table.rows[epi_rows[-1]] if epi_rows else table.rows[header_row]
         while len(epi_rows) < len(epis):
-            new_row = _clonar_linha(table, row_template)
+            _clonar_linha(table, row_template)
             epi_rows.append(len(table.rows) - 1)
 
         epi_rows_set = set(epi_rows)
 
-        # Preenche as linhas de EPI
+        # Preenche cada linha de EPI
         for i, ri in enumerate(epi_rows):
             row = table.rows[ri]
-            _limpar_row(row)
+            cells = _celulas_unicas(row)
             if i < len(epis):
-                _preencher_row(row, epis[i], data_hoje)
+                epi = epis[i]
+                vals = {
+                    col_entrega: data_hoje,
+                    col_desc:    epi.get("descricao", ""),
+                    col_ca:      str(epi.get("ca", "") or ""),
+                    col_qtd:     str(epi.get("quantidade", 1)),
+                }
+                for ci, cell in enumerate(cells):
+                    _escrever_celula(cell, vals.get(ci, ""))
+            else:
+                # Linha extra vazia — limpa
+                for cell in cells:
+                    _escrever_celula(cell, "")
 
         # Preenche variáveis nas demais linhas (NOME, EMPRESA etc.)
         for ri, row in enumerate(table.rows):
@@ -552,9 +580,9 @@ def preencher_ficha_epi_dinamica(funcionario: dict, epis: list, modelo_bytes: by
         break  # Processa só a primeira tabela principal
     else:
         if epis:
-            print(f"[ficha_epi] AVISO: nenhuma tabela compatível encontrada no template — {len(epis)} EPI(s) não preenchidos. Tabelas no doc: {len(doc.tables)}")
+            print(f"[ficha_epi] AVISO: nenhuma tabela compatível no template — {len(epis)} EPI(s) não preenchidos")
             for ti, t in enumerate(doc.tables):
-                print(f"  tabela[{ti}]: {len(t.rows)} linhas x {len(t.columns)} colunas | header[0]={[c.text.strip() for c in t.rows[0].cells]}")
+                print(f"  tabela[{ti}]: {len(t.rows)}x{len(t.columns)} | header={[c.text.strip() for c in t.rows[0].cells]}")
 
     buf = io.BytesIO()
     doc.save(buf)

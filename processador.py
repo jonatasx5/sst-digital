@@ -237,8 +237,18 @@ def preencher_docx(modelo_id: str, funcionario: dict, pasta_saida: str) -> str |
         for section in doc.sections:
             for para in section.header.paragraphs:
                 _processar_paragrafo(para, variaveis)
+            for table in section.header.tables:
+                for row in table.rows:
+                    for cell in row.cells:
+                        for para in cell.paragraphs:
+                            _processar_paragrafo(para, variaveis)
             for para in section.footer.paragraphs:
                 _processar_paragrafo(para, variaveis)
+            for table in section.footer.tables:
+                for row in table.rows:
+                    for cell in row.cells:
+                        for para in cell.paragraphs:
+                            _processar_paragrafo(para, variaveis)
         buf = _io.BytesIO()
         doc.save(buf)
         caminho = os.path.join(pasta_saida, f"{modelo_id}.docx")
@@ -296,8 +306,18 @@ def preencher_docx(modelo_id: str, funcionario: dict, pasta_saida: str) -> str |
     for section in doc.sections:
         for para in section.header.paragraphs:
             _processar_paragrafo(para, variaveis)
+        for table in section.header.tables:
+            for row in table.rows:
+                for cell in row.cells:
+                    for para in cell.paragraphs:
+                        _processar_paragrafo(para, variaveis)
         for para in section.footer.paragraphs:
             _processar_paragrafo(para, variaveis)
+        for table in section.footer.tables:
+            for row in table.rows:
+                for cell in row.cells:
+                    for para in cell.paragraphs:
+                        _processar_paragrafo(para, variaveis)
 
     # Nome seguro para o arquivo
     nome_seguro = re.sub(r"[^\w\s-]", "", funcionario.get("nome", "funcionario"))
@@ -448,8 +468,18 @@ def preencher_ficha_epi_dinamica(funcionario: dict, epis: list, modelo_bytes: by
     for section in doc.sections:
         for para in section.header.paragraphs:
             _processar_paragrafo(para, variaveis)
+        for table in section.header.tables:
+            for row in table.rows:
+                for cell in row.cells:
+                    for para in cell.paragraphs:
+                        _processar_paragrafo(para, variaveis)
         for para in section.footer.paragraphs:
             _processar_paragrafo(para, variaveis)
+        for table in section.footer.tables:
+            for row in table.rows:
+                for cell in row.cells:
+                    for para in cell.paragraphs:
+                        _processar_paragrafo(para, variaveis)
 
     # Encontra a tabela principal e preenche as linhas de EPI
     import copy

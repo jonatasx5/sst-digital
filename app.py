@@ -1299,16 +1299,18 @@ async def salvar_os_config_cargo(cargo: str, dados: dict, _=Depends(verificar_ac
                 # Propaga CBO/título/descrição
                 banco.salvar_cargo_cbo(c, cbo_codigo, cbo_titulo, cbo_descricao)
                 # Propaga EPIs
-                if epis:
-                    banco.salvar_cargo_epis(c, [{"epi_id": e["epi_id"], "quantidade": e.get("quantidade", 1)} for e in epis])
+                epis_cargo_atual = banco.listar_epis_do_cargo(cargo)
+                if epis_cargo_atual:
+                    banco.salvar_cargo_epis(c, [{"epi_id": e["epi_id"], "quantidade": e.get("quantidade", 1)} for e in epis_cargo_atual])
                 # Propaga riscos no PGR
-                if riscos_detalhe:
+                riscos_detalhe_temp = dados.get("riscos_detalhe", "").strip()
+                if riscos_detalhe_temp:
                     pgr_c = banco.buscar_pgr_cargo(c) or {}
                     banco.salvar_pgr_cargo(
                         cargo=c, cbo=cbo_codigo,
                         ambiente=pgr_c.get("ambiente", ""),
                         atividades=pgr_c.get("atividades", cbo_descricao),
-                        riscos=riscos_detalhe,
+                        riscos=riscos_detalhe_temp,
                         epis=pgr_c.get("epis", ""),
                         epcs=pgr_c.get("epcs", ""),
                     )

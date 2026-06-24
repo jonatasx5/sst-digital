@@ -851,8 +851,12 @@ async def get_catalogo_epis(_=Depends(verificar_acesso)):
 
 @app.post("/api/epis/catalogo")
 async def salvar_epi(dados: dict, _=Depends(verificar_acesso)):
-    eid = banco.salvar_epi_catalogo(dados["descricao"], dados.get("ca",""), dados.get("quantidade_padrao",1))
-    return {"ok": True, "id": eid}
+    try:
+        eid = banco.salvar_epi_catalogo(dados["descricao"], dados.get("ca",""), dados.get("quantidade_padrao",1))
+        return {"ok": True, "id": eid}
+    except Exception as e:
+        print(f"[ERRO salvar_epi_catalogo] {e}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 @app.post("/api/epis/catalogo/bulk")
 async def bulk_epis(dados: dict, _=Depends(verificar_acesso)):

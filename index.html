@@ -2595,9 +2595,17 @@ async function salvarNovoEpi() {
     ca: document.getElementById('epi-ca').value.trim(),
     quantidade_padrao: parseInt(document.getElementById('epi-qtd').value) || 1
   };
-  const res  = await apiFetch('/api/epis/catalogo', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(payload) });
-  const data = await res.json();
-  if (data.ok) { fecharModal('modal-novo-epi'); carregarCatalogoEpi(); }
+  const resultDiv = document.getElementById('novo-epi-result');
+  resultDiv.innerHTML = '<span style="color:var(--texto2)">Salvando...</span>';
+  try {
+    const res  = await apiFetch('/api/epis/catalogo', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(payload) });
+    if (!res) { resultDiv.innerHTML = '<span style="color:red">Erro: sem resposta do servidor.</span>'; return; }
+    const data = await res.json();
+    if (data.ok) { fecharModal('modal-novo-epi'); carregarCatalogoEpi(); }
+    else { resultDiv.innerHTML = `<span style="color:red">Erro: ${data.detail || JSON.stringify(data)}</span>`; }
+  } catch(e) {
+    resultDiv.innerHTML = `<span style="color:red">Erro: ${e.message}</span>`;
+  }
 }
 
 async function deletarEpiCat(id) {

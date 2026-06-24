@@ -198,6 +198,28 @@ def preencher_docx(modelo_id: str, funcionario: dict, pasta_saida: str) -> str |
     cargo_func = funcionario.get("cargo", "")
     conteudo_banco = _banco.buscar_modelo(modelo_id, cargo=cargo_func)
 
+    # Fallback especial: gera Ficha de EPI dinamicamente quando não há ficha salva para o cargo
+    if not conteudo_banco and modelo_id == "10_ficha_controle_epi":
+        base_bytes = _banco.buscar_modelo("10_ficha_controle_epi")
+        if not base_bytes:
+            # tenta disco
+            _disco_epi = os.path.join(MODELOS_DIR, "10_ficha_controle_epi.docx")
+            if os.path.exists(_disco_epi):
+                with open(_disco_epi, "rb") as _f:
+                    base_bytes = _f.read()
+        if base_bytes:
+            try:
+                epis_list = _banco.listar_epis_do_cargo(cargo_func) or []
+                if epis_list:
+                    conteudo_banco = preencher_ficha_epi_dinamica(funcionario, epis_list, base_bytes)
+                    print(f"  ✅ [{modelo_id}] Ficha EPI gerada dinamicamente ({len(epis_list)} EPIs, cargo={cargo_func!r})")
+                else:
+                    # Sem EPIs cadastrados — usa base apenas com variáveis preenchidas
+                    conteudo_banco = base_bytes
+                    print(f"  ⚠️  [{modelo_id}] sem EPIs para cargo={cargo_func!r}, usando template base")
+            except Exception as _e:
+                print(f"  ⚠️  [{modelo_id}] falha ao gerar Ficha EPI dinâmica: {_e}")
+
     # Fallback especial: gera OS a partir do 03_os_base quando não há OS salvo para o cargo
     if not conteudo_banco and modelo_id == "03_os":
         base_bytes = _banco.buscar_modelo("03_os_base")

@@ -52,6 +52,26 @@ def _garantir_os_base():
         print(f"[WARN] _garantir_os_base: {e}")
 
 
+def _garantir_epi_base():
+    """Seed the 10_ficha_controle_epi base template from disk if not already in DB."""
+    try:
+        from config import MODELOS_DIR
+        existing = banco.buscar_modelo("10_ficha_controle_epi")
+        if not existing:
+            disco = os.path.join(MODELOS_DIR, "10_ficha_controle_epi.docx")
+            if os.path.exists(disco):
+                with open(disco, "rb") as f:
+                    conteudo = f.read()
+                banco.salvar_modelo("10_ficha_controle_epi", "10 - Ficha de Controle de EPI", conteudo)
+                print(f"[STARTUP] EPI base carregado do disco ({len(conteudo)} bytes)")
+            else:
+                print("[STARTUP] EPI base não encontrado no banco nem no disco")
+        else:
+            print(f"[STARTUP] EPI base já no banco ({len(existing)} bytes)")
+    except Exception as e:
+        print(f"[WARN] _garantir_epi_base: {e}")
+
+
 @app.on_event("startup")
 async def startup_event():
     # Garante tabelas novas que podem não existir em bancos antigos
@@ -72,6 +92,7 @@ async def startup_event():
         print(f"[WARN] migração documentos_extras: {e}")
 
     _garantir_os_base()
+    _garantir_epi_base()
     # Seed PGR: insere cargos sem entrada E corrige riscos com duplicatas acumuladas
     try:
         import re as _re

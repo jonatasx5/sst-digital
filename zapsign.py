@@ -179,10 +179,22 @@ def consultar_status(doc_token: str) -> dict:
         # Signatários
         signers_raw = data.get("signers", [])
         signatarios = []
+        def _utc_para_brasilia(dt_str):
+            if not dt_str:
+                return None
+            try:
+                from datetime import datetime, timezone, timedelta
+                dt = datetime.fromisoformat(dt_str.replace("Z", "+00:00"))
+                brasilia = timezone(timedelta(hours=-3))
+                return dt.astimezone(brasilia).strftime("%d/%m/%Y %H:%M")
+            except Exception:
+                return dt_str
+
         assinado_em = None
         for s in signers_raw:
             s_status = s.get("status", "pending")
-            s_assinado = s.get("signed_at") or s.get("last_remind_date")
+            s_assinado_raw = s.get("signed_at") or s.get("last_remind_date")
+            s_assinado = _utc_para_brasilia(s_assinado_raw)
             if s_status == "signed" and s_assinado:
                 assinado_em = s_assinado
             signatarios.append({

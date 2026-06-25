@@ -236,8 +236,11 @@ def baixar_pdf_assinado(doc_token: str) -> tuple[bytes | None, str | None]:
                 return None, "Documento ainda não foi assinado — aguardando assinatura"
             return None, "URL do arquivo assinado não disponível ainda"
 
-        # Baixa o arquivo da URL retornada pelo ZapSign
-        r2 = requests.get(signed_file, timeout=30)
+        # Baixa o arquivo da URL retornada pelo ZapSign (sem proxy — URL pública S3)
+        r2 = requests.get(signed_file, timeout=30, proxies={"http": None, "https": None})
+        if r2.status_code != 200:
+            # Tenta sem proxies=None caso o ambiente não suporte
+            r2 = requests.get(signed_file, timeout=30)
         if r2.status_code != 200:
             return None, f"Erro ao baixar o arquivo (HTTP {r2.status_code})"
 

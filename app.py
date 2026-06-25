@@ -2068,9 +2068,20 @@ async def download_pdf_assinado(envio_id: int):
         pdf_bytes, erro = zapsign.baixar_pdf_assinado(doc_token)
     except Exception as exc:
         print(f"ERRO download envio {envio_id}: {exc}")
-        raise HTTPException(500, f"Erro interno ao baixar PDF: {exc}")
+        # Redireciona para o link de assinatura como fallback
+        link = envio.get("link_assinatura")
+        if link:
+            from fastapi.responses import RedirectResponse
+            return RedirectResponse(url=link)
+        raise HTTPException(500, f"Erro ao baixar PDF: {exc}")
 
     if erro:
+        print(f"ERRO download envio {envio_id}: {erro}")
+        # Se ainda não processado, redireciona para o link de assinatura
+        link = envio.get("link_assinatura")
+        if link:
+            from fastapi.responses import RedirectResponse
+            return RedirectResponse(url=link)
         raise HTTPException(400, erro)
 
     nome_arquivo = (envio.get("doc_nome") or "documento").replace("/", "-").replace(" ", "_")

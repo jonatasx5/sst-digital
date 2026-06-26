@@ -1280,18 +1280,30 @@ def buscar_envio_por_id(envio_id: int):
 def atualizar_status_envio(envio_id: int, status: str, assinado_em=None):
     conn = conectar()
     try:
+        # Converte assinado_em formatado (DD/MM/YYYY HH:MM) para ISO se necessário
+        assinado_em_iso = None
+        if assinado_em and status == "signed":
+            try:
+                from datetime import datetime
+                if "/" in str(assinado_em):
+                    assinado_em_iso = datetime.strptime(assinado_em, "%d/%m/%Y %H:%M").isoformat()
+                else:
+                    assinado_em_iso = assinado_em
+            except Exception:
+                assinado_em_iso = assinado_em
+
         if USE_POSTGRES:
             cur = conn.cursor()
-            if assinado_em and status == "signed":
+            if assinado_em_iso:
                 cur.execute("UPDATE envios SET status=%s, assinado_em=%s WHERE id=%s",
-                            (status, assinado_em, envio_id))
+                            (status, assinado_em_iso, envio_id))
             else:
                 cur.execute("UPDATE envios SET status=%s WHERE id=%s", (status, envio_id))
         else:
             cur = conn.cursor()
-            if assinado_em and status == "signed":
+            if assinado_em_iso:
                 cur.execute("UPDATE envios SET status=?, assinado_em=? WHERE id=?",
-                            (status, assinado_em, envio_id))
+                            (status, assinado_em_iso, envio_id))
             else:
                 cur.execute("UPDATE envios SET status=? WHERE id=?", (status, envio_id))
         conn.commit()

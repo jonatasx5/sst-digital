@@ -60,6 +60,7 @@ DOCUMENTOS = [
     {"id": "12_treinamento_direcao_defensiva",    "nome": "12 - Treinamento Direção Defensiva",                             "obrig": False, "kit_padrao": False},
     {"id": "13_treinamento_vias_urbanas",         "nome": "13 - Treinamento Trabalho em Vias Urbanas, Estaduais e Federais","obrig": False, "kit_padrao": False},
     {"id": "14_primeiros_socorros",               "nome": "14 - Primeiros Socorros",                                        "obrig": False, "kit_padrao": False},
+    {"id": "15_termo_treinamento",                "nome": "15 - Termo de Participação em Treinamento",                       "obrig": False, "kit_padrao": False},
 ]
 
 # ─── PASTAS ───────────────────────────────────────────────

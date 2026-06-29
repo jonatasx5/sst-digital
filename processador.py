@@ -714,7 +714,41 @@ def preencher_os_dinamica(funcionario: dict, descricao_atividades: str,
         if idx_riscos is not None and riscos_texto:
             _preencher_celula(table, idx_riscos, riscos_texto)
         if idx_epis is not None:
-            _preencher_celula(table, idx_epis, epis_texto)
+            # EPIs em Arial 8, organizados em 2 colunas
+            if idx_epis < len(table.rows):
+                row = table.rows[idx_epis]
+                seen = set()
+                cells_unicas = []
+                for c in row.cells:
+                    if id(c._tc) not in seen:
+                        seen.add(id(c._tc))
+                        cells_unicas.append(c)
+                cell = cells_unicas[0]
+                # Limpa célula
+                for para in cell.paragraphs:
+                    for run in para.runs:
+                        run.text = ""
+                # Divide EPIs em 2 colunas
+                linhas_epi = [l for l in epis_texto.split("\n") if l.strip()]
+                metade = (len(linhas_epi) + 1) // 2
+                col1 = linhas_epi[:metade]
+                col2 = linhas_epi[metade:]
+                max_linhas = max(len(col1), len(col2))
+                # Escreve linha a linha intercalando col1 e col2 com tab
+                for i in range(max_linhas):
+                    txt_c1 = col1[i] if i < len(col1) else ""
+                    txt_c2 = col2[i] if i < len(col2) else ""
+                    linha_txt = f"{txt_c1:<45}{txt_c2}"
+                    if i == 0 and cell.paragraphs and cell.paragraphs[0].runs:
+                        run = cell.paragraphs[0].runs[0]
+                        run.text = linha_txt
+                        run.font.name = "Arial"
+                        run.font.size = Pt(8)
+                    else:
+                        para = cell.add_paragraph()
+                        run = para.add_run(linha_txt)
+                        run.font.name = "Arial"
+                        run.font.size = Pt(8)
 
         # Segunda passagem: substitui variáveis {{...}} em TODAS as células
         for row in table.rows:

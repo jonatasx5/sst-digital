@@ -236,6 +236,37 @@ def criar_banco():
                 UNIQUE(cargo, epi_id))""")
         conn.commit()
 
+        # Tabela configurações do sistema
+        if USE_POSTGRES:
+            cur.execute("""
+                CREATE TABLE IF NOT EXISTS configuracoes (
+                    chave TEXT PRIMARY KEY,
+                    valor TEXT
+                )
+            """)
+        else:
+            cur.execute("""CREATE TABLE IF NOT EXISTS configuracoes (
+                chave TEXT PRIMARY KEY,
+                valor TEXT)""")
+
+        # Tabela de visualizações de treinamento
+        if USE_POSTGRES:
+            cur.execute("""
+                CREATE TABLE IF NOT EXISTS treinamento_visualizacoes (
+                    id SERIAL PRIMARY KEY,
+                    nome TEXT NOT NULL,
+                    cpf TEXT,
+                    confirmado_em TIMESTAMP DEFAULT NOW()
+                )
+            """)
+        else:
+            cur.execute("""CREATE TABLE IF NOT EXISTS treinamento_visualizacoes (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                nome TEXT NOT NULL,
+                cpf TEXT,
+                confirmado_em TEXT DEFAULT (datetime('now','localtime')))""")
+        conn.commit()
+
         # Tabela CBO por cargo
         if USE_POSTGRES:
             cur.execute("""
@@ -799,6 +830,62 @@ def listar_catalogo_epis() -> list:
         else:
             cur = conn.cursor()
         cur.execute("SELECT id, descricao, ca, quantidade_padrao FROM catalogo_epis WHERE ativo=1 ORDER BY descricao")
+        rows = cur.fetchall()
+        return [dict(r) for r in rows]
+    finally:
+        conn.close()
+
+
+def get_configuracao(chave: str, padrao: str = "") -> str:
+    conn = conectar()
+    try:
+        cur = conn.cursor()
+        if USE_POSTGRES:
+            cur.execute("SELECT valor FROM configuracoes WHERE chave=%s", (chave,))
+        else:
+            cur.execute("SELECT valor FROM configuracoes WHERE chave=?", (chave,))
+        row = cur.fetchone()
+        return (row[0] if row else None) or padrao
+    finally:
+        conn.close()
+
+
+def set_configuracao(chave: str, valor: str):
+    conn = conectar()
+    try:
+        cur = conn.cursor()
+        if USE_POSTGRES:
+            cur.execute("INSERT INTO configuracoes (chave, valor) VALUES (%s,%s) ON CONFLICT (chave) DO UPDATE SET valor=EXCLUDED.valor",
+                        (chave, valor))
+        else:
+            cur.execute("INSERT OR REPLACE INTO configuracoes (chave, valor) VALUES (?,?)", (chave, valor))
+        conn.commit()
+    finally:
+        conn.close()
+
+
+def registrar_visualizacao_treinamento(nome: str, cpf: str):
+    conn = conectar()
+    try:
+        cur = conn.cursor()
+        if USE_POSTGRES:
+            cur.execute("INSERT INTO treinamento_visualizacoes (nome, cpf) VALUES (%s,%s)", (nome, cpf))
+        else:
+            cur.execute("INSERT INTO treinamento_visualizacoes (nome, cpf) VALUES (?,?)", (nome, cpf))
+        conn.commit()
+    finally:
+        conn.close()
+
+
+def listar_visualizacoes_treinamento() -> list:
+    conn = conectar()
+    try:
+        if USE_POSTGRES:
+            cur = conn.cursor(cursor_factory=_psycopg2_extras.RealDictCursor)
+            cur.execute("SELECT * FROM treinamento_visualizacoes ORDER BY confirmado_em DESC")
+        else:
+            cur = conn.cursor()
+            cur.execute("SELECT * FROM treinamento_visualizacoes ORDER BY confirmado_em DESC")
         rows = cur.fetchall()
         return [dict(r) for r in rows]
     finally:

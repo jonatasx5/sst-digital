@@ -1640,6 +1640,22 @@ tr:hover td { background:#F9FAFB; }
     <button class="btn btn-primary" onclick="adminAbrirModal(null)"><i class="ti ti-plus"></i>Novo usuário</button>
   </div>
 
+  <!-- Configuração de Integração -->
+  <div class="card" style="margin-bottom:20px">
+    <div class="card-title"><i class="ti ti-video"></i>Vídeo de Integração</div>
+    <p style="font-size:13px;color:var(--texto2);margin-bottom:12px">Cole o link do YouTube do vídeo de integração. O funcionário acessa <strong>/integracao</strong> pelo celular, assiste e confirma presença.</p>
+    <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+      <input type="text" id="integracao-video-url" placeholder="https://www.youtube.com/watch?v=..." style="flex:1;min-width:280px;padding:9px 12px;border:1.5px solid var(--borda);border-radius:8px;font-size:13px">
+      <button class="btn btn-primary btn-sm" onclick="salvarIntegracaoConfig()"><i class="ti ti-device-floppy"></i>Salvar</button>
+      <button class="btn btn-outline btn-sm" onclick="window.open('/integracao','_blank')"><i class="ti ti-external-link"></i>Ver página</button>
+    </div>
+    <div id="integracao-config-result" style="margin-top:8px;font-size:13px"></div>
+    <div style="margin-top:16px">
+      <div style="font-size:13px;font-weight:600;color:var(--texto2);margin-bottom:8px">Confirmações recebidas:</div>
+      <div id="integracao-lista" style="font-size:13px;color:var(--texto2)">Carregando...</div>
+    </div>
+  </div>
+
   <div class="card">
     <table style="width:100%;border-collapse:collapse;font-size:13px;">
       <thead>
@@ -1884,6 +1900,46 @@ function fecharModal(id) {
 }
 
 // ══════════════════════════════════════════════════════
+//  INTEGRAÇÃO — CONFIG E VISUALIZAÇÕES
+// ══════════════════════════════════════════════════════
+async function carregarIntegracaoConfig() {
+  try {
+    const r = await apiFetch('/api/integracao/config');
+    const d = await r.json();
+    document.getElementById('integracao-video-url').value = d.video_url || '';
+  } catch(e) {}
+  carregarIntegracaoLista();
+}
+
+async function salvarIntegracaoConfig() {
+  const url = document.getElementById('integracao-video-url').value.trim();
+  const res = document.getElementById('integracao-config-result');
+  res.innerHTML = 'Salvando...';
+  try {
+    const r = await apiFetch('/api/integracao/config', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({video_url:url})});
+    const d = await r.json();
+    res.innerHTML = d.ok ? '<span style="color:var(--verde)">✓ Salvo!</span>' : '<span style="color:red">Erro ao salvar</span>';
+  } catch(e) { res.innerHTML = `<span style="color:red">Erro: ${e.message}</span>`; }
+}
+
+async function carregarIntegracaoLista() {
+  const div = document.getElementById('integracao-lista');
+  try {
+    const r = await apiFetch('/api/integracao/visualizacoes');
+    const lista = await r.json();
+    if (!lista.length) { div.innerHTML = '<em>Nenhuma confirmação ainda.</em>'; return; }
+    div.innerHTML = `<table style="width:100%;border-collapse:collapse;font-size:12px">
+      <thead><tr style="border-bottom:1px solid var(--borda)">
+        <th style="padding:6px;text-align:left">Nome</th>
+        <th style="padding:6px;text-align:left">CPF</th>
+        <th style="padding:6px;text-align:left">Confirmado em</th>
+      </tr></thead>
+      <tbody>${lista.map(v=>`<tr><td style="padding:6px">${v.nome}</td><td style="padding:6px">${v.cpf||'—'}</td><td style="padding:6px">${v.confirmado_em||''}</td></tr>`).join('')}</tbody>
+    </table>`;
+  } catch(e) { div.innerHTML = '<em>Erro ao carregar.</em>'; }
+}
+
+// ══════════════════════════════════════════════════════
 //  ADMIN — PAINEL DE USUÁRIOS
 // ══════════════════════════════════════════════════════
 async function carregarAdmin() {
@@ -2021,7 +2077,7 @@ function irPara(aba) {
   if (aba==='diario-obra')   doInit();
   if (aba==='alojamentos')   alojaInit();
   if (aba==='acidentes')     acidInit();
-  if (aba==='admin')         carregarAdmin();
+  if (aba==='admin')         { carregarAdmin(); carregarIntegracaoConfig(); }
   // Scroll para o topo e fecha sidebar mobile
   const mainEl = document.querySelector('main.main');
   if (mainEl) mainEl.scrollTop = 0;

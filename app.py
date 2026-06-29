@@ -372,6 +372,154 @@ async def index():
     with open(os.path.join(os.path.dirname(__file__), "index.html"), "r", encoding="utf-8") as f:
         return f.read()
 
+
+@app.get("/integracao", response_class=HTMLResponse)
+async def pagina_integracao():
+    """Página pública de integração — só exibe vídeo e coleta confirmação."""
+    video_url = banco.get_configuracao("integracao_video_url", "")
+    empresa = banco.get_configuracao("empresa", "JS Construtora")
+
+    # Extrai o ID do YouTube para embed
+    import re as _re
+    yt_id = ""
+    if video_url:
+        m = _re.search(r"(?:v=|youtu\.be/)([A-Za-z0-9_-]{11})", video_url)
+        if m:
+            yt_id = m.group(1)
+
+    embed = f"https://www.youtube.com/embed/{yt_id}?enablejsapi=1&rel=0&modestbranding=1" if yt_id else ""
+
+    html = f"""<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Integração — {empresa}</title>
+<style>
+  *{{box-sizing:border-box;margin:0;padding:0}}
+  body{{font-family:Arial,sans-serif;background:#f0f4f8;min-height:100vh;display:flex;flex-direction:column;align-items:center;padding:24px 16px}}
+  .card{{background:#fff;border-radius:16px;box-shadow:0 4px 24px rgba(0,0,0,.10);padding:32px 24px;max-width:680px;width:100%}}
+  h1{{font-size:20px;color:#1a1a1a;margin-bottom:6px;text-align:center}}
+  p{{font-size:14px;color:#555;text-align:center;margin-bottom:20px}}
+  .video-wrap{{position:relative;padding-bottom:56.25%;height:0;overflow:hidden;border-radius:10px;background:#000;margin-bottom:20px}}
+  .video-wrap iframe{{position:absolute;top:0;left:0;width:100%;height:100%;border:0}}
+  .aviso{{font-size:13px;color:#888;text-align:center;margin-bottom:16px}}
+  .field{{margin-bottom:12px}}
+  .field label{{font-size:13px;font-weight:600;color:#333;display:block;margin-bottom:4px}}
+  .field input{{width:100%;padding:10px 12px;border:1.5px solid #ddd;border-radius:8px;font-size:14px}}
+  .btn{{width:100%;padding:14px;background:#16a34a;color:#fff;border:none;border-radius:10px;font-size:15px;font-weight:700;cursor:pointer;margin-top:8px;display:none}}
+  .btn:hover{{background:#15803d}}
+  .sucesso{{display:none;text-align:center;padding:24px}}
+  .sucesso h2{{color:#16a34a;font-size:22px;margin-bottom:8px}}
+  .sucesso p{{color:#555;font-size:14px}}
+</style>
+</head>
+<body>
+<div class="card">
+  <h1>Integração — {empresa}</h1>
+  <p>Assista ao vídeo completo abaixo. Ao terminar, confirme sua presença.</p>
+
+  {"<div class='video-wrap'><iframe id='yt' src='" + embed + "' allow='autoplay; encrypted-media' allowfullscreen></iframe></div>" if embed else "<p style='color:red;margin-bottom:20px'>Vídeo não configurado. Aguarde.</p>"}
+
+  <div id="form-confirmacao">
+    <p class="aviso" id="aviso-assistir">{"⏳ Assista ao vídeo até o final para liberar a confirmação." if embed else ""}</p>
+    <div class="field"><label>Seu nome completo *</label><input type="text" id="inp-nome" placeholder="Digite seu nome"></div>
+    <div class="field"><label>CPF (opcional)</label><input type="text" id="inp-cpf" placeholder="000.000.000-00"></div>
+    <button class="btn" id="btn-confirmar" onclick="confirmar()">✅ Confirmar que assisti</button>
+  </div>
+
+  <div class="sucesso" id="tela-sucesso">
+    <h2>✅ Presença confirmada!</h2>
+    <p>Obrigado, <strong id="nome-confirmado"></strong>!<br>Sua confirmação foi registrada com sucesso.</p>
+  </div>
+</div>
+
+<script>
+var videoTerminou = {"false" if embed else "true"};
+
+{"" if not embed else '''
+var tag = document.createElement('script');
+tag.src = "https://www.youtube.com/iframe_api";
+document.head.appendChild(tag);
+var player;
+function onYouTubeIframeAPIReady() {
+  player = new YT.Player('yt', {
+    events: {
+      'onStateChange': function(e) {
+        if (e.data === YT.PlayerState.ENDED) {
+          videoTerminou = true;
+          document.getElementById('btn-confirmar').style.display = 'block';
+          document.getElementById('aviso-assistir').textContent = '✅ Vídeo concluído! Preencha seus dados e confirme.';
+        }
+      }
+    }
+  });
+}
+'''}
+
+async function confirmar() {{
+  if (!videoTerminou) {{ alert('Assista ao vídeo até o final primeiro.'); return; }}
+  var nome = document.getElementById('inp-nome').value.trim();
+  if (!nome) {{ alert('Por favor informe seu nome.'); return; }}
+  var cpf = document.getElementById('inp-cpf').value.trim();
+  var btn = document.getElementById('btn-confirmar');
+  btn.disabled = true; btn.textContent = 'Registrando...';
+  try {{
+    var r = await fetch('/api/integracao/confirmar', {{
+      method:'POST',
+      headers:{{'Content-Type':'application/json'}},
+      body: JSON.stringify({{nome, cpf}})
+    }});
+    var d = await r.json();
+    if (d.ok) {{
+      document.getElementById('form-confirmacao').style.display='none';
+      document.getElementById('tela-sucesso').style.display='block';
+      document.getElementById('nome-confirmado').textContent = nome;
+    }} else {{
+      alert('Erro ao registrar. Tente novamente.');
+      btn.disabled=false; btn.textContent='✅ Confirmar que assisti';
+    }}
+  }} catch(e) {{
+    alert('Erro: '+e.message);
+    btn.disabled=false; btn.textContent='✅ Confirmar que assisti';
+  }}
+}}
+</script>
+</body>
+</html>"""
+    return HTMLResponse(content=html)
+
+
+@app.post("/api/integracao/confirmar")
+async def confirmar_integracao(dados: dict):
+    """Registra confirmação de visualização — público, sem auth."""
+    nome = (dados.get("nome") or "").strip()
+    if not nome:
+        raise HTTPException(400, "Nome obrigatório")
+    cpf = (dados.get("cpf") or "").strip()
+    banco.registrar_visualizacao_treinamento(nome, cpf)
+    return {"ok": True}
+
+
+@app.get("/api/integracao/config", response_model=None)
+async def get_integracao_config(_=Depends(verificar_acesso)):
+    return {
+        "video_url": banco.get_configuracao("integracao_video_url", ""),
+    }
+
+
+@app.post("/api/integracao/config")
+async def set_integracao_config(dados: dict, _=Depends(verificar_acesso)):
+    url = (dados.get("video_url") or "").strip()
+    banco.set_configuracao("integracao_video_url", url)
+    return {"ok": True}
+
+
+@app.get("/api/integracao/visualizacoes")
+async def listar_visualizacoes(_=Depends(verificar_acesso)):
+    return banco.listar_visualizacoes_treinamento()
+
+
 # ══════════════════════════════════════════════════════════
 #  FUNCIONÁRIOS
 # ══════════════════════════════════════════════════════════

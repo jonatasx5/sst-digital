@@ -2096,6 +2096,53 @@ async def diagnostico_modelos(_=Depends(verificar_acesso)):
         "todos_docs_status": docs_status,
     }
 
+@app.get("/api/drive/status")
+async def drive_status(_=Depends(verificar_acesso)):
+    """Verifica se o Google Drive está configurado e funcionando."""
+    try:
+        from google_drive import drive_disponivel, listar_modelos_drive
+        disponivel = drive_disponivel()
+        arquivos = listar_modelos_drive() if disponivel else []
+        return {"disponivel": disponivel, "arquivos": len(arquivos), "lista": arquivos}
+    except Exception as e:
+        return {"disponivel": False, "erro": str(e)}
+
+
+@app.post("/api/drive/sincronizar")
+async def drive_sincronizar(_=Depends(verificar_acesso)):
+    """
+    Sincroniza todos os modelos do banco de dados para o Google Drive.
+    Use uma vez para migrar os dados existentes.
+    """
+    try:
+        from google_drive import drive_disponivel, upload_modelo
+        if not drive_disponivel():
+            return {"ok": False, "erro": "Google Drive não configurado. Defina GOOGLE_CREDENTIALS_JSON no Railway."}
+
+        modelos = banco.listar_modelos()
+        sincronizados = []
+        erros = []
+
+        for m in modelos:
+            doc_id = m["id"]
+            cargo = m.get("cargo")
+            nome = m.get("nome", doc_id)
+            conteudo = banco.buscar_modelo(doc_id, cargo) if cargo else None
+            if not conteudo:
+                conteudo = banco.buscar_modelo(doc_id)
+            if conteudo:
+                ok = upload_modelo(doc_id, nome, conteudo, cargo)
+                if ok:
+                    sincronizados.append(f"{doc_id} cargo={cargo!r}")
+                else:
+                    erros.append(f"{doc_id} cargo={cargo!r}")
+
+        return {"ok": True, "sincronizados": len(sincronizados), "erros": len(erros),
+                "lista": sincronizados, "lista_erros": erros}
+    except Exception as e:
+        return {"ok": False, "erro": str(e)}
+
+
 @app.get("/api/zapsign/verificar")
 async def verificar_zapsign(_=Depends(verificar_acesso)):
     ok, msg = zapsign.verificar_token()

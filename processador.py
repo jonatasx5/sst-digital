@@ -635,6 +635,7 @@ def preencher_os_dinamica(funcionario: dict, descricao_atividades: str,
     """
     import io
     from datetime import date
+    from docx.shared import Pt
 
     doc = Document(io.BytesIO(modelo_bytes))
 

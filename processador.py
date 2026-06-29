@@ -688,7 +688,7 @@ def preencher_os_dinamica(funcionario: dict, descricao_atividades: str,
                 idx_epis = ri + 1
 
         def _preencher_celula(table, ri, conteudo):
-            """Preenche a primeira célula da linha ri com o conteúdo."""
+            """Preenche a primeira célula da linha ri com o conteúdo em Arial 8."""
             if ri >= len(table.rows):
                 return
             row = table.rows[ri]
@@ -696,18 +696,19 @@ def preencher_os_dinamica(funcionario: dict, descricao_atividades: str,
             for c in row.cells:
                 if id(c._tc) not in seen:
                     seen.add(id(c._tc))
-                    # Limpa runs de todos os parágrafos
                     for para in c.paragraphs:
                         for run in para.runs:
                             run.text = ""
-                    # Coloca conteúdo no primeiro parágrafo
                     if c.paragraphs:
                         para = c.paragraphs[0]
                         if para.runs:
-                            para.runs[0].text = conteudo
+                            run = para.runs[0]
+                            run.text = conteudo
                         else:
-                            para.add_run(conteudo)
-                    break  # Apenas primeira célula
+                            run = para.add_run(conteudo)
+                        run.font.name = "Arial"
+                        run.font.size = Pt(8)
+                    break
 
         if idx_cbo is not None:
             _preencher_celula(table, idx_cbo, descricao_atividades)

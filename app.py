@@ -782,21 +782,27 @@ async def deletar_modelo_endpoint(doc_id: str, cargo: str = None, _=Depends(veri
 
 @app.get("/api/modelos")
 async def listar_modelos_banco(_=Depends(verificar_acesso)):
-    from config import MODELOS_DIR
-    modelos_banco = banco.listar_modelos()
-    banco_por_id = {m["id"]: m for m in modelos_banco if m.get("tem_conteudo") and m.get("cargo") is None}
-    resultado = []
-    for d in DOCUMENTOS:
-        existe_banco = d["id"] in banco_por_id
-        existe_disco = os.path.exists(os.path.join(MODELOS_DIR, f"{d['id']}.docx"))
-        resultado.append({
-            "id": d["id"],
-            "nome": d["nome"],
-            "tem_arquivo": existe_banco or existe_disco,
-            "no_banco": existe_banco,
-            "no_disco": existe_disco,
-        })
-    return resultado
+    try:
+        from config import MODELOS_DIR
+        modelos_banco = banco.listar_modelos()
+        banco_por_id = {m["id"]: m for m in modelos_banco if m.get("tem_conteudo") and m.get("cargo") is None}
+        resultado = []
+        for d in DOCUMENTOS:
+            existe_banco = d["id"] in banco_por_id
+            existe_disco = os.path.exists(os.path.join(MODELOS_DIR, f"{d['id']}.docx"))
+            resultado.append({
+                "id": d["id"],
+                "nome": d["nome"],
+                "tem_arquivo": existe_banco or existe_disco,
+                "no_banco": existe_banco,
+                "no_disco": existe_disco,
+            })
+        return resultado
+    except Exception as e:
+        import traceback
+        print(f"[ERRO /api/modelos] {e}\n{traceback.format_exc()}")
+        from fastapi.responses import JSONResponse
+        return JSONResponse(status_code=500, content={"erro": str(e)})
 
 
 @app.post("/api/modelos/{doc_id}/upload")

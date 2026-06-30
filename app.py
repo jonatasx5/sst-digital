@@ -782,21 +782,40 @@ async def deletar_modelo_endpoint(doc_id: str, cargo: str = None, _=Depends(veri
 
 @app.get("/api/modelos")
 async def listar_modelos_banco(_=Depends(verificar_acesso)):
-    from config import MODELOS_DIR
-    modelos_banco = banco.listar_modelos()
-    banco_por_id = {m["id"]: m for m in modelos_banco if m.get("tem_conteudo") and m.get("cargo") is None}
-    resultado = []
-    for d in DOCUMENTOS:
-        existe_banco = d["id"] in banco_por_id
-        existe_disco = os.path.exists(os.path.join(MODELOS_DIR, f"{d['id']}.docx"))
-        resultado.append({
-            "id": d["id"],
-            "nome": d["nome"],
-            "tem_arquivo": existe_banco or existe_disco,
-            "no_banco": existe_banco,
-            "no_disco": existe_disco,
-        })
-    return resultado
+    try:
+        from config import MODELOS_DIR
+        modelos_banco = banco.listar_modelos()
+        banco_por_id = {m["id"]: m for m in modelos_banco if m.get("tem_conteudo") and m.get("cargo") is None}
+
+        # Também verifica no Drive se disponível
+        drive_ids = set()
+        try:
+            from google_drive import drive_disponivel, listar_modelos_drive
+            if drive_disponivel():
+                for item in listar_modelos_drive():
+                    if item.get("cargo") is None:
+                        drive_ids.add(item["doc_id"])
+        except Exception:
+            pass
+
+        resultado = []
+        for d in DOCUMENTOS:
+            existe_banco = d["id"] in banco_por_id
+            existe_disco = os.path.exists(os.path.join(MODELOS_DIR, f"{d['id']}.docx"))
+            existe_drive = d["id"] in drive_ids
+            resultado.append({
+                "id": d["id"],
+                "nome": d["nome"],
+                "tem_arquivo": existe_banco or existe_disco or existe_drive,
+                "no_banco": existe_banco,
+                "no_disco": existe_disco,
+                "no_drive": existe_drive,
+            })
+        return resultado
+    except Exception as e:
+        print(f"[/api/modelos] ERRO: {e}")
+        import traceback; traceback.print_exc()
+        raise
 
 
 @app.post("/api/modelos/{doc_id}/upload")

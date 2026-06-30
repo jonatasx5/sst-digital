@@ -2141,6 +2141,7 @@ async def drive_sincronizar(_=Depends(verificar_acesso)):
 
         sincronizados = []
         erros = []
+        primeiro_erro = None
 
         for m in modelos_db:
             doc_id = m["id"]
@@ -2148,14 +2149,21 @@ async def drive_sincronizar(_=Depends(verificar_acesso)):
             nome = m.get("nome", doc_id)
             conteudo = m["conteudo"]
             if conteudo:
-                ok = upload_modelo(doc_id, nome, conteudo, cargo)
-                if ok:
-                    sincronizados.append(f"{doc_id} cargo={cargo!r}")
-                else:
+                try:
+                    ok = upload_modelo(doc_id, nome, conteudo, cargo)
+                    if ok:
+                        sincronizados.append(f"{doc_id} cargo={cargo!r}")
+                    else:
+                        erros.append(f"{doc_id} cargo={cargo!r}")
+                        if not primeiro_erro:
+                            primeiro_erro = f"upload retornou False para {doc_id}"
+                except Exception as ex:
                     erros.append(f"{doc_id} cargo={cargo!r}")
+                    if not primeiro_erro:
+                        primeiro_erro = str(ex)
 
         return {"ok": True, "sincronizados": len(sincronizados), "erros": len(erros),
-                "lista": sincronizados, "lista_erros": erros}
+                "lista": sincronizados, "lista_erros": erros, "primeiro_erro": primeiro_erro}
     except Exception as e:
         return {"ok": False, "erro": str(e)}
 

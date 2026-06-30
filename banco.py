@@ -1426,17 +1426,7 @@ def salvar_modelo(doc_id: str, nome: str, conteudo_bytes: bytes, cargo: str = No
         print(f"[salvar_modelo] AVISO: conteudo_bytes vazio para {doc_id}, ignorado")
         return
 
-    # ── Google Drive (primário) ──────────────────────────────
-    try:
-        from google_drive import upload_modelo, drive_disponivel
-        if drive_disponivel():
-            ok = upload_modelo(doc_id, nome, conteudo_bytes, cargo)
-            if ok:
-                print(f"[salvar_modelo] Drive OK: {doc_id} cargo={cargo!r} | {len(conteudo_bytes)} bytes")
-    except Exception as e:
-        print(f"[salvar_modelo] Drive ERRO (continuando com DB): {e}")
-
-    # ── Banco de dados (fallback / cache) ────────────────────
+    # ── Banco de dados ────────────────────
     conn = conectar()
     try:
         cur = conn.cursor()
@@ -1473,18 +1463,6 @@ def buscar_modelo_cargo_especifico(doc_id: str, cargo: str) -> bytes | None:
     """Retorna bytes SOMENTE se existe registro com esse cargo exato (sem fallback NULL)."""
     if not cargo:
         return None
-
-    # ── Google Drive primeiro ─────────────────────────────────
-    try:
-        from google_drive import download_modelo, drive_disponivel
-        if drive_disponivel():
-            data = download_modelo(doc_id, cargo)
-            if data:
-                return data
-    except Exception as e:
-        print(f"[buscar_modelo_cargo_especifico] Drive ERRO: {e}")
-
-    # ── Banco como fallback ───────────────────────────────────
     conn = conectar()
     try:
         cur = conn.cursor()
@@ -1500,25 +1478,9 @@ def buscar_modelo_cargo_especifico(doc_id: str, cargo: str) -> bytes | None:
 
 def buscar_modelo(doc_id: str, cargo: str = None) -> bytes | None:
     """
-    Retorna bytes do modelo .docx.
-    Tenta Google Drive primeiro; fallback para banco de dados.
-    Tenta cargo específico antes do modelo geral.
+    Retorna bytes do modelo .docx mais recente.
+    Tenta cargo específico primeiro, depois fallback para modelo geral.
     """
-    # ── Google Drive primeiro ─────────────────────────────────
-    try:
-        from google_drive import download_modelo, drive_disponivel
-        if drive_disponivel():
-            if cargo:
-                data = download_modelo(doc_id, cargo)
-                if data:
-                    return data
-            data = download_modelo(doc_id, None)
-            if data:
-                return data
-    except Exception as e:
-        print(f"[buscar_modelo] Drive ERRO (fallback DB): {e}")
-
-    # ── Banco como fallback ───────────────────────────────────
     conn = conectar()
     try:
         if USE_POSTGRES:
@@ -1583,16 +1545,7 @@ def purgar_modelos_padrao() -> list:
 
 
 def deletar_modelo(doc_id: str, cargo: str = None):
-    """Remove um modelo do banco e do Google Drive."""
-    # ── Google Drive ──────────────────────────────────────────
-    try:
-        from google_drive import delete_modelo, drive_disponivel
-        if drive_disponivel():
-            delete_modelo(doc_id, cargo)
-    except Exception as e:
-        print(f"[deletar_modelo] Drive ERRO: {e}")
-
-    # ── Banco ─────────────────────────────────────────────────
+    """Remove um modelo do banco."""
     conn = conectar()
     try:
         if USE_POSTGRES:

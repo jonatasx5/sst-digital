@@ -1549,14 +1549,10 @@ def listar_modelos() -> list:
     """Retorna lista de modelos com id, nome, cargo e tem_conteudo (bool)."""
     conn = conectar()
     try:
-        if USE_POSTGRES:
-            cur = conn.cursor(_psycopg2_extras.RealDictCursor) if _psycopg2_extras else conn.cursor()
-            cur.execute("SELECT id, nome, cargo, (conteudo IS NOT NULL) AS tem_conteudo FROM modelos ORDER BY id, cargo")
-        else:
-            cur = conn.cursor()
-            cur.execute("SELECT id, nome, cargo, (conteudo IS NOT NULL) AS tem_conteudo FROM modelos ORDER BY id, cargo")
+        cur = conn.cursor()
+        cur.execute("SELECT id, nome, cargo, (conteudo IS NOT NULL) AS tem_conteudo FROM modelos ORDER BY id, cargo")
         rows = cur.fetchall()
-        return [dict(r) for r in rows]
+        return [{"id": r[0], "nome": r[1], "cargo": r[2], "tem_conteudo": bool(r[3])} for r in rows]
     finally:
         conn.close()
 

@@ -2119,17 +2119,28 @@ async def drive_sincronizar(_=Depends(verificar_acesso)):
         if not drive_disponivel():
             return {"ok": False, "erro": "Google Drive não configurado. Defina GOOGLE_CREDENTIALS_JSON no Railway."}
 
-        modelos = banco.listar_modelos()
+        # Lê direto do banco sem passar pelo Drive (que pode estar vazio)
+        conn = banco.conectar()
+        modelos_db = []
+        try:
+            cur = conn.cursor()
+            cur.execute("SELECT id, nome, cargo, conteudo FROM modelos WHERE conteudo IS NOT NULL")
+            for row in cur.fetchall():
+                modelos_db.append({
+                    "id": row[0], "nome": row[1], "cargo": row[2],
+                    "conteudo": bytes(row[3]) if row[3] else None
+                })
+        finally:
+            conn.close()
+
         sincronizados = []
         erros = []
 
-        for m in modelos:
+        for m in modelos_db:
             doc_id = m["id"]
             cargo = m.get("cargo")
             nome = m.get("nome", doc_id)
-            conteudo = banco.buscar_modelo(doc_id, cargo) if cargo else None
-            if not conteudo:
-                conteudo = banco.buscar_modelo(doc_id)
+            conteudo = m["conteudo"]
             if conteudo:
                 ok = upload_modelo(doc_id, nome, conteudo, cargo)
                 if ok:

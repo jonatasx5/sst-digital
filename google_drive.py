@@ -101,8 +101,9 @@ def upload_modelo(doc_id: str, nome: str, conteudo: bytes, cargo: str = None) ->
 
         return True
     except Exception as e:
-        log.error(f"[Drive] Erro ao fazer upload de {doc_id}: {e}")
-        return False
+        import traceback
+        log.error(f"[Drive] Erro ao fazer upload de {doc_id}: {e}\n{traceback.format_exc()}")
+        raise  # propaga para o chamador ver o erro real
 
 
 def download_modelo(doc_id: str, cargo: str = None) -> bytes | None:

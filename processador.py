@@ -366,7 +366,9 @@ def converter_para_pdf(caminho_docx: str) -> str | None:
             capture_output=True, text=True, timeout=60
         )
         if resultado.returncode != 0:
-            print(f"❌ Erro ao converter: {resultado.stderr}")
+            print(f"❌ Erro ao converter {caminho_docx}: returncode={resultado.returncode}")
+            print(f"   STDERR: {resultado.stderr[:500]}")
+            print(f"   STDOUT: {resultado.stdout[:500]}")
             return None
 
         caminho_pdf = caminho_docx.replace(".docx", ".pdf")
@@ -381,7 +383,7 @@ def converter_para_pdf(caminho_docx: str) -> str | None:
 
         return None
     except subprocess.TimeoutExpired:
-        print("❌ Timeout ao converter para PDF.")
+        print(f"❌ Timeout ao converter {caminho_docx} para PDF.")
         return None
     except Exception as e:
         print(f"❌ Erro inesperado: {e}")

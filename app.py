@@ -151,6 +151,27 @@ async def startup_event():
     except Exception as e:
         print(f"[WARN] migração documentos_extras: {e}")
 
+    # Garante tabela treinamentos_docs (criada em versão posterior)
+    try:
+        conn = banco.conectar()
+        cur = conn.cursor()
+        if banco.USE_POSTGRES:
+            cur.execute("""CREATE TABLE IF NOT EXISTS treinamentos_docs (
+                id SERIAL PRIMARY KEY,
+                nome TEXT NOT NULL,
+                conteudo BYTEA NOT NULL,
+                criado_em TIMESTAMP DEFAULT NOW())""")
+        else:
+            cur.execute("""CREATE TABLE IF NOT EXISTS treinamentos_docs (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                nome TEXT NOT NULL,
+                conteudo BLOB NOT NULL,
+                criado_em TEXT DEFAULT (datetime('now','localtime')))""")
+        conn.commit()
+        conn.close()
+    except Exception as e:
+        print(f"[WARN] migração treinamentos_docs: {e}")
+
     _garantir_os_base()
     _garantir_epi_base()
     _seed_modelos_do_disco()
@@ -2158,51 +2179,65 @@ async def gerar_treinamentos_lotacao(dados: dict, _=Depends(verificar_acesso)):
     if not funcionarios:
         raise HTTPException(status_code=404, detail=f"Nenhum funcionário na lotação '{lotacao}'.")
 
+    import zipfile as _zipfile, re as _re, traceback as _tb
+
     # Carrega os bytes de cada treinamento selecionado
     docs_info = []
     for tid in treinamento_ids:
-        meta = banco.buscar_treinamento_doc_meta(tid)
-        if not meta:
-            continue
-        conteudo = banco.buscar_treinamento_doc(tid)
-        if conteudo:
-            docs_info.append({"id": tid, "nome": meta["nome"], "bytes": conteudo})
+        try:
+            meta = banco.buscar_treinamento_doc_meta(tid)
+            if not meta:
+                print(f"[trein] treinamento id={tid} não encontrado")
+                continue
+            conteudo = banco.buscar_treinamento_doc(tid)
+            if conteudo:
+                docs_info.append({"id": tid, "nome": meta["nome"], "bytes": conteudo})
+        except Exception as e:
+            print(f"[trein] erro ao buscar id={tid}: {e}")
+            raise HTTPException(status_code=500, detail=f"Erro ao buscar treinamento {tid}: {e}")
 
     if not docs_info:
         raise HTTPException(status_code=400, detail="Nenhum treinamento encontrado com os IDs informados.")
 
-    pasta = processador.pasta_lote()
-    zip_path = os.path.join(pasta, f"treinamentos_{lotacao[:30].replace(' ','_')}.zip")
+    try:
+        pasta = processador.pasta_lote()
+        zip_path = os.path.join(pasta, f"treinamentos_{lotacao[:30].replace(' ','_')}.zip")
 
-    import zipfile, re as _re
-    with zipfile.ZipFile(zip_path, "w", zipfile.ZIP_DEFLATED) as zf:
-        for f in funcionarios:
-            nome_seg = _re.sub(r"[^\w\s-]", "", f["nome"])
-            nome_seg = _re.sub(r"\s+", "_", nome_seg.strip())
-            pdfs_func = []
-            for doc in docs_info:
-                nome_arq = f"trein_{doc['id']}__{nome_seg}.docx"
-                caminho_docx = processador.preencher_docx_bytes(doc["bytes"], nome_arq, f, pasta)
-                if not caminho_docx:
+        with _zipfile.ZipFile(zip_path, "w", _zipfile.ZIP_DEFLATED) as zf:
+            for func in funcionarios:
+                nome_seg = _re.sub(r"[^\w\s-]", "", func["nome"])
+                nome_seg = _re.sub(r"\s+", "_", nome_seg.strip())
+                pdfs_func = []
+                for doc in docs_info:
+                    nome_arq = f"trein_{doc['id']}__{nome_seg}.docx"
+                    caminho_docx = processador.preencher_docx_bytes(doc["bytes"], nome_arq, func, pasta)
+                    if not caminho_docx:
+                        print(f"[trein] falha ao preencher docx para {func['nome']} / {doc['nome']}")
+                        continue
+                    caminho_pdf = processador.converter_para_pdf(caminho_docx)
+                    try:
+                        os.remove(caminho_docx)
+                    except Exception:
+                        pass
+                    if caminho_pdf and os.path.exists(caminho_pdf):
+                        pdfs_func.append(caminho_pdf)
+                    else:
+                        print(f"[trein] falha ao converter PDF para {func['nome']} / {doc['nome']}")
+
+                if not pdfs_func:
                     continue
-                caminho_pdf = processador.converter_para_pdf(caminho_docx)
-                try:
-                    os.remove(caminho_docx)
-                except Exception:
-                    pass
-                if caminho_pdf and os.path.exists(caminho_pdf):
-                    pdfs_func.append(caminho_pdf)
 
-            if not pdfs_func:
-                continue
+                if len(pdfs_func) == 1:
+                    pdf_final = pdfs_func[0]
+                else:
+                    pdf_final = processador.juntar_pdfs(pdfs_func, pasta, func["nome"])
 
-            if len(pdfs_func) == 1:
-                pdf_final = pdfs_func[0]
-            else:
-                pdf_final = processador.juntar_pdfs(pdfs_func, pasta, f["nome"])
+                if pdf_final and os.path.exists(pdf_final):
+                    zf.write(pdf_final, f"{nome_seg}.pdf")
 
-            if pdf_final and os.path.exists(pdf_final):
-                zf.write(pdf_final, f"{nome_seg}.pdf")
+    except Exception as e:
+        print(f"[trein] ERRO gerar ZIP: {e}\n{_tb.format_exc()}")
+        raise HTTPException(status_code=500, detail=f"Erro ao gerar ZIP: {e}")
 
     def iterfile():
         with open(zip_path, "rb") as fz:

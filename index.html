@@ -887,6 +887,10 @@ tr:hover td { background:#F9FAFB; }
             <option value="">-- Selecione a lotação --</option>
           </select>
           <div id="trein-lot-preview" style="margin-top:8px;font-size:12px;color:var(--texto2)"></div>
+          <div id="trein-func-lista" style="margin-top:10px;display:none;border:1.5px solid var(--borda);border-radius:8px;overflow:hidden">
+            <div style="padding:8px 12px;background:var(--borda);font-size:12px;font-weight:600;color:var(--texto2)">FUNCIONÁRIOS DA LOTAÇÃO</div>
+            <div id="trein-func-nomes" style="max-height:200px;overflow-y:auto;display:flex;flex-direction:column"></div>
+          </div>
         </div>
 
         <!-- Treinamentos -->
@@ -4611,13 +4615,33 @@ async function treinDeletar(id, nome) {
 async function treinAtualizarPreview() {
   const lotacao = document.getElementById('trein-lot-sel').value;
   const prev = document.getElementById('trein-lot-preview');
-  if (!lotacao) { prev.textContent = ''; return; }
+  const funcLista = document.getElementById('trein-func-lista');
+  const funcNomes = document.getElementById('trein-func-nomes');
+
+  if (!lotacao) {
+    prev.textContent = '';
+    funcLista.style.display = 'none';
+    return;
+  }
+
   try {
-    const res = await apiFetch(`/api/funcionarios?busca=`);
+    const res = await apiFetch('/api/funcionarios');
     if (res && res.ok) {
       const todos = await res.json();
-      const count = todos.filter(f => (f.lotacao||'').trim().toUpperCase() === lotacao.trim().toUpperCase()).length;
-      prev.textContent = `${count} funcionário(s) nesta lotação`;
+      const funcs = todos.filter(f => (f.lotacao||'').trim().toUpperCase() === lotacao.trim().toUpperCase());
+      prev.textContent = `${funcs.length} funcionário(s) nesta lotação`;
+
+      if (funcs.length) {
+        funcNomes.innerHTML = funcs.map((f, i) => `
+          <div style="display:flex;align-items:center;gap:8px;padding:7px 12px;font-size:13px;${i % 2 === 0 ? 'background:var(--bg)' : ''}">
+            <span style="color:var(--verde);font-size:11px;font-weight:700;min-width:22px">${i+1}.</span>
+            <span style="flex:1">${f.nome}</span>
+            <span style="font-size:11px;color:var(--texto2)">${f.cargo||''}</span>
+          </div>`).join('');
+        funcLista.style.display = '';
+      } else {
+        funcLista.style.display = 'none';
+      }
     }
   } catch(e) {}
 }

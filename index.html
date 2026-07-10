@@ -680,6 +680,9 @@ tr:hover td { background:#F9FAFB; }
     <button class="os-tab-btn" onclick="osAba('lotacao')" id="os-tab-lotacao" style="padding:8px 18px;border:none;background:none;cursor:pointer;font-size:13px;font-weight:500;color:var(--texto2);border-bottom:2px solid transparent;margin-bottom:-2px">
       <i class="ti ti-building"></i> Gerar por Lotação
     </button>
+    <button class="os-tab-btn" onclick="osAba('treinamento')" id="os-tab-treinamento" style="padding:8px 18px;border:none;background:none;cursor:pointer;font-size:13px;font-weight:500;color:var(--texto2);border-bottom:2px solid transparent;margin-bottom:-2px">
+      <i class="ti ti-school"></i> Gerar Treinamentos
+    </button>
   </div>
 
   <!-- Aba: Configurar por Cargo -->
@@ -834,6 +837,44 @@ tr:hover td { background:#F9FAFB; }
       </label>
     </div>
     <div id="os-lot-resultado" style="margin-top:20px"></div>
+  </div>
+
+  <!-- Aba: Gerar Treinamentos -->
+  <div id="os-aba-treinamento" style="display:none">
+    <div class="card">
+      <div class="card-title"><i class="ti ti-school"></i>Gerar Treinamentos por Lotação</div>
+      <p style="font-size:13px;color:var(--texto2);margin-bottom:16px">Selecione a lotação e os treinamentos desejados. O sistema vai gerar um PDF para cada funcionário e baixar em ZIP.</p>
+
+      <div style="display:flex;gap:16px;flex-wrap:wrap;align-items:flex-start">
+        <!-- Lotação -->
+        <div class="field" style="min-width:280px;flex:1;margin:0">
+          <label>Lotação / Contrato</label>
+          <select id="trein-lot-sel" style="width:100%;padding:9px 12px;border:1.5px solid var(--borda);border-radius:8px;font-size:13px;background:var(--card)" onchange="treinAtualizarPreview()">
+            <option value="">-- Selecione a lotação --</option>
+          </select>
+          <div id="trein-lot-preview" style="margin-top:8px;font-size:12px;color:var(--texto2)"></div>
+        </div>
+
+        <!-- Treinamentos -->
+        <div class="field" style="min-width:280px;flex:2;margin:0">
+          <label>Treinamentos</label>
+          <div id="trein-docs-lista" style="display:flex;flex-direction:column;gap:6px;max-height:260px;overflow-y:auto;border:1.5px solid var(--borda);border-radius:8px;padding:10px;background:var(--card)">
+            <span style="color:var(--texto2);font-size:13px">Carregando...</span>
+          </div>
+          <div style="margin-top:8px;display:flex;gap:8px">
+            <button class="btn btn-outline btn-sm" onclick="treinSelecionarTodos(true)">Selecionar todos</button>
+            <button class="btn btn-outline btn-sm" onclick="treinSelecionarTodos(false)">Limpar</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-top:4px">
+      <button class="btn btn-primary" onclick="gerarTreinamentosLotacao()" id="trein-btn-gerar">
+        <i class="ti ti-file-zip"></i> Gerar PDFs (ZIP)
+      </button>
+    </div>
+    <div id="trein-resultado" style="margin-top:20px"></div>
   </div>
 </div>
 
@@ -3845,8 +3886,10 @@ function osAba(aba) {
   document.getElementById('os-aba-config').style.display    = aba==='config'   ? '' : 'none';
   document.getElementById('os-aba-conferir').style.display  = aba==='conferir' ? '' : 'none';
   document.getElementById('os-aba-envio').style.display     = aba==='envio'    ? '' : 'none';
-  document.getElementById('os-aba-lotacao').style.display   = aba==='lotacao'  ? '' : 'none';
+  document.getElementById('os-aba-lotacao').style.display     = aba==='lotacao'     ? '' : 'none';
+  document.getElementById('os-aba-treinamento').style.display = aba==='treinamento' ? '' : 'none';
   if (aba === 'lotacao') carregarLotacoesOS();
+  if (aba === 'treinamento') carregarAbaTreinamento();
   document.querySelectorAll('.os-tab-btn').forEach(b => {
     const isAtivo = b.id === 'os-tab-'+aba;
     b.style.color = isAtivo ? 'var(--verde)' : 'var(--texto2)';
@@ -4414,6 +4457,106 @@ async function enviarOSSelecionados() {
 }
 
 // ── OS POR LOTAÇÃO ────────────────────────────────────
+
+// ══════════════════════════════════════════════════════
+//  GERAR TREINAMENTOS POR LOTAÇÃO
+// ══════════════════════════════════════════════════════
+async function carregarAbaTreinamento() {
+  // Carrega lotações
+  const sel = document.getElementById('trein-lot-sel');
+  sel.innerHTML = '<option value="">-- Selecione a lotação --</option>';
+  try {
+    const res = await apiFetch('/api/funcionarios/lotacoes');
+    if (res && res.ok) {
+      const lots = await res.json();
+      lots.forEach(l => {
+        const o = document.createElement('option');
+        o.value = l; o.textContent = l;
+        sel.appendChild(o);
+      });
+    }
+  } catch(e) {}
+
+  // Carrega lista de treinamentos (documentos cadastrados, exceto OS e Ficha EPI)
+  const lista = document.getElementById('trein-docs-lista');
+  const EXCLUIR = ['03_os', '03_os_base', '10_ficha_controle_epi', '10_ficha_epi_base'];
+  try {
+    const res = await apiFetch('/api/modelos');
+    const docs = res && res.ok ? await res.json() : [];
+    const disponiveis = docs.filter(d => d.tem_arquivo && !EXCLUIR.includes(d.id));
+    if (!disponiveis.length) {
+      lista.innerHTML = '<span style="color:var(--texto2);font-size:13px">Nenhum treinamento disponível.</span>';
+      return;
+    }
+    lista.innerHTML = disponiveis.map(d => `
+      <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer;padding:4px 0">
+        <input type="checkbox" class="trein-doc-chk" value="${d.id}" checked>
+        ${d.nome}
+      </label>`).join('');
+  } catch(e) {
+    lista.innerHTML = '<span style="color:var(--danger)">Erro ao carregar documentos.</span>';
+  }
+}
+
+async function treinAtualizarPreview() {
+  const lotacao = document.getElementById('trein-lot-sel').value;
+  const prev = document.getElementById('trein-lot-preview');
+  if (!lotacao) { prev.textContent = ''; return; }
+  try {
+    const res = await apiFetch(`/api/funcionarios?busca=`);
+    if (res && res.ok) {
+      const todos = await res.json();
+      const count = todos.filter(f => (f.lotacao||'').trim().toUpperCase() === lotacao.trim().toUpperCase()).length;
+      prev.textContent = `${count} funcionário(s) nesta lotação`;
+    }
+  } catch(e) {}
+}
+
+function treinSelecionarTodos(sel) {
+  document.querySelectorAll('.trein-doc-chk').forEach(c => c.checked = sel);
+}
+
+async function gerarTreinamentosLotacao() {
+  const lotacao = document.getElementById('trein-lot-sel').value;
+  if (!lotacao) { alert('Selecione uma lotação.'); return; }
+
+  const docIds = [...document.querySelectorAll('.trein-doc-chk:checked')].map(c => c.value);
+  if (!docIds.length) { alert('Selecione pelo menos um treinamento.'); return; }
+
+  const btn = document.getElementById('trein-btn-gerar');
+  const res = document.getElementById('trein-resultado');
+  btn.disabled = true;
+  btn.innerHTML = '<i class="ti ti-loader ti-spin"></i> Gerando...';
+  res.innerHTML = '<div style="color:var(--texto2);font-size:13px">Gerando PDFs, aguarde...</div>';
+
+  try {
+    const r = await apiFetch('/api/treinamentos/gerar-lotacao', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({lotacao, doc_ids: docIds})
+    });
+
+    if (!r || !r.ok) {
+      const err = await r.text();
+      res.innerHTML = `<div class="alert al-danger">Erro: ${err}</div>`;
+      return;
+    }
+
+    const blob = await r.blob();
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `Treinamentos_${lotacao.replace(/[^\w]/g,'_')}.zip`;
+    a.click();
+    URL.revokeObjectURL(url);
+    res.innerHTML = `<div class="alert al-success"><i class="ti ti-check"></i> ZIP gerado com sucesso!</div>`;
+  } catch(e) {
+    res.innerHTML = `<div class="alert al-danger">Erro: ${e.message}</div>`;
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = '<i class="ti ti-file-zip"></i> Gerar PDFs (ZIP)';
+  }
+}
 
 async function carregarLotacoesOS() {
   const sel = document.getElementById('os-lot-sel');

@@ -2112,6 +2112,56 @@ async def get_config(_=Depends(verificar_acesso)):
     return {"empresa": EMPRESA}
 
 
+@app.post("/api/treinamentos/gerar-lotacao")
+async def gerar_treinamentos_lotacao(dados: dict, _=Depends(verificar_acesso)):
+    """
+    Gera PDFs de treinamentos para todos os funcionários de uma lotação.
+    Retorna um ZIP com um PDF por funcionário (todos os treinamentos juntos).
+    """
+    lotacao = dados.get("lotacao", "").strip()
+    doc_ids = dados.get("doc_ids", [])
+
+    if not lotacao:
+        raise HTTPException(status_code=400, detail="Lotação obrigatória.")
+    if not doc_ids:
+        raise HTTPException(status_code=400, detail="Selecione pelo menos um treinamento.")
+
+    todos = banco.buscar_funcionarios("")
+    funcionarios = [f for f in todos if (f.get("lotacao") or "").strip().upper() == lotacao.upper()]
+    if not funcionarios:
+        raise HTTPException(status_code=404, detail=f"Nenhum funcionário na lotação '{lotacao}'.")
+
+    pasta = processador.pasta_lote()
+    zip_path = os.path.join(pasta, f"treinamentos_{lotacao[:30].replace(' ','_')}.zip")
+
+    import zipfile
+    with zipfile.ZipFile(zip_path, "w", zipfile.ZIP_DEFLATED) as zf:
+        for f in funcionarios:
+            resultados = processador.gerar_kit_funcionario(f, doc_ids, pasta)
+            pdfs = [r["pdf_path"] for r in resultados if r.get("pdf_path")]
+            if not pdfs:
+                continue
+            if len(pdfs) == 1:
+                pdf_final = pdfs[0]
+            else:
+                pdf_final = processador.juntar_pdfs(pdfs, pasta)
+            if pdf_final and os.path.exists(pdf_final):
+                nome_seguro = f["nome"].replace(" ", "_").replace("/", "_")
+                zf.write(pdf_final, f"{nome_seguro}.pdf")
+
+    def iterfile():
+        with open(zip_path, "rb") as f:
+            yield from f
+        try:
+            shutil.rmtree(pasta, ignore_errors=True)
+        except Exception:
+            pass
+
+    nome_zip = f"Treinamentos_{lotacao[:30].replace(' ','_')}.zip"
+    return StreamingResponse(iterfile(), media_type="application/zip",
+                             headers={"Content-Disposition": f"attachment; filename={nome_zip}"})
+
+
 @app.post("/api/modelos/purgar-fichas-epi-cargo")
 async def purgar_fichas_epi_cargo(_=Depends(verificar_acesso)):
     """Remove todas as fichas de EPI cargo-específicas do banco (serão geradas dinamicamente)."""

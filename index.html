@@ -4543,12 +4543,15 @@ async function treinCarregarLotacoes() {
   const sel = document.getElementById('trein-lot-sel');
   sel.innerHTML = '<option value="">-- Selecione a lotação --</option>';
   try {
-    const res = await apiFetch('/api/funcionarios/lotacoes');
+    const res = await apiFetch('/api/funcionarios');
     if (res && res.ok) {
-      const lots = await res.json();
-      lots.forEach(l => {
+      const funcs = await res.json();
+      const lotacoes = [...new Set(funcs.filter(f => f.lotacao).map(f => f.lotacao.trim()))].sort();
+      lotacoes.forEach(l => {
+        const qty = funcs.filter(f => (f.lotacao||'').trim() === l).length;
         const o = document.createElement('option');
-        o.value = l; o.textContent = l;
+        o.value = l;
+        o.textContent = `${l} (${qty} funcionário${qty !== 1 ? 's' : ''})`;
         sel.appendChild(o);
       });
     }

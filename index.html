@@ -874,43 +874,122 @@ tr:hover td { background:#F9FAFB; }
       </div>
     </div>
 
-    <!-- Seção 2: Gerar PDFs por Lotação -->
+    <!-- Seção 2: Gerar PDFs -->
     <div class="card">
-      <div class="card-title"><i class="ti ti-school"></i>Gerar Treinamentos por Lotação</div>
-      <p style="font-size:13px;color:var(--texto2);margin-bottom:16px">Selecione a lotação e os treinamentos desejados. O sistema vai gerar um PDF para cada funcionário e baixar em ZIP.</p>
+      <div class="card-title"><i class="ti ti-school"></i>Gerar Treinamentos</div>
 
-      <div style="display:flex;gap:16px;flex-wrap:wrap;align-items:flex-start">
-        <!-- Lotação -->
-        <div class="field" style="min-width:280px;flex:1;margin:0">
-          <label>Lotação / Contrato</label>
-          <select id="trein-lot-sel" style="width:100%;padding:9px 12px;border:1.5px solid var(--borda);border-radius:8px;font-size:13px;background:var(--card)" onchange="treinAtualizarPreview()">
-            <option value="">-- Selecione a lotação --</option>
-          </select>
-          <div id="trein-lot-preview" style="margin-top:8px;font-size:12px;color:var(--texto2)"></div>
-          <div id="trein-func-lista" style="margin-top:10px;display:none;border:1.5px solid var(--borda);border-radius:8px;overflow:hidden">
-            <div style="padding:8px 12px;background:var(--borda);font-size:12px;font-weight:600;color:var(--texto2)">FUNCIONÁRIOS DA LOTAÇÃO</div>
-            <div id="trein-func-nomes" style="max-height:200px;overflow-y:auto;display:flex;flex-direction:column"></div>
+      <!-- Seletor de modo -->
+      <div style="display:flex;gap:0;border:1.5px solid var(--borda);border-radius:8px;overflow:hidden;margin-bottom:20px;width:fit-content">
+        <button id="trein-modo-btn-lotacao"   onclick="treinModo('lotacao')"   style="padding:8px 18px;border:none;font-size:13px;font-weight:600;cursor:pointer;background:var(--verde);color:#fff">Por Lotação</button>
+        <button id="trein-modo-btn-func"      onclick="treinModo('func')"      style="padding:8px 18px;border:none;font-size:13px;font-weight:500;cursor:pointer;background:var(--card);color:var(--texto2);border-left:1px solid var(--borda)">Por Funcionário</button>
+        <button id="trein-modo-btn-avulso"    onclick="treinModo('avulso')"    style="padding:8px 18px;border:none;font-size:13px;font-weight:500;cursor:pointer;background:var(--card);color:var(--texto2);border-left:1px solid var(--borda)">Pessoa Avulsa</button>
+      </div>
+
+      <!-- MODO: POR LOTAÇÃO -->
+      <div id="trein-painel-lotacao">
+        <p style="font-size:13px;color:var(--texto2);margin-bottom:14px">Gera um PDF para cada funcionário da lotação e baixa em ZIP.</p>
+        <div style="display:flex;gap:16px;flex-wrap:wrap;align-items:flex-start">
+          <div class="field" style="min-width:280px;flex:1;margin:0">
+            <label>Lotação / Contrato</label>
+            <select id="trein-lot-sel" style="width:100%;padding:9px 12px;border:1.5px solid var(--borda);border-radius:8px;font-size:13px;background:var(--card)" onchange="treinAtualizarPreview()">
+              <option value="">-- Selecione a lotação --</option>
+            </select>
+            <div id="trein-lot-preview" style="margin-top:8px;font-size:12px;color:var(--texto2)"></div>
+            <div id="trein-func-lista" style="margin-top:10px;display:none;border:1.5px solid var(--borda);border-radius:8px;overflow:hidden">
+              <div style="padding:8px 12px;background:var(--borda);font-size:12px;font-weight:600;color:var(--texto2)">FUNCIONÁRIOS DA LOTAÇÃO</div>
+              <div id="trein-func-nomes" style="max-height:200px;overflow-y:auto;display:flex;flex-direction:column"></div>
+            </div>
+          </div>
+          <div class="field" style="min-width:280px;flex:2;margin:0">
+            <label>Treinamentos</label>
+            <div id="trein-docs-lista" style="display:flex;flex-direction:column;gap:6px;max-height:260px;overflow-y:auto;border:1.5px solid var(--borda);border-radius:8px;padding:10px;background:var(--card)">
+              <span style="color:var(--texto2);font-size:13px">Carregando...</span>
+            </div>
+            <div style="margin-top:8px;display:flex;gap:8px">
+              <button class="btn btn-outline btn-sm" onclick="treinSelecionarTodos('trein-docs-lista',true)">Selecionar todos</button>
+              <button class="btn btn-outline btn-sm" onclick="treinSelecionarTodos('trein-docs-lista',false)">Limpar</button>
+            </div>
           </div>
         </div>
+        <div style="margin-top:16px">
+          <button class="btn btn-primary" onclick="gerarTreinamentosLotacao()" id="trein-btn-gerar">
+            <i class="ti ti-file-zip"></i> Gerar PDFs (ZIP)
+          </button>
+        </div>
+      </div>
 
-        <!-- Treinamentos -->
-        <div class="field" style="min-width:280px;flex:2;margin:0">
+      <!-- MODO: POR FUNCIONÁRIO -->
+      <div id="trein-painel-func" style="display:none">
+        <p style="font-size:13px;color:var(--texto2);margin-bottom:14px">Selecione um funcionário cadastrado e gere os treinamentos para ele.</p>
+        <div style="display:flex;gap:16px;flex-wrap:wrap;align-items:flex-start">
+          <div class="field" style="min-width:280px;flex:1;margin:0">
+            <label>Funcionário</label>
+            <input type="text" id="trein-func-busca" placeholder="Digite o nome para buscar..."
+              style="width:100%;padding:9px 12px;border:1.5px solid var(--borda);border-radius:8px;font-size:13px;background:var(--card)"
+              oninput="treinBuscarFunc()">
+            <div id="trein-func-resultados" style="margin-top:6px;display:none;border:1.5px solid var(--borda);border-radius:8px;overflow:hidden;max-height:200px;overflow-y:auto"></div>
+            <div id="trein-func-selecionado" style="margin-top:8px;display:none;padding:10px 12px;background:var(--verde-claro,#d1fae5);border-radius:8px;font-size:13px;font-weight:600;color:#065f46"></div>
+          </div>
+          <div class="field" style="min-width:280px;flex:2;margin:0">
+            <label>Treinamentos</label>
+            <div id="trein-docs-lista-func" style="display:flex;flex-direction:column;gap:6px;max-height:260px;overflow-y:auto;border:1.5px solid var(--borda);border-radius:8px;padding:10px;background:var(--card)">
+              <span style="color:var(--texto2);font-size:13px">Carregando...</span>
+            </div>
+            <div style="margin-top:8px;display:flex;gap:8px">
+              <button class="btn btn-outline btn-sm" onclick="treinSelecionarTodos('trein-docs-lista-func',true)">Selecionar todos</button>
+              <button class="btn btn-outline btn-sm" onclick="treinSelecionarTodos('trein-docs-lista-func',false)">Limpar</button>
+            </div>
+          </div>
+        </div>
+        <div style="margin-top:16px">
+          <button class="btn btn-primary" onclick="gerarTreinamentosFunc()" id="trein-btn-gerar-func">
+            <i class="ti ti-file-download"></i> Gerar PDF
+          </button>
+        </div>
+      </div>
+
+      <!-- MODO: PESSOA AVULSA -->
+      <div id="trein-painel-avulso" style="display:none">
+        <p style="font-size:13px;color:var(--texto2);margin-bottom:14px">Preencha os dados da pessoa e gere os treinamentos sem precisar cadastrá-la no sistema.</p>
+        <div style="display:flex;gap:16px;flex-wrap:wrap">
+          <div class="field" style="flex:1;min-width:200px;margin:0">
+            <label>Nome completo *</label>
+            <input type="text" id="trein-av-nome" placeholder="Nome da pessoa"
+              style="width:100%;padding:9px 12px;border:1.5px solid var(--borda);border-radius:8px;font-size:13px;background:var(--card)">
+          </div>
+          <div class="field" style="flex:1;min-width:160px;margin:0">
+            <label>CPF</label>
+            <input type="text" id="trein-av-cpf" placeholder="000.000.000-00"
+              style="width:100%;padding:9px 12px;border:1.5px solid var(--borda);border-radius:8px;font-size:13px;background:var(--card)">
+          </div>
+          <div class="field" style="flex:1;min-width:160px;margin:0">
+            <label>Cargo / Função</label>
+            <input type="text" id="trein-av-cargo" placeholder="Ex: Ajudante"
+              style="width:100%;padding:9px 12px;border:1.5px solid var(--borda);border-radius:8px;font-size:13px;background:var(--card)">
+          </div>
+          <div class="field" style="flex:1;min-width:160px;margin:0">
+            <label>Lotação</label>
+            <input type="text" id="trein-av-lotacao" placeholder="Ex: Obra Centro"
+              style="width:100%;padding:9px 12px;border:1.5px solid var(--borda);border-radius:8px;font-size:13px;background:var(--card)">
+          </div>
+        </div>
+        <div class="field" style="margin:14px 0 0">
           <label>Treinamentos</label>
-          <div id="trein-docs-lista" style="display:flex;flex-direction:column;gap:6px;max-height:260px;overflow-y:auto;border:1.5px solid var(--borda);border-radius:8px;padding:10px;background:var(--card)">
+          <div id="trein-docs-lista-avulso" style="display:flex;flex-direction:column;gap:6px;max-height:220px;overflow-y:auto;border:1.5px solid var(--borda);border-radius:8px;padding:10px;background:var(--card)">
             <span style="color:var(--texto2);font-size:13px">Carregando...</span>
           </div>
           <div style="margin-top:8px;display:flex;gap:8px">
-            <button class="btn btn-outline btn-sm" onclick="treinSelecionarTodos(true)">Selecionar todos</button>
-            <button class="btn btn-outline btn-sm" onclick="treinSelecionarTodos(false)">Limpar</button>
+            <button class="btn btn-outline btn-sm" onclick="treinSelecionarTodos('trein-docs-lista-avulso',true)">Selecionar todos</button>
+            <button class="btn btn-outline btn-sm" onclick="treinSelecionarTodos('trein-docs-lista-avulso',false)">Limpar</button>
           </div>
+        </div>
+        <div style="margin-top:16px">
+          <button class="btn btn-primary" onclick="gerarTreinamentosAvulso()" id="trein-btn-gerar-avulso">
+            <i class="ti ti-file-download"></i> Gerar PDF
+          </button>
         </div>
       </div>
 
-      <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-top:16px">
-        <button class="btn btn-primary" onclick="gerarTreinamentosLotacao()" id="trein-btn-gerar">
-          <i class="ti ti-file-zip"></i> Gerar PDFs (ZIP)
-        </button>
-      </div>
       <div id="trein-resultado" style="margin-top:20px"></div>
     </div>
   </div>
@@ -4505,6 +4584,7 @@ let _treinDocsCache = [];
 async function carregarAbaTreinamento() {
   await treinCarregarLista();
   await treinCarregarLotacoes();
+  treinModo('lotacao');
 }
 
 async function treinCarregarLista() {
@@ -4536,11 +4616,10 @@ async function treinCarregarLista() {
       </button>
     </div>`).join('');
 
-  listaGer.innerHTML = _treinDocsCache.map(d => `
-    <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer;padding:4px 0">
-      <input type="checkbox" class="trein-doc-chk" value="${d.id}" checked>
-      ${d.nome}
-    </label>`).join('');
+  // Popula as 3 listas de checkboxes (lotação, funcionário, avulso)
+  _popularListaDocs('trein-docs-lista');
+  _popularListaDocs('trein-docs-lista-func');
+  _popularListaDocs('trein-docs-lista-avulso');
 }
 
 async function treinCarregarLotacoes() {
@@ -4646,50 +4725,152 @@ async function treinAtualizarPreview() {
   } catch(e) {}
 }
 
-function treinSelecionarTodos(sel) {
-  document.querySelectorAll('.trein-doc-chk').forEach(c => c.checked = sel);
+let _treinFuncSelecionado = null;
+let _treinTodosFuncs = [];
+
+function treinModo(modo) {
+  ['lotacao','func','avulso'].forEach(m => {
+    const painel = document.getElementById('trein-painel-'+m);
+    const btn    = document.getElementById('trein-modo-btn-'+m);
+    const ativo  = m === modo;
+    painel.style.display = ativo ? '' : 'none';
+    btn.style.background = ativo ? 'var(--verde)' : 'var(--card)';
+    btn.style.color      = ativo ? '#fff' : 'var(--texto2)';
+    btn.style.fontWeight = ativo ? '600' : '500';
+  });
 }
 
-async function gerarTreinamentosLotacao() {
-  const lotacao = document.getElementById('trein-lot-sel').value;
-  if (!lotacao) { alert('Selecione uma lotação.'); return; }
+function treinSelecionarTodos(listaId, sel) {
+  document.querySelectorAll(`#${listaId} .trein-doc-chk`).forEach(c => c.checked = sel);
+}
 
-  const treinamentoIds = [...document.querySelectorAll('.trein-doc-chk:checked')].map(c => parseInt(c.value));
-  if (!treinamentoIds.length) { alert('Selecione pelo menos um treinamento.'); return; }
+function _treinCheckboxes(listaId) {
+  return [...document.querySelectorAll(`#${listaId} .trein-doc-chk:checked`)].map(c => parseInt(c.value));
+}
 
-  const btn = document.getElementById('trein-btn-gerar');
+function _popularListaDocs(listaId) {
+  const el = document.getElementById(listaId);
+  if (!_treinDocsCache.length) {
+    el.innerHTML = '<span style="color:var(--texto2);font-size:13px">Nenhum treinamento cadastrado.</span>';
+    return;
+  }
+  el.innerHTML = _treinDocsCache.map(d => `
+    <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer;padding:4px 0">
+      <input type="checkbox" class="trein-doc-chk" value="${d.id}" checked>
+      ${d.nome}
+    </label>`).join('');
+}
+
+async function treinBuscarFunc() {
+  const q = document.getElementById('trein-func-busca').value.trim().toLowerCase();
+  const res = document.getElementById('trein-func-resultados');
+  if (!q) { res.style.display = 'none'; return; }
+
+  if (!_treinTodosFuncs.length) {
+    const r = await apiFetch('/api/funcionarios');
+    _treinTodosFuncs = r && r.ok ? await r.json() : [];
+  }
+
+  const filtrados = _treinTodosFuncs.filter(f => f.nome.toLowerCase().includes(q)).slice(0, 12);
+  if (!filtrados.length) { res.style.display = 'none'; return; }
+
+  res.style.display = '';
+  res.innerHTML = filtrados.map(f => `
+    <div onclick="treinSelecionarFuncItem(${f.id})"
+      style="padding:9px 12px;cursor:pointer;font-size:13px;border-bottom:1px solid var(--borda)"
+      onmouseover="this.style.background='var(--bg)'" onmouseout="this.style.background=''">
+      <span style="font-weight:600">${f.nome}</span>
+      <span style="color:var(--texto2);font-size:12px;margin-left:8px">${f.cargo||''} — ${f.lotacao||''}</span>
+    </div>`).join('');
+}
+
+function treinSelecionarFuncItem(fid) {
+  _treinFuncSelecionado = _treinTodosFuncs.find(f => f.id === fid);
+  if (!_treinFuncSelecionado) return;
+  document.getElementById('trein-func-busca').value = _treinFuncSelecionado.nome;
+  document.getElementById('trein-func-resultados').style.display = 'none';
+  const sel = document.getElementById('trein-func-selecionado');
+  sel.style.display = '';
+  sel.innerHTML = `<i class="ti ti-user-check"></i> ${_treinFuncSelecionado.nome} — ${_treinFuncSelecionado.cargo||''} / ${_treinFuncSelecionado.lotacao||''}`;
+}
+
+async function _treinExecutarGeracao(url, payload, btnId, labelOrig, nomeArquivo) {
+  const btn = document.getElementById(btnId);
   const res = document.getElementById('trein-resultado');
   btn.disabled = true;
   btn.innerHTML = '<i class="ti ti-loader ti-spin"></i> Gerando...';
-  res.innerHTML = '<div style="color:var(--texto2);font-size:13px">Gerando PDFs, aguarde...</div>';
-
+  res.innerHTML = '<div style="color:var(--texto2);font-size:13px">Gerando PDF, aguarde...</div>';
   try {
-    const r = await apiFetch('/api/treinamentos/gerar-lotacao', {
+    const r = await apiFetch(url, {
       method: 'POST',
       headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({lotacao, treinamento_ids: treinamentoIds})
+      body: JSON.stringify(payload)
     });
-
     if (!r || !r.ok) {
       const err = await r.text();
       res.innerHTML = `<div class="alert al-danger">Erro: ${err}</div>`;
       return;
     }
-
     const blob = await r.blob();
-    const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
-    a.href = url;
-    a.download = `Treinamentos_${lotacao.replace(/[^\w]/g,'_')}.zip`;
+    a.href = URL.createObjectURL(blob);
+    a.download = nomeArquivo;
     a.click();
-    URL.revokeObjectURL(url);
-    res.innerHTML = `<div class="alert al-success"><i class="ti ti-check"></i> ZIP gerado com sucesso!</div>`;
+    URL.revokeObjectURL(a.href);
+    res.innerHTML = `<div class="alert al-success"><i class="ti ti-check"></i> Arquivo gerado com sucesso!</div>`;
   } catch(e) {
     res.innerHTML = `<div class="alert al-danger">Erro: ${e.message}</div>`;
   } finally {
     btn.disabled = false;
-    btn.innerHTML = '<i class="ti ti-file-zip"></i> Gerar PDFs (ZIP)';
+    btn.innerHTML = labelOrig;
   }
+}
+
+async function gerarTreinamentosLotacao() {
+  const lotacao = document.getElementById('trein-lot-sel').value;
+  if (!lotacao) { alert('Selecione uma lotação.'); return; }
+  const ids = _treinCheckboxes('trein-docs-lista');
+  if (!ids.length) { alert('Selecione pelo menos um treinamento.'); return; }
+  await _treinExecutarGeracao(
+    '/api/treinamentos/gerar-lotacao',
+    {lotacao, treinamento_ids: ids},
+    'trein-btn-gerar',
+    '<i class="ti ti-file-zip"></i> Gerar PDFs (ZIP)',
+    `Treinamentos_${lotacao.replace(/[^\w]/g,'_')}.zip`
+  );
+}
+
+async function gerarTreinamentosFunc() {
+  if (!_treinFuncSelecionado) { alert('Selecione um funcionário.'); return; }
+  const ids = _treinCheckboxes('trein-docs-lista-func');
+  if (!ids.length) { alert('Selecione pelo menos um treinamento.'); return; }
+  await _treinExecutarGeracao(
+    '/api/treinamentos/gerar-funcionario',
+    {funcionario_id: _treinFuncSelecionado.id, treinamento_ids: ids},
+    'trein-btn-gerar-func',
+    '<i class="ti ti-file-download"></i> Gerar PDF',
+    `Treinamento_${_treinFuncSelecionado.nome.replace(/[^\w]/g,'_')}.pdf`
+  );
+}
+
+async function gerarTreinamentosAvulso() {
+  const nome = document.getElementById('trein-av-nome').value.trim();
+  if (!nome) { alert('Informe o nome da pessoa.'); return; }
+  const ids = _treinCheckboxes('trein-docs-lista-avulso');
+  if (!ids.length) { alert('Selecione pelo menos um treinamento.'); return; }
+  const pessoa = {
+    nome,
+    cpf:      document.getElementById('trein-av-cpf').value.trim(),
+    cargo:    document.getElementById('trein-av-cargo').value.trim(),
+    lotacao:  document.getElementById('trein-av-lotacao').value.trim(),
+  };
+  await _treinExecutarGeracao(
+    '/api/treinamentos/gerar-avulso',
+    {pessoa, treinamento_ids: ids},
+    'trein-btn-gerar-avulso',
+    '<i class="ti ti-file-download"></i> Gerar PDF',
+    `Treinamento_${nome.replace(/[^\w]/g,'_')}.pdf`
+  );
 }
 
 async function carregarLotacoesOS() {

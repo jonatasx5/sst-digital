@@ -2255,6 +2255,140 @@ async def gerar_treinamentos_lotacao(dados: dict, _=Depends(verificar_acesso)):
                              headers={"Content-Disposition": f"attachment; filename={nome_zip}"})
 
 
+@app.post("/api/treinamentos/gerar-funcionario")
+async def gerar_treinamentos_funcionario(dados: dict, _=Depends(verificar_acesso)):
+    """Gera PDF(s) de treinamentos para um único funcionário cadastrado."""
+    funcionario_id = dados.get("funcionario_id")
+    treinamento_ids = [int(x) for x in dados.get("treinamento_ids", [])]
+
+    if not funcionario_id:
+        raise HTTPException(status_code=400, detail="funcionario_id obrigatório.")
+    if not treinamento_ids:
+        raise HTTPException(status_code=400, detail="Selecione pelo menos um treinamento.")
+
+    todos = banco.buscar_funcionarios("")
+    funcs = [f for f in todos if f["id"] == int(funcionario_id)]
+    if not funcs:
+        raise HTTPException(status_code=404, detail="Funcionário não encontrado.")
+
+    return await _gerar_pdf_pessoas(funcs, treinamento_ids, funcs[0]["nome"])
+
+
+@app.post("/api/treinamentos/gerar-avulso")
+async def gerar_treinamentos_avulso(dados: dict, _=Depends(verificar_acesso)):
+    """Gera PDF(s) de treinamentos para uma pessoa avulsa (não cadastrada)."""
+    pessoa = dados.get("pessoa", {})
+    treinamento_ids = [int(x) for x in dados.get("treinamento_ids", [])]
+
+    if not pessoa.get("nome", "").strip():
+        raise HTTPException(status_code=400, detail="Nome da pessoa obrigatório.")
+    if not treinamento_ids:
+        raise HTTPException(status_code=400, detail="Selecione pelo menos um treinamento.")
+
+    func = {
+        "nome":      pessoa.get("nome", "").strip(),
+        "cpf":       pessoa.get("cpf", "").strip(),
+        "cargo":     pessoa.get("cargo", "").strip(),
+        "lotacao":   pessoa.get("lotacao", "").strip(),
+        "matricula": "",
+        "admissao":  "",
+        "celular":   "",
+        "email":     "",
+    }
+    return await _gerar_pdf_pessoas([func], treinamento_ids, func["nome"])
+
+
+async def _gerar_pdf_pessoas(funcionarios: list, treinamento_ids: list, nome_arquivo_base: str):
+    """Helper: gera PDF(s) de treinamentos para uma lista de funcionários e retorna como arquivo."""
+    import zipfile as _zipfile, re as _re, traceback as _tb
+
+    docs_info = []
+    for tid in treinamento_ids:
+        try:
+            meta = banco.buscar_treinamento_doc_meta(tid)
+            conteudo = banco.buscar_treinamento_doc(tid) if meta else None
+            if meta and conteudo:
+                docs_info.append({"id": tid, "nome": meta["nome"], "bytes": conteudo})
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=f"Erro ao buscar treinamento {tid}: {e}")
+
+    if not docs_info:
+        raise HTTPException(status_code=400, detail="Nenhum treinamento encontrado.")
+
+    try:
+        pasta = processador.pasta_lote()
+        nome_safe = _re.sub(r'[/\\:*?"<>|]', '_', nome_arquivo_base)[:40].strip('_')
+
+        # Um único funcionário → retorna PDF direto (ou ZIP se múltiplos treinamentos)
+        if len(funcionarios) == 1:
+            func = funcionarios[0]
+            nome_seg = _re.sub(r"[^\w\s-]", "", func["nome"])
+            nome_seg = _re.sub(r"\s+", "_", nome_seg.strip())
+            pdfs = []
+            for doc in docs_info:
+                caminho_docx = processador.preencher_docx_bytes(
+                    doc["bytes"], f"trein_{doc['id']}__{nome_seg}.docx", func, pasta)
+                if not caminho_docx:
+                    continue
+                caminho_pdf = processador.converter_para_pdf(caminho_docx)
+                try: os.remove(caminho_docx)
+                except Exception: pass
+                if caminho_pdf and os.path.exists(caminho_pdf):
+                    pdfs.append(caminho_pdf)
+
+            if not pdfs:
+                raise HTTPException(status_code=500, detail="Nenhum PDF foi gerado.")
+
+            pdf_final = pdfs[0] if len(pdfs) == 1 else processador.juntar_pdfs(pdfs, pasta, func["nome"])
+            if not pdf_final or not os.path.exists(pdf_final):
+                raise HTTPException(status_code=500, detail="Falha ao juntar PDFs.")
+
+            def iter_pdf():
+                with open(pdf_final, "rb") as fz:
+                    yield from fz
+                try: shutil.rmtree(pasta, ignore_errors=True)
+                except Exception: pass
+
+            return StreamingResponse(iter_pdf(), media_type="application/pdf",
+                                     headers={"Content-Disposition": f"attachment; filename={nome_safe}.pdf"})
+
+        # Múltiplos funcionários → ZIP
+        zip_path = os.path.join(pasta, f"treinamentos_{nome_safe}.zip")
+        with _zipfile.ZipFile(zip_path, "w", _zipfile.ZIP_DEFLATED) as zf:
+            for func in funcionarios:
+                nome_seg = _re.sub(r"[^\w\s-]", "", func["nome"])
+                nome_seg = _re.sub(r"\s+", "_", nome_seg.strip())
+                pdfs = []
+                for doc in docs_info:
+                    caminho_docx = processador.preencher_docx_bytes(
+                        doc["bytes"], f"trein_{doc['id']}__{nome_seg}.docx", func, pasta)
+                    if not caminho_docx: continue
+                    caminho_pdf = processador.converter_para_pdf(caminho_docx)
+                    try: os.remove(caminho_docx)
+                    except Exception: pass
+                    if caminho_pdf and os.path.exists(caminho_pdf):
+                        pdfs.append(caminho_pdf)
+                if not pdfs: continue
+                pdf_final = pdfs[0] if len(pdfs) == 1 else processador.juntar_pdfs(pdfs, pasta, func["nome"])
+                if pdf_final and os.path.exists(pdf_final):
+                    zf.write(pdf_final, f"{nome_seg}.pdf")
+
+        def iter_zip():
+            with open(zip_path, "rb") as fz:
+                yield from fz
+            try: shutil.rmtree(pasta, ignore_errors=True)
+            except Exception: pass
+
+        return StreamingResponse(iter_zip(), media_type="application/zip",
+                                 headers={"Content-Disposition": f"attachment; filename={nome_safe}.zip"})
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"[trein] ERRO _gerar_pdf_pessoas: {e}\n{_tb.format_exc()}")
+        raise HTTPException(status_code=500, detail=f"Erro ao gerar PDF: {e}")
+
+
 @app.post("/api/modelos/purgar-fichas-epi-cargo")
 async def purgar_fichas_epi_cargo(_=Depends(verificar_acesso)):
     """Remove todas as fichas de EPI cargo-específicas do banco (serão geradas dinamicamente)."""

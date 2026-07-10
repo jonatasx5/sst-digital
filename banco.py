@@ -249,6 +249,24 @@ def criar_banco():
                 chave TEXT PRIMARY KEY,
                 valor TEXT)""")
 
+        # Tabela de documentos de treinamento (persistente)
+        if USE_POSTGRES:
+            cur.execute("""
+                CREATE TABLE IF NOT EXISTS treinamentos_docs (
+                    id SERIAL PRIMARY KEY,
+                    nome TEXT NOT NULL,
+                    conteudo BYTEA NOT NULL,
+                    criado_em TIMESTAMP DEFAULT NOW()
+                )
+            """)
+        else:
+            cur.execute("""CREATE TABLE IF NOT EXISTS treinamentos_docs (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                nome TEXT NOT NULL,
+                conteudo BLOB NOT NULL,
+                criado_em TEXT DEFAULT (datetime('now','localtime')))""")
+        conn.commit()
+
         # Tabela de visualizações de treinamento
         if USE_POSTGRES:
             cur.execute("""
@@ -1985,6 +2003,78 @@ def deletar_relatorio_acidente(rid: int):
             cur = conn.cursor()
             cur.execute('DELETE FROM acidentes_plano_acao WHERE relatorio_id=?', (rid,))
             cur.execute('DELETE FROM acidentes_relatorios WHERE id=?', (rid,))
+        conn.commit()
+    finally:
+        conn.close()
+
+
+# ── TREINAMENTOS DOCS ─────────────────────────────────────
+
+def salvar_treinamento_doc(nome: str, conteudo_bytes: bytes) -> int:
+    conn = conectar()
+    try:
+        cur = conn.cursor()
+        if USE_POSTGRES:
+            cur.execute("INSERT INTO treinamentos_docs (nome, conteudo) VALUES (%s, %s) RETURNING id",
+                        (nome, _psycopg2.Binary(conteudo_bytes)))
+            new_id = cur.fetchone()[0]
+        else:
+            cur.execute("INSERT INTO treinamentos_docs (nome, conteudo) VALUES (?, ?)",
+                        (nome, conteudo_bytes))
+            new_id = cur.lastrowid
+        conn.commit()
+        return new_id
+    finally:
+        conn.close()
+
+
+def listar_treinamentos_docs() -> list:
+    conn = conectar()
+    try:
+        cur = conn.cursor()
+        cur.execute("SELECT id, nome, criado_em FROM treinamentos_docs ORDER BY nome")
+        rows = cur.fetchall()
+        return [{"id": r[0], "nome": r[1], "criado_em": str(r[2])} for r in rows]
+    finally:
+        conn.close()
+
+
+def buscar_treinamento_doc(tid: int) -> bytes | None:
+    conn = conectar()
+    try:
+        cur = conn.cursor()
+        if USE_POSTGRES:
+            cur.execute("SELECT conteudo FROM treinamentos_docs WHERE id=%s", (tid,))
+        else:
+            cur.execute("SELECT conteudo FROM treinamentos_docs WHERE id=?", (tid,))
+        row = cur.fetchone()
+        return bytes(row[0]) if row and row[0] else None
+    finally:
+        conn.close()
+
+
+def buscar_treinamento_doc_meta(tid: int) -> dict | None:
+    conn = conectar()
+    try:
+        cur = conn.cursor()
+        if USE_POSTGRES:
+            cur.execute("SELECT id, nome FROM treinamentos_docs WHERE id=%s", (tid,))
+        else:
+            cur.execute("SELECT id, nome FROM treinamentos_docs WHERE id=?", (tid,))
+        row = cur.fetchone()
+        return {"id": row[0], "nome": row[1]} if row else None
+    finally:
+        conn.close()
+
+
+def deletar_treinamento_doc(tid: int):
+    conn = conectar()
+    try:
+        cur = conn.cursor()
+        if USE_POSTGRES:
+            cur.execute("DELETE FROM treinamentos_docs WHERE id=%s", (tid,))
+        else:
+            cur.execute("DELETE FROM treinamentos_docs WHERE id=?", (tid,))
         conn.commit()
     finally:
         conn.close()

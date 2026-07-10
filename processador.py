@@ -892,6 +892,70 @@ def texto_para_docx(texto: str) -> bytes:
     return buf.getvalue()
 
 
+def preencher_docx_bytes(conteudo_bytes: bytes, nome_arquivo: str,
+                         funcionario: dict, pasta_saida: str) -> str | None:
+    """
+    Preenche um DOCX a partir de bytes (treinamentos_docs) com dados do funcionário.
+    Retorna o caminho do .docx gerado ou None em caso de erro.
+    """
+    import io
+    os.makedirs(pasta_saida, exist_ok=True)
+    variaveis = {
+        "NOME":          funcionario.get("nome", ""),
+        "CPF":           funcionario.get("cpf", ""),
+        "MATRICULA":     funcionario.get("matricula", funcionario.get("cpf", "")),
+        "CARGO":         funcionario.get("cargo", ""),
+        "LOTACAO":       funcionario.get("lotacao", ""),
+        "DATA_ADMISSAO": funcionario.get("admissao", ""),
+        "DATA_HOJE":     date.today().strftime("%d/%m/%Y"),
+        "CELULAR":       funcionario.get("celular", ""),
+        "EMAIL":         funcionario.get("email", ""),
+        "EMPRESA":       EMPRESA,
+        "RESP_SST":      RESP_SST,
+        "CNPJ":          CNPJ,
+        "funcao":        funcionario.get("cargo", ""),
+        "dt_adm":        funcionario.get("admissao", ""),
+        "resp_tecnico":  RESP_SST,
+        "lotacao":       funcionario.get("lotacao", ""),
+        "matricula":     funcionario.get("matricula", funcionario.get("cpf", "")),
+        "cpf":           funcionario.get("cpf", ""),
+        "nome":          funcionario.get("nome", ""),
+        "empresa":       EMPRESA,
+        "cargo":         funcionario.get("cargo", ""),
+        "data_hoje":     date.today().strftime("%d/%m/%Y"),
+    }
+    try:
+        doc = Document(io.BytesIO(conteudo_bytes))
+        for para in doc.paragraphs:
+            _processar_paragrafo(para, variaveis)
+        for tabela in doc.tables:
+            for linha in tabela.rows:
+                for celula in linha.cells:
+                    for para in celula.paragraphs:
+                        _processar_paragrafo(para, variaveis)
+        for section in doc.sections:
+            for para in section.header.paragraphs:
+                _processar_paragrafo(para, variaveis)
+            for table in section.header.tables:
+                for row in table.rows:
+                    for cell in row.cells:
+                        for para in cell.paragraphs:
+                            _processar_paragrafo(para, variaveis)
+            for para in section.footer.paragraphs:
+                _processar_paragrafo(para, variaveis)
+            for table in section.footer.tables:
+                for row in table.rows:
+                    for cell in row.cells:
+                        for para in cell.paragraphs:
+                            _processar_paragrafo(para, variaveis)
+        caminho_docx = os.path.join(pasta_saida, nome_arquivo)
+        doc.save(caminho_docx)
+        return caminho_docx
+    except Exception as e:
+        print(f"❌ Erro ao preencher docx_bytes ({nome_arquivo}): {e}")
+        return None
+
+
 def pasta_lote() -> str:
     """Cria e retorna pasta para o lote do dia."""
     from datetime import datetime

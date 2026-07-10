@@ -2112,18 +2112,45 @@ async def get_config(_=Depends(verificar_acesso)):
     return {"empresa": EMPRESA}
 
 
+# ── TREINAMENTOS DOCS CRUD ────────────────────────────────
+
+@app.get("/api/treinamentos/docs")
+async def listar_treinamentos_docs(_=Depends(verificar_acesso)):
+    return banco.listar_treinamentos_docs()
+
+
+@app.post("/api/treinamentos/docs")
+async def upload_treinamento_doc(
+    nome: str = Form(...),
+    file: UploadFile = File(...),
+    _=Depends(verificar_acesso)
+):
+    conteudo = await file.read()
+    if not conteudo:
+        raise HTTPException(status_code=400, detail="Arquivo vazio.")
+    tid = banco.salvar_treinamento_doc(nome.strip(), conteudo)
+    return {"id": tid, "nome": nome.strip()}
+
+
+@app.delete("/api/treinamentos/docs/{tid}")
+async def deletar_treinamento_doc(tid: int, _=Depends(verificar_acesso)):
+    banco.deletar_treinamento_doc(tid)
+    return {"ok": True}
+
+
 @app.post("/api/treinamentos/gerar-lotacao")
 async def gerar_treinamentos_lotacao(dados: dict, _=Depends(verificar_acesso)):
     """
     Gera PDFs de treinamentos para todos os funcionários de uma lotação.
-    Retorna um ZIP com um PDF por funcionário (todos os treinamentos juntos).
+    Aceita treinamento_ids (lista de ints da tabela treinamentos_docs).
+    Retorna um ZIP com um PDF por funcionário por treinamento.
     """
     lotacao = dados.get("lotacao", "").strip()
-    doc_ids = dados.get("doc_ids", [])
+    treinamento_ids = [int(x) for x in dados.get("treinamento_ids", [])]
 
     if not lotacao:
         raise HTTPException(status_code=400, detail="Lotação obrigatória.")
-    if not doc_ids:
+    if not treinamento_ids:
         raise HTTPException(status_code=400, detail="Selecione pelo menos um treinamento.")
 
     todos = banco.buscar_funcionarios("")
@@ -2131,27 +2158,55 @@ async def gerar_treinamentos_lotacao(dados: dict, _=Depends(verificar_acesso)):
     if not funcionarios:
         raise HTTPException(status_code=404, detail=f"Nenhum funcionário na lotação '{lotacao}'.")
 
+    # Carrega os bytes de cada treinamento selecionado
+    docs_info = []
+    for tid in treinamento_ids:
+        meta = banco.buscar_treinamento_doc_meta(tid)
+        if not meta:
+            continue
+        conteudo = banco.buscar_treinamento_doc(tid)
+        if conteudo:
+            docs_info.append({"id": tid, "nome": meta["nome"], "bytes": conteudo})
+
+    if not docs_info:
+        raise HTTPException(status_code=400, detail="Nenhum treinamento encontrado com os IDs informados.")
+
     pasta = processador.pasta_lote()
     zip_path = os.path.join(pasta, f"treinamentos_{lotacao[:30].replace(' ','_')}.zip")
 
-    import zipfile
+    import zipfile, re as _re
     with zipfile.ZipFile(zip_path, "w", zipfile.ZIP_DEFLATED) as zf:
         for f in funcionarios:
-            resultados = processador.gerar_kit_funcionario(f, doc_ids, pasta)
-            pdfs = [r["pdf_path"] for r in resultados if r.get("pdf_path")]
-            if not pdfs:
+            nome_seg = _re.sub(r"[^\w\s-]", "", f["nome"])
+            nome_seg = _re.sub(r"\s+", "_", nome_seg.strip())
+            pdfs_func = []
+            for doc in docs_info:
+                nome_arq = f"trein_{doc['id']}__{nome_seg}.docx"
+                caminho_docx = processador.preencher_docx_bytes(doc["bytes"], nome_arq, f, pasta)
+                if not caminho_docx:
+                    continue
+                caminho_pdf = processador.converter_para_pdf(caminho_docx)
+                try:
+                    os.remove(caminho_docx)
+                except Exception:
+                    pass
+                if caminho_pdf and os.path.exists(caminho_pdf):
+                    pdfs_func.append(caminho_pdf)
+
+            if not pdfs_func:
                 continue
-            if len(pdfs) == 1:
-                pdf_final = pdfs[0]
+
+            if len(pdfs_func) == 1:
+                pdf_final = pdfs_func[0]
             else:
-                pdf_final = processador.juntar_pdfs(pdfs, pasta)
+                pdf_final = processador.juntar_pdfs(pdfs_func, pasta, f["nome"])
+
             if pdf_final and os.path.exists(pdf_final):
-                nome_seguro = f["nome"].replace(" ", "_").replace("/", "_")
-                zf.write(pdf_final, f"{nome_seguro}.pdf")
+                zf.write(pdf_final, f"{nome_seg}.pdf")
 
     def iterfile():
-        with open(zip_path, "rb") as f:
-            yield from f
+        with open(zip_path, "rb") as fz:
+            yield from fz
         try:
             shutil.rmtree(pasta, ignore_errors=True)
         except Exception:

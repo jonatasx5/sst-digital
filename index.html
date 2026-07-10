@@ -841,6 +841,40 @@ tr:hover td { background:#F9FAFB; }
 
   <!-- Aba: Gerar Treinamentos -->
   <div id="os-aba-treinamento" style="display:none">
+
+    <!-- Seção 1: Gerenciar documentos de treinamento -->
+    <div class="card" style="margin-bottom:16px">
+      <div class="card-title"><i class="ti ti-files"></i>Documentos de Treinamento</div>
+      <p style="font-size:13px;color:var(--texto2);margin-bottom:16px">Adicione os documentos (.docx) que serão usados nos treinamentos. Eles ficam salvos no banco e nunca se perdem.</p>
+
+      <!-- Lista de treinamentos cadastrados -->
+      <div id="trein-lista-cadastrados" style="margin-bottom:16px;display:flex;flex-direction:column;gap:6px">
+        <span style="color:var(--texto2);font-size:13px">Carregando...</span>
+      </div>
+
+      <!-- Formulário de upload -->
+      <div style="border-top:1px solid var(--borda);padding-top:14px;margin-top:4px">
+        <div style="font-weight:600;font-size:13px;margin-bottom:10px">Adicionar novo documento</div>
+        <div style="display:flex;gap:12px;flex-wrap:wrap;align-items:flex-end">
+          <div class="field" style="flex:1;min-width:200px;margin:0">
+            <label>Nome do treinamento</label>
+            <input type="text" id="trein-novo-nome" placeholder="Ex: NR 35 – Trabalho em Altura"
+              style="width:100%;padding:9px 12px;border:1.5px solid var(--borda);border-radius:8px;font-size:13px;background:var(--card)">
+          </div>
+          <div class="field" style="flex:1;min-width:200px;margin:0">
+            <label>Arquivo .docx</label>
+            <input type="file" id="trein-novo-file" accept=".docx"
+              style="width:100%;padding:7px 10px;border:1.5px solid var(--borda);border-radius:8px;font-size:13px;background:var(--card)">
+          </div>
+          <button class="btn btn-primary" onclick="treinUploadDoc()" id="trein-btn-upload" style="height:40px;white-space:nowrap">
+            <i class="ti ti-upload"></i> Salvar
+          </button>
+        </div>
+        <div id="trein-upload-msg" style="margin-top:8px;font-size:13px"></div>
+      </div>
+    </div>
+
+    <!-- Seção 2: Gerar PDFs por Lotação -->
     <div class="card">
       <div class="card-title"><i class="ti ti-school"></i>Gerar Treinamentos por Lotação</div>
       <p style="font-size:13px;color:var(--texto2);margin-bottom:16px">Selecione a lotação e os treinamentos desejados. O sistema vai gerar um PDF para cada funcionário e baixar em ZIP.</p>
@@ -867,14 +901,14 @@ tr:hover td { background:#F9FAFB; }
           </div>
         </div>
       </div>
-    </div>
 
-    <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-top:4px">
-      <button class="btn btn-primary" onclick="gerarTreinamentosLotacao()" id="trein-btn-gerar">
-        <i class="ti ti-file-zip"></i> Gerar PDFs (ZIP)
-      </button>
+      <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-top:16px">
+        <button class="btn btn-primary" onclick="gerarTreinamentosLotacao()" id="trein-btn-gerar">
+          <i class="ti ti-file-zip"></i> Gerar PDFs (ZIP)
+        </button>
+      </div>
+      <div id="trein-resultado" style="margin-top:20px"></div>
     </div>
-    <div id="trein-resultado" style="margin-top:20px"></div>
   </div>
 </div>
 
@@ -4459,10 +4493,53 @@ async function enviarOSSelecionados() {
 // ── OS POR LOTAÇÃO ────────────────────────────────────
 
 // ══════════════════════════════════════════════════════
-//  GERAR TREINAMENTOS POR LOTAÇÃO
+//  TREINAMENTOS — CRUD + GERAR POR LOTAÇÃO
 // ══════════════════════════════════════════════════════
+
+let _treinDocsCache = [];
+
 async function carregarAbaTreinamento() {
-  // Carrega lotações
+  await treinCarregarLista();
+  await treinCarregarLotacoes();
+}
+
+async function treinCarregarLista() {
+  const listaCad = document.getElementById('trein-lista-cadastrados');
+  const listaGer = document.getElementById('trein-docs-lista');
+  listaCad.innerHTML = '<span style="color:var(--texto2);font-size:13px">Carregando...</span>';
+  listaGer.innerHTML = '<span style="color:var(--texto2);font-size:13px">Carregando...</span>';
+  try {
+    const res = await apiFetch('/api/treinamentos/docs');
+    _treinDocsCache = res && res.ok ? await res.json() : [];
+  } catch(e) {
+    _treinDocsCache = [];
+  }
+
+  if (!_treinDocsCache.length) {
+    listaCad.innerHTML = '<span style="color:var(--texto2);font-size:13px">Nenhum treinamento cadastrado ainda.</span>';
+    listaGer.innerHTML = '<span style="color:var(--texto2);font-size:13px">Nenhum treinamento disponível. Adicione acima.</span>';
+    return;
+  }
+
+  listaCad.innerHTML = _treinDocsCache.map(d => `
+    <div style="display:flex;align-items:center;gap:10px;padding:8px 10px;border:1px solid var(--borda);border-radius:8px;background:var(--bg)">
+      <i class="ti ti-file-text" style="color:var(--verde);font-size:16px"></i>
+      <span style="flex:1;font-size:13px;font-weight:500">${d.nome}</span>
+      <span style="font-size:11px;color:var(--texto2)">${(d.criado_em||'').substring(0,10)}</span>
+      <button class="btn btn-outline btn-sm" style="color:var(--danger);border-color:var(--danger);padding:3px 10px"
+        onclick="treinDeletar(${d.id}, '${d.nome.replace(/'/g,"\\'")}')">
+        <i class="ti ti-trash"></i>
+      </button>
+    </div>`).join('');
+
+  listaGer.innerHTML = _treinDocsCache.map(d => `
+    <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer;padding:4px 0">
+      <input type="checkbox" class="trein-doc-chk" value="${d.id}" checked>
+      ${d.nome}
+    </label>`).join('');
+}
+
+async function treinCarregarLotacoes() {
   const sel = document.getElementById('trein-lot-sel');
   sel.innerHTML = '<option value="">-- Selecione a lotação --</option>';
   try {
@@ -4476,25 +4553,55 @@ async function carregarAbaTreinamento() {
       });
     }
   } catch(e) {}
+}
 
-  // Carrega lista de treinamentos (documentos cadastrados, exceto OS e Ficha EPI)
-  const lista = document.getElementById('trein-docs-lista');
-  const EXCLUIR = ['03_os', '03_os_base', '10_ficha_controle_epi', '10_ficha_epi_base'];
+async function treinUploadDoc() {
+  const nome = document.getElementById('trein-novo-nome').value.trim();
+  const fileInput = document.getElementById('trein-novo-file');
+  const msg = document.getElementById('trein-upload-msg');
+  const btn = document.getElementById('trein-btn-upload');
+
+  if (!nome) { msg.innerHTML = '<span style="color:var(--danger)">Informe o nome do treinamento.</span>'; return; }
+  if (!fileInput.files.length) { msg.innerHTML = '<span style="color:var(--danger)">Selecione um arquivo .docx.</span>'; return; }
+
+  btn.disabled = true;
+  btn.innerHTML = '<i class="ti ti-loader ti-spin"></i> Salvando...';
+  msg.innerHTML = '';
+
+  const fd = new FormData();
+  fd.append('nome', nome);
+  fd.append('file', fileInput.files[0]);
+
   try {
-    const res = await apiFetch('/api/modelos');
-    const docs = res && res.ok ? await res.json() : [];
-    const disponiveis = docs.filter(d => d.tem_arquivo && !EXCLUIR.includes(d.id));
-    if (!disponiveis.length) {
-      lista.innerHTML = '<span style="color:var(--texto2);font-size:13px">Nenhum treinamento disponível.</span>';
-      return;
+    const res = await apiFetch('/api/treinamentos/docs', { method: 'POST', body: fd });
+    if (res && res.ok) {
+      msg.innerHTML = '<span style="color:var(--verde)">✅ Treinamento salvo com sucesso!</span>';
+      document.getElementById('trein-novo-nome').value = '';
+      fileInput.value = '';
+      await treinCarregarLista();
+    } else {
+      const err = res ? await res.text() : 'Erro desconhecido';
+      msg.innerHTML = `<span style="color:var(--danger)">Erro: ${err}</span>`;
     }
-    lista.innerHTML = disponiveis.map(d => `
-      <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer;padding:4px 0">
-        <input type="checkbox" class="trein-doc-chk" value="${d.id}" checked>
-        ${d.nome}
-      </label>`).join('');
   } catch(e) {
-    lista.innerHTML = '<span style="color:var(--danger)">Erro ao carregar documentos.</span>';
+    msg.innerHTML = `<span style="color:var(--danger)">Erro: ${e.message}</span>`;
+  }
+
+  btn.disabled = false;
+  btn.innerHTML = '<i class="ti ti-upload"></i> Salvar';
+}
+
+async function treinDeletar(id, nome) {
+  if (!confirm(`Excluir o treinamento "${nome}"?\n\nEsta ação não pode ser desfeita.`)) return;
+  try {
+    const res = await apiFetch(`/api/treinamentos/docs/${id}`, { method: 'DELETE' });
+    if (res && res.ok) {
+      await treinCarregarLista();
+    } else {
+      alert('Erro ao excluir treinamento.');
+    }
+  } catch(e) {
+    alert('Erro: ' + e.message);
   }
 }
 
@@ -4520,8 +4627,8 @@ async function gerarTreinamentosLotacao() {
   const lotacao = document.getElementById('trein-lot-sel').value;
   if (!lotacao) { alert('Selecione uma lotação.'); return; }
 
-  const docIds = [...document.querySelectorAll('.trein-doc-chk:checked')].map(c => c.value);
-  if (!docIds.length) { alert('Selecione pelo menos um treinamento.'); return; }
+  const treinamentoIds = [...document.querySelectorAll('.trein-doc-chk:checked')].map(c => parseInt(c.value));
+  if (!treinamentoIds.length) { alert('Selecione pelo menos um treinamento.'); return; }
 
   const btn = document.getElementById('trein-btn-gerar');
   const res = document.getElementById('trein-resultado');
@@ -4533,7 +4640,7 @@ async function gerarTreinamentosLotacao() {
     const r = await apiFetch('/api/treinamentos/gerar-lotacao', {
       method: 'POST',
       headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({lotacao, doc_ids: docIds})
+      body: JSON.stringify({lotacao, treinamento_ids: treinamentoIds})
     });
 
     if (!r || !r.ok) {

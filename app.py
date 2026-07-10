@@ -2181,6 +2181,9 @@ async def gerar_treinamentos_lotacao(dados: dict, _=Depends(verificar_acesso)):
 
     import zipfile as _zipfile, re as _re, traceback as _tb
 
+    # Nome seguro para uso em caminhos de arquivo (remove / \ : * ? " < > |)
+    lotacao_safe = _re.sub(r'[/\\:*?"<>|]', '_', lotacao)[:40].strip('_')
+
     # Carrega os bytes de cada treinamento selecionado
     docs_info = []
     for tid in treinamento_ids:
@@ -2201,7 +2204,7 @@ async def gerar_treinamentos_lotacao(dados: dict, _=Depends(verificar_acesso)):
 
     try:
         pasta = processador.pasta_lote()
-        zip_path = os.path.join(pasta, f"treinamentos_{lotacao[:30].replace(' ','_')}.zip")
+        zip_path = os.path.join(pasta, f"treinamentos_{lotacao_safe.replace(' ','_')}.zip")
 
         with _zipfile.ZipFile(zip_path, "w", _zipfile.ZIP_DEFLATED) as zf:
             for func in funcionarios:
@@ -2247,7 +2250,7 @@ async def gerar_treinamentos_lotacao(dados: dict, _=Depends(verificar_acesso)):
         except Exception:
             pass
 
-    nome_zip = f"Treinamentos_{lotacao[:30].replace(' ','_')}.zip"
+    nome_zip = f"Treinamentos_{lotacao_safe.replace(' ','_')}.zip"
     return StreamingResponse(iterfile(), media_type="application/zip",
                              headers={"Content-Disposition": f"attachment; filename={nome_zip}"})
 

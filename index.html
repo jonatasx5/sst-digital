@@ -225,7 +225,7 @@ tr:hover td { background:#F9FAFB; }
     <button class="nav-item" data-modulo="modelos" onclick="irPara('modelos')"><i class="ti ti-files"></i>Modelos & Funções</button>
     <button class="nav-item" data-modulo="cadastro-epi" onclick="irPara('cadastro-epi')"><i class="ti ti-hard-hat"></i>Cadastro de EPI</button>
     <button class="nav-item" data-modulo="envio-epi" onclick="irPara('envio-epi')"><i class="ti ti-shield-check"></i>Entrega EPI/EPC/Uniformes</button>
-    <button class="nav-item" data-modulo="envio-lote" onclick="irPara('envio-lote')"><i class="ti ti-send"></i>Envio de Lote</button>
+    <button class="nav-item" data-modulo="envio-lote" onclick="irPara('envio-lote')"><i class="ti ti-send"></i>Kit SST Envio</button>
     <button class="nav-item" data-modulo="ordem-servico" onclick="irPara('ordem-servico')"><i class="ti ti-clipboard-list"></i>Ordem de Serviço</button>
     <button class="nav-item" data-modulo="alojamentos" onclick="irPara('alojamentos')"><i class="ti ti-home-2"></i>Alojamentos</button>
     <button class="nav-item" data-modulo="acidentes" onclick="irPara('acidentes')"><i class="ti ti-alert-triangle"></i>Acidentes</button>
@@ -521,7 +521,7 @@ tr:hover td { background:#F9FAFB; }
 <!-- ── ENVIO DE LOTE ── -->
 <div class="panel" id="panel-envio-lote">
   <div class="page-header">
-    <div><div class="page-title">Envio de Lote</div><div class="page-sub">Selecione funcionários e escolha o que enviar</div></div>
+    <div><div class="page-title">Kit SST Envio</div><div class="page-sub">Selecione funcionários e escolha o que enviar</div></div>
   </div>
 
   <!-- Steps -->
@@ -588,13 +588,17 @@ tr:hover td { background:#F9FAFB; }
         </select>
       </div>
 
-      <div style="display:flex;gap:10px;margin-top:16px;">
+      <div style="display:flex;gap:10px;margin-top:16px;flex-wrap:wrap;">
         <button class="btn btn-secondary" onclick="elVoltar()" style="display:flex;align-items:center;gap:6px;">
           <i class="ti ti-arrow-left"></i>Voltar
         </button>
         <button class="btn btn-primary" onclick="elEnviar()" id="el-btn-enviar"
                 style="flex:1;justify-content:center;display:flex;align-items:center;gap:8px;font-size:14px;">
-          <i class="ti ti-rocket"></i>Enviar Lote
+          <i class="ti ti-rocket"></i>Enviar para Assinatura
+        </button>
+        <button class="btn btn-outline" onclick="elGerarPdfImpressao()" id="el-btn-pdf-impressao"
+                style="flex:1;justify-content:center;display:flex;align-items:center;gap:8px;font-size:14px;border-color:var(--primario);color:var(--primario);">
+          <i class="ti ti-printer"></i>Gerar PDF para Impressão
         </button>
       </div>
     </div>
@@ -1765,7 +1769,7 @@ const MODULOS = [
   { id:'modelos',       label:'Modelos & Funções' },
   { id:'cadastro-epi',  label:'Cadastro de EPI' },
   { id:'envio-epi',     label:'Envio Ficha EPI' },
-  { id:'envio-lote',    label:'Envio de Lote' },
+  { id:'envio-lote',    label:'Kit SST Envio' },
   { id:'ordem-servico', label:'Ordem de Serviço' },
   { id:'historico',     label:'Histórico' },
   { id:'diario-obra',   label:'Diário de Obra' },
@@ -3521,6 +3525,41 @@ function elNovoLote() {
   elReset();
   filtrarLote();
   renderLoteSel();
+}
+
+async function elGerarPdfImpressao() {
+  const funcIds = [...loteIds];
+  if (!funcIds.length) { alert('Selecione ao menos um funcionário.'); return; }
+
+  const btn = document.getElementById('el-btn-pdf-impressao');
+  const orig = btn.innerHTML;
+  btn.disabled = true;
+  btn.innerHTML = '<i class="ti ti-loader-2"></i>Gerando...';
+
+  try {
+    const res = await apiFetch('/api/lote/gerar-pdf-impressao', {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({ funcionario_ids: funcIds, doc_ids: [] })
+    });
+    if (!res.ok) {
+      const d = await res.json().catch(()=>({}));
+      alert('Erro ao gerar PDF: ' + (d.erro || res.statusText));
+      return;
+    }
+    const blob = await res.blob();
+    const url  = URL.createObjectURL(blob);
+    const a    = document.createElement('a');
+    a.href = url; a.download = 'kit_sst_impressao.zip';
+    document.body.appendChild(a); a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  } catch(e) {
+    alert('Erro: ' + e.message);
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = orig;
+  }
 }
 
 // ══════════════════════════════════════════════════════

@@ -22,6 +22,7 @@ import jwt as _jwt
 import banco
 import processador
 import zapsign
+import autentique
 from config import DOCUMENTOS, APP_PASSWORD, EMPRESA
 
 app = FastAPI(title="SST Digital")
@@ -1852,7 +1853,7 @@ async def enviar_lote(dados: dict, _=Depends(verificar_acesso)):
 
         # Envia PDF único para o Autentique
         nome_kit = f"Kit SST — {f['nome']}"
-        ret = zapsign.enviar_documento(
+        ret = autentique.enviar_documento(
             nome_documento=nome_kit,
             caminho_pdf=pdf_final,
             funcionario=f,
@@ -1890,6 +1891,60 @@ async def enviar_lote(dados: dict, _=Depends(verificar_acesso)):
         "erros":      erros,
         "resultados": resultados,
     }
+
+@app.post("/api/lote/gerar-pdf-impressao")
+async def gerar_pdf_impressao(dados: dict, _=Depends(verificar_acesso)):
+    """Gera PDFs para todos os funcionários do lote e retorna um ZIP para download."""
+    import zipfile, io
+    func_ids = dados.get("funcionario_ids", [])
+    doc_ids  = dados.get("doc_ids", [])
+
+    todos  = banco.buscar_funcionarios("")
+    pasta  = processador.pasta_lote()
+    erros  = []
+    pdfs   = []
+
+    for fid in func_ids:
+        f = next((x for x in todos if x["id"] == fid), None)
+        if not f:
+            erros.append(f"Funcionário ID {fid} não encontrado")
+            continue
+
+        ids_usar = doc_ids if doc_ids else banco.docs_do_cargo(f["cargo"])
+        if not ids_usar:
+            erros.append(f"{f['nome']}: nenhum documento configurado para o cargo '{f['cargo']}'")
+            continue
+
+        resultados_pdf = processador.gerar_kit_funcionario(f, ids_usar, pasta)
+        pdfs_ok = [r for r in resultados_pdf if not r["erro"] and r["pdf_path"]]
+        for r in [r for r in resultados_pdf if r["erro"]]:
+            erros.append(f"{f['nome']} / {r['doc_nome']}: {r['erro']}")
+
+        if pdfs_ok:
+            pdf_final = processador.juntar_pdfs(
+                [r["pdf_path"] for r in pdfs_ok],
+                pasta,
+                f["nome"]
+            )
+            if pdf_final:
+                pdfs.append((f["nome"], pdf_final))
+            else:
+                erros.append(f"{f['nome']}: falha ao juntar PDFs")
+
+    if not pdfs:
+        return JSONResponse({"ok": False, "erro": "Nenhum PDF gerado", "erros": erros}, status_code=400)
+
+    buf = io.BytesIO()
+    with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as zf:
+        for nome, path in pdfs:
+            nome_arq = nome.replace("/", "_").replace("\\", "_") + ".pdf"
+            with open(path, "rb") as fh:
+                zf.writestr(nome_arq, fh.read())
+    buf.seek(0)
+
+    from fastapi.responses import StreamingResponse
+    headers = {"Content-Disposition": "attachment; filename=kit_sst_impressao.zip"}
+    return StreamingResponse(buf, media_type="application/zip", headers=headers)
 
 # ══════════════════════════════════════════════════════════
 #  ENVIO FICHA DE EPI

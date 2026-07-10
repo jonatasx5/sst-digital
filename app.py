@@ -25,6 +25,35 @@ import zapsign
 import autentique
 from config import DOCUMENTOS, APP_PASSWORD, EMPRESA
 
+
+def enviar_documento_com_fallback(nome_documento: str, caminho_pdf: str,
+                                   funcionario: dict, sandbox: bool = False) -> dict:
+    """
+    Tenta enviar pelo ZapSign. Se falhar por limite (402), cai para Autentique.
+    Retorna o mesmo formato: {sucesso, autentique_id, link, erro, provedor}
+    """
+    ret = zapsign.enviar_documento(nome_documento=nome_documento,
+                                   caminho_pdf=caminho_pdf,
+                                   funcionario=funcionario,
+                                   sandbox=sandbox)
+    if ret["sucesso"]:
+        ret["provedor"] = "zapsign"
+        return ret
+
+    # Verifica se é erro de limite/plano do ZapSign
+    erro = str(ret.get("erro", ""))
+    if "402" in erro or "Plano" in erro or "plano" in erro or "cota" in erro or "quota" in erro:
+        print(f"[ZapSign] Limite atingido, tentando Autentique para {funcionario.get('nome')}")
+        ret2 = autentique.enviar_documento(nome_documento=nome_documento,
+                                           caminho_pdf=caminho_pdf,
+                                           funcionario=funcionario,
+                                           sandbox=sandbox)
+        ret2["provedor"] = "autentique"
+        return ret2
+
+    ret["provedor"] = "zapsign"
+    return ret
+
 app = FastAPI(title="SST Digital")
 
 ALLOWED_ORIGINS = os.environ.get("ALLOWED_ORIGINS", "*").split(",")
@@ -1654,8 +1683,8 @@ async def enviar_os(dados: dict, _=Depends(verificar_acesso)):
         except: pass
 
         nome_doc = f"Ordem de Serviço — {f['nome']}"
-        ret = zapsign.enviar_documento(nome_documento=nome_doc, caminho_pdf=caminho_pdf,
-                                          funcionario=f, sandbox=sandbox)
+        ret = enviar_documento_com_fallback(nome_documento=nome_doc, caminho_pdf=caminho_pdf,
+                                            funcionario=f, sandbox=sandbox)
         if ret["sucesso"]:
             resultados.append({"id": f["id"], "nome": f["nome"],
                                 "cargo": f["cargo"], "link": ret.get("link", "")})
@@ -1725,8 +1754,8 @@ async def enviar_os_lotacao(dados: dict, _=Depends(verificar_acesso)):
         except: pass
 
         nome_doc = f"Ordem de Serviço — {f['nome']}"
-        ret = zapsign.enviar_documento(nome_documento=nome_doc, caminho_pdf=caminho_pdf,
-                                       funcionario=f, sandbox=sandbox)
+        ret = enviar_documento_com_fallback(nome_documento=nome_doc, caminho_pdf=caminho_pdf,
+                                            funcionario=f, sandbox=sandbox)
         if ret["sucesso"]:
             resultados.append({"id": f["id"], "nome": f["nome"],
                                 "cargo": f["cargo"], "link": ret.get("link", ""),
@@ -1851,9 +1880,9 @@ async def enviar_lote(dados: dict, _=Depends(verificar_acesso)):
             erros.append(f"{f['nome']}: falha ao juntar PDFs")
             continue
 
-        # Envia PDF único para o Autentique
+        # Envia PDF único com fallback ZapSign → Autentique
         nome_kit = f"Kit SST — {f['nome']}"
-        ret = autentique.enviar_documento(
+        ret = enviar_documento_com_fallback(
             nome_documento=nome_kit,
             caminho_pdf=pdf_final,
             funcionario=f,
@@ -1991,8 +2020,8 @@ async def enviar_ficha_epi_custom(dados: dict, _=Depends(verificar_acesso)):
     except: pass
 
     nome_doc = f"Ficha de Entrega de EPI/EPC/UNIFORMES — {f['nome']}"
-    ret = zapsign.enviar_documento(nome_documento=nome_doc, caminho_pdf=caminho_pdf,
-                                      funcionario=f, sandbox=sandbox)
+    ret = enviar_documento_com_fallback(nome_documento=nome_doc, caminho_pdf=caminho_pdf,
+                                        funcionario=f, sandbox=sandbox)
     if ret["sucesso"]:
         try:
             banco.registrar_envio({
@@ -2043,7 +2072,7 @@ async def enviar_ficha_epi(dados: dict, _=Depends(verificar_acesso)):
             pass
 
         nome_doc = f"Ficha de Entrega de EPI/EPC/UNIFORMES — {f['nome']}"
-        ret = zapsign.enviar_documento(
+        ret = enviar_documento_com_fallback(
             nome_documento=nome_doc,
             caminho_pdf=caminho_pdf,
             funcionario=f,
@@ -2862,7 +2891,7 @@ async def enviar_vistoria_assinatura(vid: int, dados: dict = {}, _=Depends(verif
             "celular": dados.get("celular_encarregado", ""),
             "cpf":     "",
         }
-        ret = zapsign.enviar_documento(
+        ret = enviar_documento_com_fallback(
             nome_documento=nome_doc,
             caminho_pdf=tmp.name,
             funcionario=funcionario_enc,

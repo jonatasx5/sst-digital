@@ -2258,16 +2258,20 @@ async def listar_envios(
 
 @app.post("/api/envios/{envio_id}/atualizar-status")
 async def atualizar_status_envio(envio_id: int, _=Depends(verificar_acesso)):
-    """Consulta o ZapSign e atualiza o status do envio no banco."""
+    """Consulta a API correta (ZapSign ou Autentique) e atualiza o status do envio no banco."""
     envio = banco.buscar_envio_por_id(envio_id)
     if not envio:
         raise HTTPException(404, "Envio não encontrado")
 
-    doc_token = envio.get("autentique_id")  # campo guarda o token ZapSign
+    doc_token = envio.get("autentique_id")
     if not doc_token:
-        raise HTTPException(400, "Envio não possui token ZapSign")
+        raise HTTPException(400, "Envio não possui token de documento")
 
-    resultado = zapsign.consultar_status(doc_token)
+    provedor = envio.get("provedor") or "zapsign"
+    if provedor == "autentique":
+        resultado = autentique.consultar_status(doc_token)
+    else:
+        resultado = zapsign.consultar_status(doc_token)
 
     if resultado["erro"]:
         raise HTTPException(500, resultado["erro"])

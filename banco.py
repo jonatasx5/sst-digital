@@ -1331,7 +1331,8 @@ def listar_envios(funcionario_id: int = None, status: str = None, limite: int = 
                 SELECT e.id, e.doc_id, e.doc_nome,
                        f.nome AS funcionario, f.cargo, f.celular,
                        e.status, e.link_assinatura,
-                       e.autentique_id AS zapsign_token,
+                       e.autentique_id, e.autentique_id AS zapsign_token,
+                       COALESCE(e.provedor, 'zapsign') AS provedor,
                        e.enviado_em, e.assinado_em
                 FROM envios e
                 LEFT JOIN funcionarios f ON f.id = e.funcionario_id
@@ -1355,7 +1356,8 @@ def listar_envios(funcionario_id: int = None, status: str = None, limite: int = 
                 SELECT e.id, e.doc_id, e.doc_nome,
                        f.nome AS funcionario, f.cargo, f.celular,
                        e.status, e.link_assinatura,
-                       e.autentique_id AS zapsign_token,
+                       e.autentique_id, e.autentique_id AS zapsign_token,
+                       COALESCE(e.provedor, 'zapsign') AS provedor,
                        e.enviado_em, e.assinado_em
                 FROM envios e
                 LEFT JOIN funcionarios f ON f.id = e.funcionario_id

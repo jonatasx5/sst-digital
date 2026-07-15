@@ -270,6 +270,58 @@ def consultar_status(doc_id: str) -> dict:
                 "assinado_em": None, "signatarios": [], "erro": str(e)}
 
 
+QUERY_DOWNLOAD_DOCUMENTO = """
+query GetDocument($id: UUID!) {
+    document(id: $id) {
+        id
+        files {
+            signed
+        }
+    }
+}
+"""
+
+
+def baixar_pdf_assinado(doc_id: str) -> tuple[bytes | None, str | None]:
+    """
+    Baixa o PDF assinado de um documento Autentique.
+    Retorna (bytes_do_pdf, None) em caso de sucesso ou (None, mensagem_de_erro).
+    """
+    try:
+        response = requests.post(
+            AUTENTIQUE_URL,
+            headers={**_headers(), "Content-Type": "application/json"},
+            json={"query": QUERY_DOWNLOAD_DOCUMENTO, "variables": {"id": doc_id}},
+            timeout=20
+        )
+        if response.status_code != 200:
+            return None, f"HTTP {response.status_code}"
+
+        data = response.json()
+        if "errors" in data:
+            erros = "; ".join(e.get("message", "") for e in data["errors"])
+            return None, erros
+
+        doc = data.get("data", {}).get("document", {})
+        if not doc:
+            return None, "Documento não encontrado"
+
+        signed_url = (doc.get("files") or {}).get("signed")
+        if not signed_url:
+            return None, "PDF assinado ainda não disponível"
+
+        pdf_resp = requests.get(signed_url, timeout=60)
+        if pdf_resp.status_code != 200:
+            return None, f"Erro ao baixar PDF: HTTP {pdf_resp.status_code}"
+
+        return pdf_resp.content, None
+
+    except requests.exceptions.Timeout:
+        return None, "Timeout ao baixar PDF"
+    except Exception as e:
+        return None, str(e)
+
+
 def verificar_token() -> tuple[bool, str]:
     """
     Verifica se o token da API está válido.

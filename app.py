@@ -22,6 +22,7 @@ import jwt as _jwt
 import banco
 import processador
 import zapsign
+import autentique
 from config import DOCUMENTOS, APP_PASSWORD, EMPRESA
 
 app = FastAPI(title="SST Digital")

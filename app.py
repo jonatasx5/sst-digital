@@ -102,8 +102,47 @@ def _seed_modelos_do_disco():
         print(f"[WARN] _seed_modelos_do_disco: {e}")
 
 
+async def _polling_status_loop():
+    """Background task: atualiza status de envios pendentes a cada 30 minutos."""
+    import asyncio as _asyncio
+    await _asyncio.sleep(60)  # aguarda 1 min após startup antes do primeiro ciclo
+    while True:
+        try:
+            todos = banco.listar_envios(status=None, limite=500)
+            pendentes = [e for e in todos if e.get("status") not in ("signed", "rejected", "erro")]
+            atualizados = 0
+            for envio in pendentes:
+                doc_token = envio.get("autentique_id") or ""
+                if not doc_token:
+                    continue
+                provedor = envio.get("provedor") or "zapsign"
+                try:
+                    if provedor == "autentique":
+                        resultado = autentique.consultar_status(doc_token)
+                    else:
+                        resultado = zapsign.consultar_status(doc_token)
+
+                    if not resultado.get("erro") and resultado.get("status"):
+                        banco.atualizar_status_envio(
+                            envio_id=envio["id"],
+                            status=resultado["status"],
+                            assinado_em=resultado.get("assinado_em")
+                        )
+                        atualizados += 1
+                except Exception as _e:
+                    print(f"[POLLING] erro envio {envio['id']}: {_e}")
+            if atualizados:
+                print(f"[POLLING] {atualizados}/{len(pendentes)} envios atualizados automaticamente")
+        except Exception as _e:
+            print(f"[POLLING] erro geral: {_e}")
+        await _asyncio.sleep(30 * 60)  # 30 minutos
+
+
 @app.on_event("startup")
 async def startup_event():
+    import asyncio as _asyncio
+    _asyncio.create_task(_polling_status_loop())
+
     # Garante tabelas novas que podem não existir em bancos antigos
     try:
         conn = banco.conectar()
@@ -120,6 +159,28 @@ async def startup_event():
         conn.close()
     except Exception as e:
         print(f"[WARN] migração documentos_extras: {e}")
+
+    # Migração: coluna provedor em envios
+    try:
+        conn = banco.conectar()
+        cur = conn.cursor()
+        if banco.USE_POSTGRES:
+            conn.autocommit = True
+            try:
+                cur.execute("ALTER TABLE envios ADD COLUMN provedor TEXT DEFAULT 'zapsign'")
+                print("[STARTUP] coluna provedor adicionada em envios")
+            except Exception:
+                pass  # já existe
+            conn.autocommit = False
+        else:
+            cols = [r[1] for r in cur.execute("PRAGMA table_info(envios)").fetchall()]
+            if "provedor" not in cols:
+                cur.execute("ALTER TABLE envios ADD COLUMN provedor TEXT DEFAULT 'zapsign'")
+                conn.commit()
+                print("[STARTUP] coluna provedor adicionada em envios")
+        conn.close()
+    except Exception as e:
+        print(f"[WARN] migração provedor: {e}")
 
     _garantir_os_base()
     _garantir_epi_base()
@@ -1661,6 +1722,7 @@ async def enviar_os(dados: dict, _=Depends(verificar_acesso)):
                     "autentique_id":  ret.get("autentique_id", ""),
                     "link_assinatura": ret.get("link", ""),
                     "status":         "enviado",
+                    "provedor":       ret.get("provedor", "zapsign"),
                 })
             except Exception as e:
                 print(f"WARN registrar_envio OS: {e}")
@@ -1733,6 +1795,7 @@ async def enviar_os_lotacao(dados: dict, _=Depends(verificar_acesso)):
                     "autentique_id":  ret.get("autentique_id", ""),
                     "link_assinatura": ret.get("link", ""),
                     "status":         "enviado",
+                    "provedor":       ret.get("provedor", "zapsign"),
                 })
             except Exception as e:
                 print(f"WARN registrar_envio OS lotacao: {e}")
@@ -1863,6 +1926,7 @@ async def enviar_lote(dados: dict, _=Depends(verificar_acesso)):
                 "autentique_id":   ret.get("autentique_id"),
                 "link_assinatura": ret.get("link"),
                 "status":          "enviado" if ret.get("sucesso") else "erro",
+                "provedor":        ret.get("provedor", "zapsign"),
             })
         except Exception as db_err:
             print(f"⚠️  Falha ao registrar envio no banco para {f['nome']}: {db_err}")
@@ -1942,6 +2006,7 @@ async def enviar_ficha_epi_custom(dados: dict, _=Depends(verificar_acesso)):
                 "autentique_id":   ret.get("autentique_id", ""),
                 "link_assinatura": ret.get("link", ""),
                 "status":          "enviado",
+                "provedor":        ret.get("provedor", "zapsign"),
             })
         except Exception as e:
             print(f"WARN registrar_envio EPI individual: {e}")
@@ -2005,6 +2070,7 @@ async def enviar_ficha_epi(dados: dict, _=Depends(verificar_acesso)):
                     "autentique_id":   ret.get("autentique_id", ""),
                     "link_assinatura": ret.get("link", ""),
                     "status":          "enviado",
+                    "provedor":        ret.get("provedor", "zapsign"),
                 })
             except Exception as e:
                 print(f"WARN registrar_envio EPI: {e}")
@@ -2224,18 +2290,25 @@ async def atualizar_status_envio(envio_id: int, _=Depends(verificar_acesso)):
 
 @app.post("/api/envios/atualizar-todos")
 async def atualizar_todos_pendentes(_=Depends(verificar_acesso)):
-    """Atualiza o status de todos os envios não-assinados consultando o ZapSign."""
-    # Busca todos os envios que ainda não foram assinados (independente do status exato)
+    """Atualiza o status de todos os envios pendentes consultando ZapSign ou Autentique conforme o provedor."""
     todos = banco.listar_envios(status=None, limite=500)
-    pendentes = [e for e in todos if e.get("status") != "signed"]
+    pendentes = [e for e in todos if e.get("status") not in ("signed", "rejected")]
     atualizados = 0
     erros = 0
     for envio in pendentes:
-        doc_token = envio.get("autentique_id") or envio.get("zapsign_token")
+        doc_token = envio.get("autentique_id") or ""
         if not doc_token:
             continue
-        resultado = zapsign.consultar_status(doc_token)
-        if resultado["erro"]:
+        provedor = envio.get("provedor") or "zapsign"
+        try:
+            if provedor == "autentique":
+                resultado = autentique.consultar_status(doc_token)
+            else:
+                resultado = zapsign.consultar_status(doc_token)
+        except Exception as _e:
+            erros += 1
+            continue
+        if resultado.get("erro"):
             erros += 1
             continue
         banco.atualizar_status_envio(

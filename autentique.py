@@ -170,6 +170,106 @@ def enviar_documento(
         return {"sucesso": False, "autentique_id": None, "link": None, "erro": str(e)}
 
 
+QUERY_STATUS_DOCUMENTO = """
+query GetDocument($id: UUID!) {
+    document(id: $id) {
+        id
+        name
+        signatures {
+            public_id
+            name
+            email
+            signed { name }
+            rejected { name }
+        }
+    }
+}
+"""
+
+
+def consultar_status(doc_id: str) -> dict:
+    """
+    Consulta o status de um documento no Autentique pelo ID.
+    Retorna dict com:
+        sucesso       : bool
+        status        : str  ('signed', 'pending', 'rejected')
+        status_pt     : str
+        assinado_em   : str | None
+        signatarios   : list
+        erro          : str | None
+    """
+    try:
+        response = requests.post(
+            AUTENTIQUE_URL,
+            headers={**_headers(), "Content-Type": "application/json"},
+            json={"query": QUERY_STATUS_DOCUMENTO, "variables": {"id": doc_id}},
+            timeout=20
+        )
+        if response.status_code != 200:
+            return {"sucesso": False, "status": "erro", "status_pt": "Erro",
+                    "assinado_em": None, "signatarios": [],
+                    "erro": f"HTTP {response.status_code}"}
+
+        data = response.json()
+        if "errors" in data:
+            erros = "; ".join(e.get("message", "") for e in data["errors"])
+            return {"sucesso": False, "status": "erro", "status_pt": "Erro",
+                    "assinado_em": None, "signatarios": [], "erro": erros}
+
+        doc = data.get("data", {}).get("document", {})
+        if not doc:
+            return {"sucesso": False, "status": "erro", "status_pt": "Não encontrado",
+                    "assinado_em": None, "signatarios": [], "erro": "Documento não encontrado"}
+
+        sigs = doc.get("signatures", [])
+        signatarios = []
+        todos_assinados = bool(sigs)
+        algum_rejeitado = False
+        assinado_em = None
+
+        for sig in sigs:
+            signed = sig.get("signed")
+            rejected = sig.get("rejected")
+            if rejected and rejected.get("name"):
+                algum_rejeitado = True
+            if not signed or not signed.get("name"):
+                todos_assinados = False
+            else:
+                assinado_em = signed.get("name")  # campo "name" guarda o timestamp no Autentique
+            signatarios.append({
+                "nome":   sig.get("name", ""),
+                "email":  sig.get("email", ""),
+                "status": "signed" if (signed and signed.get("name")) else
+                          ("rejected" if (rejected and rejected.get("name")) else "pending"),
+            })
+
+        if algum_rejeitado:
+            status = "rejected"
+            status_pt = "Rejeitado"
+        elif todos_assinados:
+            status = "signed"
+            status_pt = "Assinado"
+        else:
+            status = "pending"
+            status_pt = "Aguardando assinatura"
+
+        return {
+            "sucesso":    True,
+            "status":     status,
+            "status_pt":  status_pt,
+            "assinado_em": assinado_em,
+            "signatarios": signatarios,
+            "erro":       None,
+        }
+
+    except requests.exceptions.Timeout:
+        return {"sucesso": False, "status": "erro", "status_pt": "Timeout",
+                "assinado_em": None, "signatarios": [], "erro": "Timeout"}
+    except Exception as e:
+        return {"sucesso": False, "status": "erro", "status_pt": "Erro",
+                "assinado_em": None, "signatarios": [], "erro": str(e)}
+
+
 def verificar_token() -> tuple[bool, str]:
     """
     Verifica se o token da API está válido.

@@ -22,37 +22,7 @@ import jwt as _jwt
 import banco
 import processador
 import zapsign
-import autentique
 from config import DOCUMENTOS, APP_PASSWORD, EMPRESA
-
-
-def enviar_documento_com_fallback(nome_documento: str, caminho_pdf: str,
-                                   funcionario: dict, sandbox: bool = False) -> dict:
-    """
-    Tenta enviar pelo ZapSign. Se falhar por limite (402), cai para Autentique.
-    Retorna o mesmo formato: {sucesso, autentique_id, link, erro, provedor}
-    """
-    ret = zapsign.enviar_documento(nome_documento=nome_documento,
-                                   caminho_pdf=caminho_pdf,
-                                   funcionario=funcionario,
-                                   sandbox=sandbox)
-    if ret["sucesso"]:
-        ret["provedor"] = "zapsign"
-        return ret
-
-    # Verifica se é erro de limite/plano do ZapSign
-    erro = str(ret.get("erro", ""))
-    if "402" in erro or "Plano" in erro or "plano" in erro or "cota" in erro or "quota" in erro:
-        print(f"[ZapSign] Limite atingido, tentando Autentique para {funcionario.get('nome')}")
-        ret2 = autentique.enviar_documento(nome_documento=nome_documento,
-                                           caminho_pdf=caminho_pdf,
-                                           funcionario=funcionario,
-                                           sandbox=sandbox)
-        ret2["provedor"] = "autentique"
-        return ret2
-
-    ret["provedor"] = "zapsign"
-    return ret
 
 app = FastAPI(title="SST Digital")
 
@@ -132,8 +102,47 @@ def _seed_modelos_do_disco():
         print(f"[WARN] _seed_modelos_do_disco: {e}")
 
 
+async def _polling_status_loop():
+    """Background task: atualiza status de envios pendentes a cada 30 minutos."""
+    import asyncio as _asyncio
+    await _asyncio.sleep(60)  # aguarda 1 min após startup antes do primeiro ciclo
+    while True:
+        try:
+            todos = banco.listar_envios(status=None, limite=500)
+            pendentes = [e for e in todos if e.get("status") not in ("signed", "rejected", "erro")]
+            atualizados = 0
+            for envio in pendentes:
+                doc_token = envio.get("autentique_id") or ""
+                if not doc_token:
+                    continue
+                provedor = envio.get("provedor") or "zapsign"
+                try:
+                    if provedor == "autentique":
+                        resultado = autentique.consultar_status(doc_token)
+                    else:
+                        resultado = zapsign.consultar_status(doc_token)
+
+                    if not resultado.get("erro") and resultado.get("status"):
+                        banco.atualizar_status_envio(
+                            envio_id=envio["id"],
+                            status=resultado["status"],
+                            assinado_em=resultado.get("assinado_em")
+                        )
+                        atualizados += 1
+                except Exception as _e:
+                    print(f"[POLLING] erro envio {envio['id']}: {_e}")
+            if atualizados:
+                print(f"[POLLING] {atualizados}/{len(pendentes)} envios atualizados automaticamente")
+        except Exception as _e:
+            print(f"[POLLING] erro geral: {_e}")
+        await _asyncio.sleep(30 * 60)  # 30 minutos
+
+
 @app.on_event("startup")
 async def startup_event():
+    import asyncio as _asyncio
+    _asyncio.create_task(_polling_status_loop())
+
     # Garante tabelas novas que podem não existir em bancos antigos
     try:
         conn = banco.conectar()
@@ -151,26 +160,27 @@ async def startup_event():
     except Exception as e:
         print(f"[WARN] migração documentos_extras: {e}")
 
-    # Garante tabela treinamentos_docs (criada em versão posterior)
+    # Migração: coluna provedor em envios
     try:
         conn = banco.conectar()
         cur = conn.cursor()
         if banco.USE_POSTGRES:
-            cur.execute("""CREATE TABLE IF NOT EXISTS treinamentos_docs (
-                id SERIAL PRIMARY KEY,
-                nome TEXT NOT NULL,
-                conteudo BYTEA NOT NULL,
-                criado_em TIMESTAMP DEFAULT NOW())""")
+            conn.autocommit = True
+            try:
+                cur.execute("ALTER TABLE envios ADD COLUMN provedor TEXT DEFAULT 'zapsign'")
+                print("[STARTUP] coluna provedor adicionada em envios")
+            except Exception:
+                pass  # já existe
+            conn.autocommit = False
         else:
-            cur.execute("""CREATE TABLE IF NOT EXISTS treinamentos_docs (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                nome TEXT NOT NULL,
-                conteudo BLOB NOT NULL,
-                criado_em TEXT DEFAULT (datetime('now','localtime')))""")
-        conn.commit()
+            cols = [r[1] for r in cur.execute("PRAGMA table_info(envios)").fetchall()]
+            if "provedor" not in cols:
+                cur.execute("ALTER TABLE envios ADD COLUMN provedor TEXT DEFAULT 'zapsign'")
+                conn.commit()
+                print("[STARTUP] coluna provedor adicionada em envios")
         conn.close()
     except Exception as e:
-        print(f"[WARN] migração treinamentos_docs: {e}")
+        print(f"[WARN] migração provedor: {e}")
 
     _garantir_os_base()
     _garantir_epi_base()
@@ -833,27 +843,21 @@ async def deletar_modelo_endpoint(doc_id: str, cargo: str = None, _=Depends(veri
 
 @app.get("/api/modelos")
 async def listar_modelos_banco(_=Depends(verificar_acesso)):
-    try:
-        from config import MODELOS_DIR
-        modelos_banco = banco.listar_modelos()
-        banco_por_id = {m["id"]: m for m in modelos_banco if m.get("tem_conteudo") and m.get("cargo") is None}
-        resultado = []
-        for d in DOCUMENTOS:
-            existe_banco = d["id"] in banco_por_id
-            existe_disco = os.path.exists(os.path.join(MODELOS_DIR, f"{d['id']}.docx"))
-            resultado.append({
-                "id": d["id"],
-                "nome": d["nome"],
-                "tem_arquivo": existe_banco or existe_disco,
-                "no_banco": existe_banco,
-                "no_disco": existe_disco,
-            })
-        return resultado
-    except Exception as e:
-        import traceback
-        print(f"[ERRO /api/modelos] {e}\n{traceback.format_exc()}")
-        from fastapi.responses import JSONResponse
-        return JSONResponse(status_code=500, content={"erro": str(e)})
+    from config import MODELOS_DIR
+    modelos_banco = banco.listar_modelos()
+    banco_por_id = {m["id"]: m for m in modelos_banco if m.get("tem_conteudo") and m.get("cargo") is None}
+    resultado = []
+    for d in DOCUMENTOS:
+        existe_banco = d["id"] in banco_por_id
+        existe_disco = os.path.exists(os.path.join(MODELOS_DIR, f"{d['id']}.docx"))
+        resultado.append({
+            "id": d["id"],
+            "nome": d["nome"],
+            "tem_arquivo": existe_banco or existe_disco,
+            "no_banco": existe_banco,
+            "no_disco": existe_disco,
+        })
+    return resultado
 
 
 @app.post("/api/modelos/{doc_id}/upload")
@@ -1704,8 +1708,8 @@ async def enviar_os(dados: dict, _=Depends(verificar_acesso)):
         except: pass
 
         nome_doc = f"Ordem de Serviço — {f['nome']}"
-        ret = enviar_documento_com_fallback(nome_documento=nome_doc, caminho_pdf=caminho_pdf,
-                                            funcionario=f, sandbox=sandbox)
+        ret = zapsign.enviar_documento(nome_documento=nome_doc, caminho_pdf=caminho_pdf,
+                                          funcionario=f, sandbox=sandbox)
         if ret["sucesso"]:
             resultados.append({"id": f["id"], "nome": f["nome"],
                                 "cargo": f["cargo"], "link": ret.get("link", "")})
@@ -1718,6 +1722,7 @@ async def enviar_os(dados: dict, _=Depends(verificar_acesso)):
                     "autentique_id":  ret.get("autentique_id", ""),
                     "link_assinatura": ret.get("link", ""),
                     "status":         "enviado",
+                    "provedor":       ret.get("provedor", "zapsign"),
                 })
             except Exception as e:
                 print(f"WARN registrar_envio OS: {e}")
@@ -1775,8 +1780,8 @@ async def enviar_os_lotacao(dados: dict, _=Depends(verificar_acesso)):
         except: pass
 
         nome_doc = f"Ordem de Serviço — {f['nome']}"
-        ret = enviar_documento_com_fallback(nome_documento=nome_doc, caminho_pdf=caminho_pdf,
-                                            funcionario=f, sandbox=sandbox)
+        ret = zapsign.enviar_documento(nome_documento=nome_doc, caminho_pdf=caminho_pdf,
+                                       funcionario=f, sandbox=sandbox)
         if ret["sucesso"]:
             resultados.append({"id": f["id"], "nome": f["nome"],
                                 "cargo": f["cargo"], "link": ret.get("link", ""),
@@ -1790,6 +1795,7 @@ async def enviar_os_lotacao(dados: dict, _=Depends(verificar_acesso)):
                     "autentique_id":  ret.get("autentique_id", ""),
                     "link_assinatura": ret.get("link", ""),
                     "status":         "enviado",
+                    "provedor":       ret.get("provedor", "zapsign"),
                 })
             except Exception as e:
                 print(f"WARN registrar_envio OS lotacao: {e}")
@@ -1901,9 +1907,9 @@ async def enviar_lote(dados: dict, _=Depends(verificar_acesso)):
             erros.append(f"{f['nome']}: falha ao juntar PDFs")
             continue
 
-        # Envia PDF único com fallback ZapSign → Autentique
+        # Envia PDF único para o Autentique
         nome_kit = f"Kit SST — {f['nome']}"
-        ret = enviar_documento_com_fallback(
+        ret = zapsign.enviar_documento(
             nome_documento=nome_kit,
             caminho_pdf=pdf_final,
             funcionario=f,
@@ -1920,6 +1926,7 @@ async def enviar_lote(dados: dict, _=Depends(verificar_acesso)):
                 "autentique_id":   ret.get("autentique_id"),
                 "link_assinatura": ret.get("link"),
                 "status":          "enviado" if ret.get("sucesso") else "erro",
+                "provedor":        ret.get("provedor", "zapsign"),
             })
         except Exception as db_err:
             print(f"⚠️  Falha ao registrar envio no banco para {f['nome']}: {db_err}")
@@ -1941,60 +1948,6 @@ async def enviar_lote(dados: dict, _=Depends(verificar_acesso)):
         "erros":      erros,
         "resultados": resultados,
     }
-
-@app.post("/api/lote/gerar-pdf-impressao")
-async def gerar_pdf_impressao(dados: dict, _=Depends(verificar_acesso)):
-    """Gera PDFs para todos os funcionários do lote e retorna um ZIP para download."""
-    import zipfile, io
-    func_ids = dados.get("funcionario_ids", [])
-    doc_ids  = dados.get("doc_ids", [])
-
-    todos  = banco.buscar_funcionarios("")
-    pasta  = processador.pasta_lote()
-    erros  = []
-    pdfs   = []
-
-    for fid in func_ids:
-        f = next((x for x in todos if x["id"] == fid), None)
-        if not f:
-            erros.append(f"Funcionário ID {fid} não encontrado")
-            continue
-
-        ids_usar = doc_ids if doc_ids else banco.docs_do_cargo(f["cargo"])
-        if not ids_usar:
-            erros.append(f"{f['nome']}: nenhum documento configurado para o cargo '{f['cargo']}'")
-            continue
-
-        resultados_pdf = processador.gerar_kit_funcionario(f, ids_usar, pasta)
-        pdfs_ok = [r for r in resultados_pdf if not r["erro"] and r["pdf_path"]]
-        for r in [r for r in resultados_pdf if r["erro"]]:
-            erros.append(f"{f['nome']} / {r['doc_nome']}: {r['erro']}")
-
-        if pdfs_ok:
-            pdf_final = processador.juntar_pdfs(
-                [r["pdf_path"] for r in pdfs_ok],
-                pasta,
-                f["nome"]
-            )
-            if pdf_final:
-                pdfs.append((f["nome"], pdf_final))
-            else:
-                erros.append(f"{f['nome']}: falha ao juntar PDFs")
-
-    if not pdfs:
-        return JSONResponse({"ok": False, "erro": "Nenhum PDF gerado", "erros": erros}, status_code=400)
-
-    buf = io.BytesIO()
-    with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as zf:
-        for nome, path in pdfs:
-            nome_arq = nome.replace("/", "_").replace("\\", "_") + ".pdf"
-            with open(path, "rb") as fh:
-                zf.writestr(nome_arq, fh.read())
-    buf.seek(0)
-
-    from fastapi.responses import StreamingResponse
-    headers = {"Content-Disposition": "attachment; filename=kit_sst_impressao.zip"}
-    return StreamingResponse(buf, media_type="application/zip", headers=headers)
 
 # ══════════════════════════════════════════════════════════
 #  ENVIO FICHA DE EPI
@@ -2041,8 +1994,8 @@ async def enviar_ficha_epi_custom(dados: dict, _=Depends(verificar_acesso)):
     except: pass
 
     nome_doc = f"Ficha de Entrega de EPI/EPC/UNIFORMES — {f['nome']}"
-    ret = enviar_documento_com_fallback(nome_documento=nome_doc, caminho_pdf=caminho_pdf,
-                                        funcionario=f, sandbox=sandbox)
+    ret = zapsign.enviar_documento(nome_documento=nome_doc, caminho_pdf=caminho_pdf,
+                                      funcionario=f, sandbox=sandbox)
     if ret["sucesso"]:
         try:
             banco.registrar_envio({
@@ -2053,6 +2006,7 @@ async def enviar_ficha_epi_custom(dados: dict, _=Depends(verificar_acesso)):
                 "autentique_id":   ret.get("autentique_id", ""),
                 "link_assinatura": ret.get("link", ""),
                 "status":          "enviado",
+                "provedor":        ret.get("provedor", "zapsign"),
             })
         except Exception as e:
             print(f"WARN registrar_envio EPI individual: {e}")
@@ -2093,7 +2047,7 @@ async def enviar_ficha_epi(dados: dict, _=Depends(verificar_acesso)):
             pass
 
         nome_doc = f"Ficha de Entrega de EPI/EPC/UNIFORMES — {f['nome']}"
-        ret = enviar_documento_com_fallback(
+        ret = zapsign.enviar_documento(
             nome_documento=nome_doc,
             caminho_pdf=caminho_pdf,
             funcionario=f,
@@ -2116,6 +2070,7 @@ async def enviar_ficha_epi(dados: dict, _=Depends(verificar_acesso)):
                     "autentique_id":   ret.get("autentique_id", ""),
                     "link_assinatura": ret.get("link", ""),
                     "status":          "enviado",
+                    "provedor":        ret.get("provedor", "zapsign"),
                 })
             except Exception as e:
                 print(f"WARN registrar_envio EPI: {e}")
@@ -2131,262 +2086,6 @@ async def enviar_ficha_epi(dados: dict, _=Depends(verificar_acesso)):
 @app.get("/api/config")
 async def get_config(_=Depends(verificar_acesso)):
     return {"empresa": EMPRESA}
-
-
-# ── TREINAMENTOS DOCS CRUD ────────────────────────────────
-
-@app.get("/api/treinamentos/docs")
-async def listar_treinamentos_docs(_=Depends(verificar_acesso)):
-    return banco.listar_treinamentos_docs()
-
-
-@app.post("/api/treinamentos/docs")
-async def upload_treinamento_doc(
-    nome: str = Form(...),
-    file: UploadFile = File(...),
-    _=Depends(verificar_acesso)
-):
-    conteudo = await file.read()
-    if not conteudo:
-        raise HTTPException(status_code=400, detail="Arquivo vazio.")
-    tid = banco.salvar_treinamento_doc(nome.strip(), conteudo)
-    return {"id": tid, "nome": nome.strip()}
-
-
-@app.delete("/api/treinamentos/docs/{tid}")
-async def deletar_treinamento_doc(tid: int, _=Depends(verificar_acesso)):
-    banco.deletar_treinamento_doc(tid)
-    return {"ok": True}
-
-
-@app.post("/api/treinamentos/gerar-lotacao")
-async def gerar_treinamentos_lotacao(dados: dict, _=Depends(verificar_acesso)):
-    """
-    Gera PDFs de treinamentos para todos os funcionários de uma lotação.
-    Aceita treinamento_ids (lista de ints da tabela treinamentos_docs).
-    Retorna um ZIP com um PDF por funcionário por treinamento.
-    """
-    lotacao = dados.get("lotacao", "").strip()
-    treinamento_ids = [int(x) for x in dados.get("treinamento_ids", [])]
-
-    if not lotacao:
-        raise HTTPException(status_code=400, detail="Lotação obrigatória.")
-    if not treinamento_ids:
-        raise HTTPException(status_code=400, detail="Selecione pelo menos um treinamento.")
-
-    todos = banco.buscar_funcionarios("")
-    funcionarios = [f for f in todos if (f.get("lotacao") or "").strip().upper() == lotacao.upper()]
-    if not funcionarios:
-        raise HTTPException(status_code=404, detail=f"Nenhum funcionário na lotação '{lotacao}'.")
-
-    import zipfile as _zipfile, re as _re, traceback as _tb
-
-    # Nome seguro para uso em caminhos de arquivo (remove / \ : * ? " < > |)
-    lotacao_safe = _re.sub(r'[/\\:*?"<>|]', '_', lotacao)[:40].strip('_')
-
-    # Carrega os bytes de cada treinamento selecionado
-    docs_info = []
-    for tid in treinamento_ids:
-        try:
-            meta = banco.buscar_treinamento_doc_meta(tid)
-            if not meta:
-                print(f"[trein] treinamento id={tid} não encontrado")
-                continue
-            conteudo = banco.buscar_treinamento_doc(tid)
-            if conteudo:
-                docs_info.append({"id": tid, "nome": meta["nome"], "bytes": conteudo})
-        except Exception as e:
-            print(f"[trein] erro ao buscar id={tid}: {e}")
-            raise HTTPException(status_code=500, detail=f"Erro ao buscar treinamento {tid}: {e}")
-
-    if not docs_info:
-        raise HTTPException(status_code=400, detail="Nenhum treinamento encontrado com os IDs informados.")
-
-    try:
-        pasta = processador.pasta_lote()
-        zip_path = os.path.join(pasta, f"treinamentos_{lotacao_safe.replace(' ','_')}.zip")
-
-        with _zipfile.ZipFile(zip_path, "w", _zipfile.ZIP_DEFLATED) as zf:
-            for func in funcionarios:
-                nome_seg = _re.sub(r"[^\w\s-]", "", func["nome"])
-                nome_seg = _re.sub(r"\s+", "_", nome_seg.strip())
-                pdfs_func = []
-                for doc in docs_info:
-                    nome_arq = f"trein_{doc['id']}__{nome_seg}.docx"
-                    caminho_docx = processador.preencher_docx_bytes(doc["bytes"], nome_arq, func, pasta)
-                    if not caminho_docx:
-                        print(f"[trein] falha ao preencher docx para {func['nome']} / {doc['nome']}")
-                        continue
-                    caminho_pdf = processador.converter_para_pdf(caminho_docx)
-                    try:
-                        os.remove(caminho_docx)
-                    except Exception:
-                        pass
-                    if caminho_pdf and os.path.exists(caminho_pdf):
-                        pdfs_func.append(caminho_pdf)
-                    else:
-                        print(f"[trein] falha ao converter PDF para {func['nome']} / {doc['nome']}")
-
-                if not pdfs_func:
-                    continue
-
-                if len(pdfs_func) == 1:
-                    pdf_final = pdfs_func[0]
-                else:
-                    pdf_final = processador.juntar_pdfs(pdfs_func, pasta, func["nome"])
-
-                if pdf_final and os.path.exists(pdf_final):
-                    zf.write(pdf_final, f"{nome_seg}.pdf")
-
-    except Exception as e:
-        print(f"[trein] ERRO gerar ZIP: {e}\n{_tb.format_exc()}")
-        raise HTTPException(status_code=500, detail=f"Erro ao gerar ZIP: {e}")
-
-    def iterfile():
-        with open(zip_path, "rb") as fz:
-            yield from fz
-        try:
-            shutil.rmtree(pasta, ignore_errors=True)
-        except Exception:
-            pass
-
-    nome_zip = f"Treinamentos_{lotacao_safe.replace(' ','_')}.zip"
-    return StreamingResponse(iterfile(), media_type="application/zip",
-                             headers={"Content-Disposition": f"attachment; filename={nome_zip}"})
-
-
-@app.post("/api/treinamentos/gerar-funcionario")
-async def gerar_treinamentos_funcionario(dados: dict, _=Depends(verificar_acesso)):
-    """Gera PDF(s) de treinamentos para um único funcionário cadastrado."""
-    funcionario_id = dados.get("funcionario_id")
-    treinamento_ids = [int(x) for x in dados.get("treinamento_ids", [])]
-
-    if not funcionario_id:
-        raise HTTPException(status_code=400, detail="funcionario_id obrigatório.")
-    if not treinamento_ids:
-        raise HTTPException(status_code=400, detail="Selecione pelo menos um treinamento.")
-
-    todos = banco.buscar_funcionarios("")
-    funcs = [f for f in todos if f["id"] == int(funcionario_id)]
-    if not funcs:
-        raise HTTPException(status_code=404, detail="Funcionário não encontrado.")
-
-    return await _gerar_pdf_pessoas(funcs, treinamento_ids, funcs[0]["nome"])
-
-
-@app.post("/api/treinamentos/gerar-avulso")
-async def gerar_treinamentos_avulso(dados: dict, _=Depends(verificar_acesso)):
-    """Gera PDF(s) de treinamentos para uma pessoa avulsa (não cadastrada)."""
-    pessoa = dados.get("pessoa", {})
-    treinamento_ids = [int(x) for x in dados.get("treinamento_ids", [])]
-
-    if not pessoa.get("nome", "").strip():
-        raise HTTPException(status_code=400, detail="Nome da pessoa obrigatório.")
-    if not treinamento_ids:
-        raise HTTPException(status_code=400, detail="Selecione pelo menos um treinamento.")
-
-    func = {
-        "nome":      pessoa.get("nome", "").strip(),
-        "cpf":       pessoa.get("cpf", "").strip(),
-        "cargo":     pessoa.get("cargo", "").strip(),
-        "lotacao":   pessoa.get("lotacao", "").strip(),
-        "matricula": "",
-        "admissao":  "",
-        "celular":   "",
-        "email":     "",
-    }
-    return await _gerar_pdf_pessoas([func], treinamento_ids, func["nome"])
-
-
-async def _gerar_pdf_pessoas(funcionarios: list, treinamento_ids: list, nome_arquivo_base: str):
-    """Helper: gera PDF(s) de treinamentos para uma lista de funcionários e retorna como arquivo."""
-    import zipfile as _zipfile, re as _re, traceback as _tb
-
-    docs_info = []
-    for tid in treinamento_ids:
-        try:
-            meta = banco.buscar_treinamento_doc_meta(tid)
-            conteudo = banco.buscar_treinamento_doc(tid) if meta else None
-            if meta and conteudo:
-                docs_info.append({"id": tid, "nome": meta["nome"], "bytes": conteudo})
-        except Exception as e:
-            raise HTTPException(status_code=500, detail=f"Erro ao buscar treinamento {tid}: {e}")
-
-    if not docs_info:
-        raise HTTPException(status_code=400, detail="Nenhum treinamento encontrado.")
-
-    try:
-        pasta = processador.pasta_lote()
-        nome_safe = _re.sub(r'[/\\:*?"<>|]', '_', nome_arquivo_base)[:40].strip('_')
-
-        # Um único funcionário → retorna PDF direto (ou ZIP se múltiplos treinamentos)
-        if len(funcionarios) == 1:
-            func = funcionarios[0]
-            nome_seg = _re.sub(r"[^\w\s-]", "", func["nome"])
-            nome_seg = _re.sub(r"\s+", "_", nome_seg.strip())
-            pdfs = []
-            for doc in docs_info:
-                caminho_docx = processador.preencher_docx_bytes(
-                    doc["bytes"], f"trein_{doc['id']}__{nome_seg}.docx", func, pasta)
-                if not caminho_docx:
-                    continue
-                caminho_pdf = processador.converter_para_pdf(caminho_docx)
-                try: os.remove(caminho_docx)
-                except Exception: pass
-                if caminho_pdf and os.path.exists(caminho_pdf):
-                    pdfs.append(caminho_pdf)
-
-            if not pdfs:
-                raise HTTPException(status_code=500, detail="Nenhum PDF foi gerado.")
-
-            pdf_final = pdfs[0] if len(pdfs) == 1 else processador.juntar_pdfs(pdfs, pasta, func["nome"])
-            if not pdf_final or not os.path.exists(pdf_final):
-                raise HTTPException(status_code=500, detail="Falha ao juntar PDFs.")
-
-            def iter_pdf():
-                with open(pdf_final, "rb") as fz:
-                    yield from fz
-                try: shutil.rmtree(pasta, ignore_errors=True)
-                except Exception: pass
-
-            return StreamingResponse(iter_pdf(), media_type="application/pdf",
-                                     headers={"Content-Disposition": f"attachment; filename={nome_safe}.pdf"})
-
-        # Múltiplos funcionários → ZIP
-        zip_path = os.path.join(pasta, f"treinamentos_{nome_safe}.zip")
-        with _zipfile.ZipFile(zip_path, "w", _zipfile.ZIP_DEFLATED) as zf:
-            for func in funcionarios:
-                nome_seg = _re.sub(r"[^\w\s-]", "", func["nome"])
-                nome_seg = _re.sub(r"\s+", "_", nome_seg.strip())
-                pdfs = []
-                for doc in docs_info:
-                    caminho_docx = processador.preencher_docx_bytes(
-                        doc["bytes"], f"trein_{doc['id']}__{nome_seg}.docx", func, pasta)
-                    if not caminho_docx: continue
-                    caminho_pdf = processador.converter_para_pdf(caminho_docx)
-                    try: os.remove(caminho_docx)
-                    except Exception: pass
-                    if caminho_pdf and os.path.exists(caminho_pdf):
-                        pdfs.append(caminho_pdf)
-                if not pdfs: continue
-                pdf_final = pdfs[0] if len(pdfs) == 1 else processador.juntar_pdfs(pdfs, pasta, func["nome"])
-                if pdf_final and os.path.exists(pdf_final):
-                    zf.write(pdf_final, f"{nome_seg}.pdf")
-
-        def iter_zip():
-            with open(zip_path, "rb") as fz:
-                yield from fz
-            try: shutil.rmtree(pasta, ignore_errors=True)
-            except Exception: pass
-
-        return StreamingResponse(iter_zip(), media_type="application/zip",
-                                 headers={"Content-Disposition": f"attachment; filename={nome_safe}.zip"})
-
-    except HTTPException:
-        raise
-    except Exception as e:
-        print(f"[trein] ERRO _gerar_pdf_pessoas: {e}\n{_tb.format_exc()}")
-        raise HTTPException(status_code=500, detail=f"Erro ao gerar PDF: {e}")
 
 
 @app.post("/api/modelos/purgar-fichas-epi-cargo")
@@ -2486,45 +2185,26 @@ async def drive_sincronizar(_=Depends(verificar_acesso)):
         if not drive_disponivel():
             return {"ok": False, "erro": "Google Drive não configurado. Defina GOOGLE_CREDENTIALS_JSON no Railway."}
 
-        # Lê direto do banco sem passar pelo Drive (que pode estar vazio)
-        conn = banco.conectar()
-        modelos_db = []
-        try:
-            cur = conn.cursor()
-            cur.execute("SELECT id, nome, cargo, conteudo FROM modelos WHERE conteudo IS NOT NULL")
-            for row in cur.fetchall():
-                modelos_db.append({
-                    "id": row[0], "nome": row[1], "cargo": row[2],
-                    "conteudo": bytes(row[3]) if row[3] else None
-                })
-        finally:
-            conn.close()
-
+        modelos = banco.listar_modelos()
         sincronizados = []
         erros = []
-        primeiro_erro = None
 
-        for m in modelos_db:
+        for m in modelos:
             doc_id = m["id"]
             cargo = m.get("cargo")
             nome = m.get("nome", doc_id)
-            conteudo = m["conteudo"]
+            conteudo = banco.buscar_modelo(doc_id, cargo) if cargo else None
+            if not conteudo:
+                conteudo = banco.buscar_modelo(doc_id)
             if conteudo:
-                try:
-                    ok = upload_modelo(doc_id, nome, conteudo, cargo)
-                    if ok:
-                        sincronizados.append(f"{doc_id} cargo={cargo!r}")
-                    else:
-                        erros.append(f"{doc_id} cargo={cargo!r}")
-                        if not primeiro_erro:
-                            primeiro_erro = f"upload retornou False para {doc_id}"
-                except Exception as ex:
+                ok = upload_modelo(doc_id, nome, conteudo, cargo)
+                if ok:
+                    sincronizados.append(f"{doc_id} cargo={cargo!r}")
+                else:
                     erros.append(f"{doc_id} cargo={cargo!r}")
-                    if not primeiro_erro:
-                        primeiro_erro = str(ex)
 
         return {"ok": True, "sincronizados": len(sincronizados), "erros": len(erros),
-                "lista": sincronizados, "lista_erros": erros, "primeiro_erro": primeiro_erro}
+                "lista": sincronizados, "lista_erros": erros}
     except Exception as e:
         return {"ok": False, "erro": str(e)}
 
@@ -2610,18 +2290,25 @@ async def atualizar_status_envio(envio_id: int, _=Depends(verificar_acesso)):
 
 @app.post("/api/envios/atualizar-todos")
 async def atualizar_todos_pendentes(_=Depends(verificar_acesso)):
-    """Atualiza o status de todos os envios não-assinados consultando o ZapSign."""
-    # Busca todos os envios que ainda não foram assinados (independente do status exato)
+    """Atualiza o status de todos os envios pendentes consultando ZapSign ou Autentique conforme o provedor."""
     todos = banco.listar_envios(status=None, limite=500)
-    pendentes = [e for e in todos if e.get("status") != "signed"]
+    pendentes = [e for e in todos if e.get("status") not in ("signed", "rejected")]
     atualizados = 0
     erros = 0
     for envio in pendentes:
-        doc_token = envio.get("autentique_id") or envio.get("zapsign_token")
+        doc_token = envio.get("autentique_id") or ""
         if not doc_token:
             continue
-        resultado = zapsign.consultar_status(doc_token)
-        if resultado["erro"]:
+        provedor = envio.get("provedor") or "zapsign"
+        try:
+            if provedor == "autentique":
+                resultado = autentique.consultar_status(doc_token)
+            else:
+                resultado = zapsign.consultar_status(doc_token)
+        except Exception as _e:
+            erros += 1
+            continue
+        if resultado.get("erro"):
             erros += 1
             continue
         banco.atualizar_status_envio(
@@ -3168,7 +2855,7 @@ async def enviar_vistoria_assinatura(vid: int, dados: dict = {}, _=Depends(verif
             "celular": dados.get("celular_encarregado", ""),
             "cpf":     "",
         }
-        ret = enviar_documento_com_fallback(
+        ret = zapsign.enviar_documento(
             nome_documento=nome_doc,
             caminho_pdf=tmp.name,
             funcionario=funcionario_enc,

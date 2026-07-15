@@ -1288,20 +1288,22 @@ def registrar_envio(dados):
         if USE_POSTGRES:
             cur = conn.cursor(cursor_factory=_psycopg2_extras.RealDictCursor)
             cur.execute("""INSERT INTO envios (funcionario_id,doc_id,doc_nome,pdf_path,
-                autentique_id,link_assinatura,status,enviado_em)
-                VALUES (%s,%s,%s,%s,%s,%s,%s,NOW()) RETURNING id""",
+                autentique_id,link_assinatura,status,provedor,enviado_em)
+                VALUES (%s,%s,%s,%s,%s,%s,%s,%s,NOW()) RETURNING id""",
                 (dados["funcionario_id"],dados["doc_id"],dados.get("doc_nome",""),
                  dados.get("pdf_path",""),dados.get("autentique_id",""),
-                 dados.get("link_assinatura",""),dados.get("status","enviado")))
+                 dados.get("link_assinatura",""),dados.get("status","enviado"),
+                 dados.get("provedor","zapsign")))
             eid = cur.fetchone()["id"]
         else:
             cur = conn.cursor()
             cur.execute("""INSERT INTO envios (funcionario_id,doc_id,doc_nome,pdf_path,
-                autentique_id,link_assinatura,status,enviado_em)
-                VALUES (?,?,?,?,?,?,?,datetime('now','localtime'))""",
+                autentique_id,link_assinatura,status,provedor,enviado_em)
+                VALUES (?,?,?,?,?,?,?,?,datetime('now','localtime'))""",
                 (dados["funcionario_id"],dados["doc_id"],dados.get("doc_nome",""),
                  dados.get("pdf_path",""),dados.get("autentique_id",""),
-                 dados.get("link_assinatura",""),dados.get("status","enviado")))
+                 dados.get("link_assinatura",""),dados.get("status","enviado"),
+                 dados.get("provedor","zapsign")))
             eid = cur.lastrowid
         conn.commit()
         return eid

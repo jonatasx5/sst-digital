@@ -1947,6 +1947,81 @@ async def enviar_lote(dados: dict, _=Depends(verificar_acesso)):
     }
 
 # ══════════════════════════════════════════════════════════
+#  GERAR PDF PARA IMPRESSÃO (sem envio)
+# ══════════════════════════════════════════════════════════
+
+@app.post("/api/lote/gerar-pdf-impressao")
+async def gerar_pdf_impressao(dados: dict, _=Depends(verificar_acesso)):
+    """
+    Gera PDFs do Kit SST para os funcionários selecionados sem enviar para assinatura.
+    Retorna um ZIP com um PDF por funcionário.
+    """
+    import zipfile, io as _io
+    func_ids = dados.get("funcionario_ids", [])
+    doc_ids_filtro = dados.get("doc_ids", [])  # se vazio, usa todos os docs do cargo
+
+    if not func_ids:
+        raise HTTPException(400, "Nenhum funcionário selecionado")
+
+    todos  = banco.buscar_funcionarios("")
+    pasta  = processador.pasta_lote()
+    erros  = []
+    pdfs_zip = {}  # nome_arquivo -> bytes
+
+    for fid in func_ids:
+        f = next((x for x in todos if x["id"] == fid), None)
+        if not f:
+            continue
+
+        doc_ids = doc_ids_filtro if doc_ids_filtro else banco.docs_do_cargo(f["cargo"])
+        if not doc_ids:
+            erros.append(f"{f['nome']}: nenhum documento configurado para o cargo '{f['cargo']}'")
+            continue
+
+        pdfs = processador.gerar_kit_funcionario(f, doc_ids, pasta)
+        pdfs_ok = [r for r in pdfs if not r["erro"] and r["pdf_path"]]
+
+        for r in pdfs if True else []:
+            if r.get("erro"):
+                erros.append(f"{f['nome']} / {r.get('doc_nome','?')}: {r['erro']}")
+
+        if not pdfs_ok:
+            erros.append(f"{f['nome']}: nenhum PDF gerado")
+            continue
+
+        pdf_final = processador.juntar_pdfs(
+            [r["pdf_path"] for r in pdfs_ok],
+            pasta,
+            f["nome"]
+        )
+        if not pdf_final or not os.path.exists(pdf_final):
+            erros.append(f"{f['nome']}: falha ao juntar PDFs")
+            continue
+
+        import re as _re
+        nome_seguro = _re.sub(r"[^\w\s-]", "", f["nome"])
+        nome_seguro = _re.sub(r"\s+", "_", nome_seguro.strip())
+        with open(pdf_final, "rb") as fp:
+            pdfs_zip[f"Kit_SST_{nome_seguro}.pdf"] = fp.read()
+
+    if not pdfs_zip:
+        raise HTTPException(500, {"erro": "Nenhum PDF gerado. " + "; ".join(erros)})
+
+    # Monta ZIP em memória
+    buf = _io.BytesIO()
+    with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as zf:
+        for nome_arq, conteudo in pdfs_zip.items():
+            zf.writestr(nome_arq, conteudo)
+    buf.seek(0)
+
+    return StreamingResponse(
+        buf,
+        media_type="application/zip",
+        headers={"Content-Disposition": 'attachment; filename="kit_sst_impressao.zip"'}
+    )
+
+
+# ══════════════════════════════════════════════════════════
 #  ENVIO FICHA DE EPI
 # ══════════════════════════════════════════════════════════
 

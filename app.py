@@ -1865,77 +1865,79 @@ async def enviar_lote(dados: dict, _=Depends(verificar_acesso)):
     for fid in func_ids:
         f = next((x for x in todos if x["id"] == fid), None)
         if not f:
+            erros.append(f"Funcionário ID {fid}: não encontrado")
             continue
 
-        cel_editado = celulares.get(str(fid))
-        if cel_editado:
-            f = dict(f)
-            f["celular"] = cel_editado
-
-        doc_ids = banco.docs_do_cargo(f["cargo"])
-        if not doc_ids:
-            erros.append(f"{f['nome']}: nenhum documento configurado para o cargo '{f['cargo']}'")
-            continue
-
-        banco.adicionar_ao_lote(lote_id, f["id"])
-
-        # Gera PDFs individuais
-        pdfs = processador.gerar_kit_funcionario(f, doc_ids, pasta)
-
-        # Filtra PDFs gerados com sucesso
-        pdfs_ok = [r for r in pdfs if not r["erro"] and r["pdf_path"]]
-        pdfs_erro = [r for r in pdfs if r["erro"]]
-
-        for r in pdfs_erro:
-            erros.append(f"{f['nome']} / {r['doc_nome']}: {r['erro']}")
-
-        if not pdfs_ok:
-            erros.append(f"{f['nome']}: nenhum PDF gerado com sucesso")
-            continue
-
-        # Junta todos os PDFs em um único
-        pdf_final = processador.juntar_pdfs(
-            [r["pdf_path"] for r in pdfs_ok],
-            pasta,
-            f["nome"]
-        )
-
-        if not pdf_final:
-            erros.append(f"{f['nome']}: falha ao juntar PDFs")
-            continue
-
-        nome_kit = f"Kit SST — {f['nome']}"
-        ret = _enviar_com_fallback(
-            nome_documento=nome_kit,
-            caminho_pdf=pdf_final,
-            funcionario=f,
-            sandbox=sandbox,
-        )
-
-        # Registra no banco
         try:
-            banco.registrar_envio({
-                "funcionario_id":  f["id"],
-                "doc_id":          "kit_completo",
-                "doc_nome":        nome_kit,
-                "pdf_path":        pdf_final,
-                "autentique_id":   ret.get("autentique_id"),
-                "link_assinatura": ret.get("link"),
-                "status":          "enviado" if ret.get("sucesso") else "erro",
-                "provedor":        ret.get("provedor", "zapsign"),
-            })
-        except Exception as db_err:
-            print(f"⚠️  Falha ao registrar envio no banco para {f['nome']}: {db_err}")
+            cel_editado = celulares.get(str(fid))
+            if cel_editado:
+                f = dict(f)
+                f["celular"] = cel_editado
 
-        if ret["sucesso"]:
-            resultados.append({
-                "nome":    f["nome"],
-                "celular": f.get("celular", ""),
-                "cargo":   f["cargo"],
-                "links":   [{"doc": nome_kit, "link": ret.get("link", "")}],
-            })
-        else:
-            erros.append(f"{f['nome']}: {ret['erro']}")
+            doc_ids = banco.docs_do_cargo(f["cargo"])
+            if not doc_ids:
+                erros.append(f"{f['nome']}: nenhum documento configurado para o cargo '{f['cargo']}'")
+                continue
+
+            banco.adicionar_ao_lote(lote_id, f["id"])
+
+            pdfs = processador.gerar_kit_funcionario(f, doc_ids, pasta)
+            pdfs_ok   = [r for r in pdfs if not r.get("erro") and r.get("pdf_path")]
+            pdfs_erro = [r for r in pdfs if r.get("erro")]
+
+            for r in pdfs_erro:
+                erros.append(f"{f['nome']} / {r.get('doc_nome','?')}: {r.get('erro')}")
+
+            if not pdfs_ok:
+                erros.append(f"{f['nome']}: nenhum PDF gerado com sucesso")
+                continue
+
+            pdf_final = processador.juntar_pdfs(
+                [r["pdf_path"] for r in pdfs_ok],
+                pasta,
+                f["nome"]
+            )
+
+            if not pdf_final:
+                erros.append(f"{f['nome']}: falha ao juntar PDFs")
+                continue
+
+            nome_kit = f"Kit SST — {f['nome']}"
+            ret = _enviar_com_fallback(
+                nome_documento=nome_kit,
+                caminho_pdf=pdf_final,
+                funcionario=f,
+                sandbox=sandbox,
+            )
+
+            try:
+                banco.registrar_envio({
+                    "funcionario_id":  f["id"],
+                    "doc_id":          "kit_completo",
+                    "doc_nome":        nome_kit,
+                    "pdf_path":        pdf_final,
+                    "autentique_id":   ret.get("autentique_id"),
+                    "link_assinatura": ret.get("link"),
+                    "status":          "enviado" if ret.get("sucesso") else "erro",
+                    "provedor":        ret.get("provedor", "zapsign"),
+                })
+            except Exception as db_err:
+                print(f"⚠️  Falha ao registrar envio no banco para {f['nome']}: {db_err}")
+
+            if ret.get("sucesso"):
+                resultados.append({
+                    "nome":    f["nome"],
+                    "celular": f.get("celular", ""),
+                    "cargo":   f["cargo"],
+                    "links":   [{"doc": nome_kit, "link": ret.get("link", "")}],
+                })
+            else:
+                erros.append(f"{f['nome']}: {ret.get('erro', 'Erro desconhecido')}")
+
+        except Exception as exc:
+            import traceback
+            print(f"[ERRO KIT SST] funcionário {fid}: {traceback.format_exc()}")
+            erros.append(f"Funcionário ID {fid}: erro interno — {exc}")
 
     return {
         "ok":         True,

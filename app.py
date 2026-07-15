@@ -1904,13 +1904,12 @@ async def enviar_lote(dados: dict, _=Depends(verificar_acesso)):
             erros.append(f"{f['nome']}: falha ao juntar PDFs")
             continue
 
-        # Envia PDF único para o Autentique
         nome_kit = f"Kit SST — {f['nome']}"
-        ret = zapsign.enviar_documento(
+        ret = _enviar_com_fallback(
             nome_documento=nome_kit,
             caminho_pdf=pdf_final,
             funcionario=f,
-            sandbox=sandbox
+            sandbox=sandbox,
         )
 
         # Registra no banco
@@ -2326,6 +2325,36 @@ async def listar_envios(
 ):
     """Lista todos os documentos enviados para assinatura."""
     return banco.listar_envios(funcionario_id=funcionario_id, status=status, limite=limite)
+
+
+def _enviar_com_fallback(nome_documento: str, caminho_pdf: str, funcionario: dict, sandbox: bool = False) -> dict:
+    """
+    Tenta enviar via ZapSign; se retornar 402 (cota esgotada), usa Autentique.
+    Retorna o dict de resultado com chave extra 'provedor'.
+    """
+    ret = zapsign.enviar_documento(
+        nome_documento=nome_documento,
+        caminho_pdf=caminho_pdf,
+        funcionario=funcionario,
+        sandbox=sandbox,
+    )
+    if ret.get("sucesso"):
+        ret["provedor"] = "zapsign"
+        return ret
+
+    erro = str(ret.get("erro") or "")
+    if "402" in erro or "plano" in erro.lower() or "cota" in erro.lower() or "quota" in erro.lower():
+        ret2 = autentique.enviar_documento(
+            nome_documento=nome_documento,
+            caminho_pdf=caminho_pdf,
+            funcionario=funcionario,
+            sandbox=sandbox,
+        )
+        ret2["provedor"] = "autentique"
+        return ret2
+
+    ret["provedor"] = "zapsign"
+    return ret
 
 
 def _consultar_status_com_fallback(doc_token: str, provedor: str, envio_id: int) -> dict:

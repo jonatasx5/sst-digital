@@ -117,10 +117,7 @@ async def _polling_status_loop():
                     continue
                 provedor = envio.get("provedor") or "zapsign"
                 try:
-                    if provedor == "autentique":
-                        resultado = autentique.consultar_status(doc_token)
-                    else:
-                        resultado = zapsign.consultar_status(doc_token)
+                    resultado = _consultar_status_com_fallback(doc_token, provedor, envio["id"])
 
                     if not resultado.get("erro") and resultado.get("status"):
                         banco.atualizar_status_envio(
@@ -2256,6 +2253,38 @@ async def listar_envios(
     return banco.listar_envios(funcionario_id=funcionario_id, status=status, limite=limite)
 
 
+def _consultar_status_com_fallback(doc_token: str, provedor: str, envio_id: int) -> dict:
+    """
+    Consulta status do documento no provedor indicado.
+    Se não encontrado, tenta o outro provedor e corrige o campo no banco.
+    Retorna o resultado final (dict com chave 'erro' ou dados de status).
+    """
+    primeiro   = provedor or "zapsign"
+    alternativo = "autentique" if primeiro == "zapsign" else "zapsign"
+
+    if primeiro == "autentique":
+        resultado = autentique.consultar_status(doc_token)
+    else:
+        resultado = zapsign.consultar_status(doc_token)
+
+    # Se não encontrou no provedor registrado, tenta o outro
+    erro = str(resultado.get("erro") or "")
+    if resultado.get("erro") and ("não encontrado" in erro.lower() or "not found" in erro.lower()
+                                   or "404" in erro or "invalid" in erro.lower()):
+        if alternativo == "autentique":
+            resultado2 = autentique.consultar_status(doc_token)
+        else:
+            resultado2 = zapsign.consultar_status(doc_token)
+
+        if not resultado2.get("erro"):
+            # Encontrou no alternativo — corrige provedor no banco
+            banco.corrigir_provedor_envio(envio_id, alternativo)
+            print(f"[STATUS] envio {envio_id}: corrigido provedor {primeiro}→{alternativo}")
+            return resultado2
+
+    return resultado
+
+
 @app.post("/api/envios/{envio_id}/atualizar-status")
 async def atualizar_status_envio(envio_id: int, _=Depends(verificar_acesso)):
     """Consulta a API correta (ZapSign ou Autentique) e atualiza o status do envio no banco."""
@@ -2267,16 +2296,12 @@ async def atualizar_status_envio(envio_id: int, _=Depends(verificar_acesso)):
     if not doc_token:
         raise HTTPException(400, "Envio não possui token de documento")
 
-    provedor = envio.get("provedor") or "zapsign"
-    if provedor == "autentique":
-        resultado = autentique.consultar_status(doc_token)
-    else:
-        resultado = zapsign.consultar_status(doc_token)
+    provedor  = envio.get("provedor") or "zapsign"
+    resultado = _consultar_status_com_fallback(doc_token, provedor, envio_id)
 
-    if resultado["erro"]:
+    if resultado.get("erro"):
         raise HTTPException(500, resultado["erro"])
 
-    # Atualiza no banco
     banco.atualizar_status_envio(
         envio_id=envio_id,
         status=resultado["status"],
@@ -2305,10 +2330,7 @@ async def atualizar_todos_pendentes(_=Depends(verificar_acesso)):
             continue
         provedor = envio.get("provedor") or "zapsign"
         try:
-            if provedor == "autentique":
-                resultado = autentique.consultar_status(doc_token)
-            else:
-                resultado = zapsign.consultar_status(doc_token)
+            resultado = _consultar_status_com_fallback(doc_token, provedor, envio["id"])
         except Exception as _e:
             erros += 1
             continue

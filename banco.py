@@ -481,20 +481,6 @@ def criar_banco():
                 prazo TEXT DEFAULT '',
                 status_acao TEXT DEFAULT 'pendente')""")
 
-        # Migration: add empresa column to funcionarios
-        if USE_POSTGRES:
-            conn.autocommit = True
-            try:
-                cur.execute("ALTER TABLE funcionarios ADD COLUMN empresa TEXT DEFAULT 'JS Construtora'")
-            except Exception:
-                pass
-            conn.autocommit = False
-        else:
-            cols = [r[1] for r in cur.execute("PRAGMA table_info(funcionarios)").fetchall()]
-            if "empresa" not in cols:
-                cur.execute("ALTER TABLE funcionarios ADD COLUMN empresa TEXT DEFAULT 'JS Construtora'")
-                conn.commit()
-
         # Migrações: adiciona colunas novas se ainda não existirem
         if USE_POSTGRES:
             conn.commit()  # fecha transação anterior antes das migrações DDL

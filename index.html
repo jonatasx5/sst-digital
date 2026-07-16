@@ -91,6 +91,9 @@ tr:hover td { background:#F9FAFB; }
 .b-blue { background:#DBEAFE; color:#1E40AF; }
 .b-gray { background:#F3F4F6; color:#374151; }
 
+/* ── Badge empresa ── */
+.badge-empresa { display:inline-flex; align-items:center; padding:2px 8px; border-radius:99px; font-size:10px; font-weight:600; background:#FEF3C7; color:#92400E; margin-left:4px; }
+
 /* ── Upload zone ── */
 .upload-zone { border:2px dashed var(--borda); border-radius:12px; padding:32px; text-align:center; cursor:pointer; transition:all .2s; }
 .upload-zone:hover, .upload-zone.drag { border-color:var(--verde); background:var(--verde-light); }
@@ -264,8 +267,13 @@ tr:hover td { background:#F9FAFB; }
     </div>
   </div>
 
-  <div class="card" style="padding:12px 16px;margin-bottom:12px">
-    <input type="text" id="busca-func" placeholder="🔍 Buscar por nome, CPF ou cargo..." style="width:100%;border:none;font-size:13px;color:var(--texto);outline:none;background:none" oninput="carregarFuncionarios()">
+  <div class="card" style="padding:12px 16px;margin-bottom:12px;display:flex;gap:12px;align-items:center">
+    <input type="text" id="busca-func" placeholder="🔍 Buscar por nome, CPF ou cargo..." style="flex:1;border:none;font-size:13px;color:var(--texto);outline:none;background:none" oninput="carregarFuncionarios()">
+    <select id="filtro-empresa" onchange="carregarFuncionarios()" style="border:1px solid var(--borda);border-radius:8px;padding:4px 8px;font-size:12px;background:var(--card);color:var(--texto);cursor:pointer">
+      <option value="">Todas as empresas</option>
+      <option value="JS Construtora">JS Construtora</option>
+      <option value="RECOPAV ASFALTOS LTDA">RECOPAV ASFALTOS LTDA</option>
+    </select>
   </div>
 
   <div class="card" style="padding:0">
@@ -1116,7 +1124,15 @@ tr:hover td { background:#F9FAFB; }
       <div class="field"><label>Data admissão</label><input type="text" id="mf-admissao"></div>
     </div>
     <div class="grid2">
+      <div class="field"><label>Empresa</label>
+        <select id="mf-empresa" style="width:100%;padding:8px 10px;border:1.5px solid var(--borda);border-radius:8px;font-size:13px;background:var(--card);color:var(--texto)">
+          <option value="JS Construtora">JS Construtora</option>
+          <option value="RECOPAV ASFALTOS LTDA">RECOPAV ASFALTOS LTDA</option>
+        </select>
+      </div>
       <div class="field"><label>Celular / WhatsApp</label><input type="text" id="mf-celular"></div>
+    </div>
+    <div class="grid2">
       <div class="field"><label>E-mail</label><input type="text" id="mf-email"></div>
     </div>
     <button class="btn btn-primary" style="width:100%;justify-content:center" onclick="salvarFunc()">
@@ -2256,19 +2272,23 @@ function toggleSidebar() {
 // ══════════════════════════════════════════════════════
 async function carregarFuncionarios() {
   const busca = document.getElementById('busca-func').value;
+  const filtroEmpresa = document.getElementById('filtro-empresa')?.value || '';
   const res = await apiFetch(`/api/funcionarios?busca=${encodeURIComponent(busca)}`);
   if (!res || !res.ok) return;
   const data = await res.json();
-  todosFunc = Array.isArray(data) ? data : (data.funcionarios || []);
-  document.getElementById('func-count-sub').textContent = `${todosFunc.length} funcionário(s) cadastrado(s)`;
+  let lista = Array.isArray(data) ? data : (data.funcionarios || []);
+  todosFunc = lista;
+  if (filtroEmpresa) lista = lista.filter(f => (f.empresa || 'JS Construtora') === filtroEmpresa);
+  document.getElementById('func-count-sub').textContent = `${lista.length} funcionário(s) cadastrado(s)`;
   const tbody = document.getElementById('func-tbody');
   tbody.innerHTML = '';
-  todosFunc.forEach(f => {
+  lista.forEach(f => {
     const ini = f.nome.split(' ').map(w=>w[0]).slice(0,2).join('').toUpperCase();
+    const empresaBadge = (f.empresa && f.empresa !== 'JS Construtora') ? `<span class="badge-empresa">${f.empresa}</span>` : '';
     tbody.innerHTML += `<tr>
       <td><div style="display:flex;align-items:center;gap:8px">
         <div style="width:30px;height:30px;border-radius:50%;background:var(--verde-light);color:var(--verde-dark);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;flex-shrink:0">${ini}</div>
-        <div><div class="fn">${f.nome}</div></div>
+        <div><div class="fn">${f.nome}${empresaBadge}</div></div>
       </div></td>
       <td>${f.cpf}</td>
       <td><div class="fn" style="font-size:12px">${f.cargo}</div>${f.cbo?`<div style="font-size:10px;color:var(--texto2)">CBO: ${f.cbo}</div>`:''}</td>
@@ -2286,6 +2306,7 @@ function abrirModalFunc(f) {
   ['id','nome','cpf','matricula','cargo','lotacao','admissao','celular','email'].forEach(k => {
     document.getElementById('mf-'+k).value = f[k] || '';
   });
+  document.getElementById('mf-empresa').value = f.empresa || 'JS Construtora';
   abrirModal('modal-func');
 }
 
@@ -2294,6 +2315,7 @@ async function salvarFunc() {
   ['id','nome','cpf','matricula','cargo','lotacao','admissao','celular','email'].forEach(k => {
     dados[k] = document.getElementById('mf-'+k).value;
   });
+  dados.empresa = document.getElementById('mf-empresa').value;
   if (!dados.nome || !dados.cpf || !dados.cargo) { alert('Nome, CPF e Cargo são obrigatórios.'); return; }
   await apiFetch('/api/funcionarios', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(dados) });
   fecharModal('modal-func');
@@ -3330,11 +3352,12 @@ async function filtrarLote() {
   todos.forEach(f => {
     const sel = loteIds.has(f.id);
     const ini = f.nome.split(' ').map(w=>w[0]).slice(0,2).join('').toUpperCase();
+    const empresaBadge = (f.empresa && f.empresa !== 'JS Construtora') ? `<span class="badge-empresa">${f.empresa}</span>` : '';
     lista.innerHTML += `<div class="func-item ${sel?'sel':''}" id="fi-${f.id}">
       <div style="display:flex;align-items:center;gap:8px">
         <div class="func-avatar">${ini}</div>
         <div>
-          <div style="font-size:13px;font-weight:500">${f.nome}</div>
+          <div style="font-size:13px;font-weight:500">${f.nome}${empresaBadge}</div>
           <div style="font-size:11px;color:var(--texto2)">${f.cargo} · ${f.lotacao||''}</div>
         </div>
       </div>

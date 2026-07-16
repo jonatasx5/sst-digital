@@ -180,6 +180,27 @@ async def startup_event():
     except Exception as e:
         print(f"[WARN] migração provedor: {e}")
 
+    # Migração: coluna empresa em funcionarios
+    try:
+        conn = banco.conectar()
+        cur = conn.cursor()
+        if banco.USE_POSTGRES:
+            conn.autocommit = True
+            try:
+                cur.execute("ALTER TABLE funcionarios ADD COLUMN empresa TEXT DEFAULT 'JS Construtora'")
+                print("[STARTUP] coluna empresa adicionada em funcionarios")
+            except Exception:
+                pass
+            conn.autocommit = False
+        else:
+            cols = [r[1] for r in cur.execute("PRAGMA table_info(funcionarios)").fetchall()]
+            if "empresa" not in cols:
+                cur.execute("ALTER TABLE funcionarios ADD COLUMN empresa TEXT DEFAULT 'JS Construtora'")
+                conn.commit()
+        conn.close()
+    except Exception as e:
+        print(f"[WARN] migração empresa: {e}")
+
     _garantir_os_base()
     _garantir_epi_base()
     _seed_modelos_do_disco()
@@ -630,6 +651,16 @@ async def importar_planilha(file: UploadFile = File(...), _=Depends(verificar_ac
         return {"ok": True, "inseridos": ins, "atualizados": atu, "avisos": avisos}
     finally:
         os.unlink(tmp_path)
+
+@app.post("/api/funcionarios/importar-empresa")
+async def importar_funcionarios_empresa(dados: dict, _=Depends(verificar_acesso)):
+    """Importa lista de funcionários de uma empresa específica."""
+    empresa = dados.get("empresa", "JS Construtora")
+    funcionarios = dados.get("funcionarios", [])
+    for f in funcionarios:
+        f["empresa"] = empresa
+    inseridos, atualizados = banco.importar_funcionarios(funcionarios)
+    return {"inseridos": inseridos, "atualizados": atualizados, "empresa": empresa}
 
 # ══════════════════════════════════════════════════════════
 #  DOCUMENTOS / MATRIZ

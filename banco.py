@@ -481,6 +481,20 @@ def criar_banco():
                 prazo TEXT DEFAULT '',
                 status_acao TEXT DEFAULT 'pendente')""")
 
+        # Migration: add empresa column to funcionarios
+        if USE_POSTGRES:
+            conn.autocommit = True
+            try:
+                cur.execute("ALTER TABLE funcionarios ADD COLUMN empresa TEXT DEFAULT 'JS Construtora'")
+            except Exception:
+                pass
+            conn.autocommit = False
+        else:
+            cols = [r[1] for r in cur.execute("PRAGMA table_info(funcionarios)").fetchall()]
+            if "empresa" not in cols:
+                cur.execute("ALTER TABLE funcionarios ADD COLUMN empresa TEXT DEFAULT 'JS Construtora'")
+                conn.commit()
+
         # Migrações: adiciona colunas novas se ainda não existirem
         if USE_POSTGRES:
             conn.commit()  # fecha transação anterior antes das migrações DDL
@@ -1103,26 +1117,30 @@ def importar_funcionarios(lista):
             if existe:
                 if USE_POSTGRES:
                     cur.execute("""UPDATE funcionarios SET nome=%s,cargo=%s,lotacao=%s,
-                        admissao=%s,celular=%s,email=%s,ativo=1 WHERE cpf=%s""",
+                        admissao=%s,celular=%s,email=%s,empresa=%s,ativo=1 WHERE cpf=%s""",
                         (f.get("nome",""),f.get("cargo",""),f.get("lotacao",""),
-                         f.get("admissao",""),f.get("celular",""),f.get("email",""),cpf))
+                         f.get("admissao",""),f.get("celular",""),f.get("email",""),
+                         f.get("empresa","JS Construtora"),cpf))
                 else:
                     cur.execute("""UPDATE funcionarios SET nome=?,cargo=?,lotacao=?,
-                        admissao=?,celular=?,email=?,ativo=1 WHERE cpf=?""",
+                        admissao=?,celular=?,email=?,empresa=?,ativo=1 WHERE cpf=?""",
                         (f.get("nome",""),f.get("cargo",""),f.get("lotacao",""),
-                         f.get("admissao",""),f.get("celular",""),f.get("email",""),cpf))
+                         f.get("admissao",""),f.get("celular",""),f.get("email",""),
+                         f.get("empresa","JS Construtora"),cpf))
                 atualizados += 1
             else:
                 if USE_POSTGRES:
-                    cur.execute("""INSERT INTO funcionarios (nome,cpf,matricula,cargo,lotacao,admissao,celular,email)
-                        VALUES (%s,%s,%s,%s,%s,%s,%s,%s)""",
+                    cur.execute("""INSERT INTO funcionarios (nome,cpf,matricula,cargo,lotacao,admissao,celular,email,empresa)
+                        VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s)""",
                         (f.get("nome",""),cpf,f.get("matricula",""),f.get("cargo",""),
-                         f.get("lotacao",""),f.get("admissao",""),f.get("celular",""),f.get("email","")))
+                         f.get("lotacao",""),f.get("admissao",""),f.get("celular",""),f.get("email",""),
+                         f.get("empresa","JS Construtora")))
                 else:
-                    cur.execute("""INSERT INTO funcionarios (nome,cpf,matricula,cargo,lotacao,admissao,celular,email)
-                        VALUES (?,?,?,?,?,?,?,?)""",
+                    cur.execute("""INSERT INTO funcionarios (nome,cpf,matricula,cargo,lotacao,admissao,celular,email,empresa)
+                        VALUES (?,?,?,?,?,?,?,?,?)""",
                         (f.get("nome",""),cpf,f.get("matricula",""),f.get("cargo",""),
-                         f.get("lotacao",""),f.get("admissao",""),f.get("celular",""),f.get("email","")))
+                         f.get("lotacao",""),f.get("admissao",""),f.get("celular",""),f.get("email",""),
+                         f.get("empresa","JS Construtora")))
                 inseridos += 1
 
         conn.commit()
@@ -1154,28 +1172,30 @@ def salvar_funcionario(dados):
         if fid:
             if USE_POSTGRES:
                 cur.execute("""UPDATE funcionarios SET nome=%s,cpf=%s,matricula=%s,cargo=%s,
-                    lotacao=%s,admissao=%s,celular=%s,email=%s WHERE id=%s""",
+                    lotacao=%s,admissao=%s,celular=%s,email=%s,empresa=%s WHERE id=%s""",
                     (dados["nome"],dados["cpf"],dados.get("matricula",""),dados["cargo"],
                      dados.get("lotacao",""),dados.get("admissao",""),dados.get("celular",""),
-                     dados.get("email",""),fid))
+                     dados.get("email",""),dados.get("empresa","JS Construtora"),fid))
             else:
                 cur.execute("""UPDATE funcionarios SET nome=?,cpf=?,matricula=?,cargo=?,
-                    lotacao=?,admissao=?,celular=?,email=? WHERE id=?""",
+                    lotacao=?,admissao=?,celular=?,email=?,empresa=? WHERE id=?""",
                     (dados["nome"],dados["cpf"],dados.get("matricula",""),dados["cargo"],
                      dados.get("lotacao",""),dados.get("admissao",""),dados.get("celular",""),
-                     dados.get("email",""),fid))
+                     dados.get("email",""),dados.get("empresa","JS Construtora"),fid))
         else:
             if USE_POSTGRES:
-                cur.execute("""INSERT INTO funcionarios (nome,cpf,matricula,cargo,lotacao,admissao,celular,email)
-                    VALUES (%s,%s,%s,%s,%s,%s,%s,%s) RETURNING id""",
+                cur.execute("""INSERT INTO funcionarios (nome,cpf,matricula,cargo,lotacao,admissao,celular,email,empresa)
+                    VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s) RETURNING id""",
                     (dados["nome"],dados["cpf"],dados.get("matricula",""),dados["cargo"],
-                     dados.get("lotacao",""),dados.get("admissao",""),dados.get("celular",""),dados.get("email","")))
+                     dados.get("lotacao",""),dados.get("admissao",""),dados.get("celular",""),dados.get("email",""),
+                     dados.get("empresa","JS Construtora")))
                 fid = cur.fetchone()["id"]
             else:
-                cur.execute("""INSERT INTO funcionarios (nome,cpf,matricula,cargo,lotacao,admissao,celular,email)
-                    VALUES (?,?,?,?,?,?,?,?)""",
+                cur.execute("""INSERT INTO funcionarios (nome,cpf,matricula,cargo,lotacao,admissao,celular,email,empresa)
+                    VALUES (?,?,?,?,?,?,?,?,?)""",
                     (dados["nome"],dados["cpf"],dados.get("matricula",""),dados["cargo"],
-                     dados.get("lotacao",""),dados.get("admissao",""),dados.get("celular",""),dados.get("email","")))
+                     dados.get("lotacao",""),dados.get("admissao",""),dados.get("celular",""),dados.get("email",""),
+                     dados.get("empresa","JS Construtora")))
                 fid = cur.lastrowid
 
         conn.commit()

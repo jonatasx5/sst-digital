@@ -24,7 +24,7 @@ from config import MODELOS_DIR, OUTPUT_DIR, EMPRESA, RESP_SST, CNPJ, DOCUMENTOS
 
 # Mapeamento: nome da coluna no Excel → chave interna
 COLUNAS_MAP = {
-    "nome":        ["nome", "funcionário", "funcionario", "colaborador"],
+    "nome":        ["nome", "funcionário", "funcionario", "colaborador", "funcionarios"],
     "cpf":         ["cpf"],
     "matricula":   ["matrícula", "matricula", "mat", "esocial matricula", "esocial matrícula", "esocial"],
     "cargo":       ["cargo atual", "cargo", "função", "funcao", "função atual", "código atual", "codigo atual"],
@@ -33,6 +33,7 @@ COLUNAS_MAP = {
     "celular":     ["celular", "telefone", "whatsapp", "fone", "cel"],
     "email":       ["e-mail pessoal", "email", "e-mail", "email pessoal"],
     "cbo":         ["cbo", "código cbo", "codigo cbo", "cbo cargo", "cbo função", "cbo funcao"],
+    "empresa":     ["empresa", "razão social", "razao social", "razaosocial", "cnpj empresa", "empresa contratante"],
 }
 
 
@@ -118,6 +119,7 @@ def ler_planilha(caminho: str) -> tuple[list[dict], list[str]]:
                 "celular":   cel,
                 "email":     get("email"),
                 "cbo":       re.sub(r"\D", "", get("cbo")),  # só dígitos
+                "empresa":   get("empresa") or "JS Construtora",
             })
 
         return funcionarios, avisos

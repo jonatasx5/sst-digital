@@ -1,0 +1,82 @@
+HISTÓRICO DE DECISÕES E MUDANÇAS — SST DIGITAL
+===============================================
+Atualizado automaticamente a cada mudança relevante.
+Formato: [DATA] CATEGORIA — Descrição
+
+-------------------------------------------------------------------------------
+[2026-07] INFRAESTRUTURA — Deploy no Railway
+  - App hospedado no Railway (PostgreSQL + web service)
+  - Branch `main` do repositório `jonatasx5/sst-digital` é o que vai para produção
+  - URL: https://web-production-a3356.up.railway.app
+
+[2026-07] CORREÇÃO — Persistência de modelos DOCX no banco
+  - Bug: listar_modelos usava RealDictCursor com coluna BYTEA (PostgreSQL)
+  - Fix: usar cursor simples para colunas BYTEA
+
+[2026-07] FEATURE — Fallback ZapSign → Autentique
+  - ZapSign atingiu cota (erro 402); implementado fallback automático para Autentique
+  - Função _enviar_com_fallback() tenta ZapSign primeiro; se 402, usa Autentique
+  - Campo `provedor` adicionado na tabela `envios` para rastrear qual API foi usada
+  - Tokens Autentique configurados no Railway (AUTENTIQUE_TOKEN, AUTENTIQUE_URL)
+
+[2026-07] RENOMEAÇÃO — Menu principal
+  - "Envio de Lote" → "Kit SST Envio"
+  - "Ordem de Serviço" → "Treinamentos"
+
+[2026-07] FEATURE — Botão "Gerar PDF para Impressão" no Kit SST Envio
+  - Gera PDFs sem enviar para assinatura, retorna ZIP com um PDF por funcionário
+  - Endpoint: POST /api/lote/gerar-pdf-impressao
+
+[2026-07] FEATURE — Módulo Treinamentos
+  - Documentos de treinamento persistidos no banco (tabela treinamentos_docs)
+  - Upload de DOCX pelo sistema, documentos nunca se perdem
+  - 3 modos de geração: Por Lotação, Por Funcionário, Pessoa Avulsa
+  - Quando lotação é selecionada, lista de funcionários aparece abaixo
+
+[2026-07] CORREÇÃO — Atualização automática de status de assinatura
+  - Bug: listar_envios não retornava campo `autentique_id` nem `provedor`
+  - Bug: polling loop recebia autentique_id=None e pulava todos os envios
+  - Bug: endpoint /atualizar-status sempre chamava ZapSign ignorando provedor
+  - Fix: SELECT agora inclui e.autentique_id e COALESCE(e.provedor,'zapsign')
+  - Polling automático rodando a cada 30 minutos em background
+
+[2026-07] FEATURE — Fallback de provedor ao consultar status
+  - Documentos sem `provedor` definido tentam ZapSign; se "não encontrado", tenta Autentique
+  - Corrige automaticamente o campo provedor no banco quando encontra no alternativo
+  - Aplica-se ao botão individual, ao Atualizar Todos e ao polling automático
+
+[2026-07] CORREÇÃO — Botão de download do PDF assinado
+  - Bug: endpoint /download sempre chamava zapsign.baixar_pdf_assinado() ignorando provedor
+  - Fix: verifica campo `provedor` e chama API correta (ZapSign ou Autentique)
+  - Adicionado autentique.baixar_pdf_assinado() que busca URL do PDF via GraphQL
+
+[2026-07] CORREÇÃO — Import autentique faltando no app.py
+  - Bug: módulo autentique era chamado mas não importado → NameError no runtime
+  - Fix: adicionado `import autentique` no topo do app.py
+
+[2026-07] FEATURE — Suporte a múltiplas empresas
+  - Campo `empresa` adicionado na tabela `funcionarios` (migration automática no startup)
+  - Padrão: "JS Construtora" para funcionários existentes
+  - Badge laranja na lista de funcionários para quem é de outra empresa
+  - Filtro por empresa na tela de Funcionários
+  - Campo Empresa no formulário de cadastro/edição de funcionário
+  - PDFs gerados usam automaticamente a empresa do funcionário no cabeçalho
+  - Importação via planilha detecta coluna "EMPRESA" ou "RAZÃO SOCIAL" automaticamente
+
+[2026-07] IMPORTAÇÃO — Funcionários RECOPAV ASFALTOS LTDA
+  - 12 funcionários importados via planilha Excel
+  - CNPJ: 61.773.385/0001-14 — Nova Veneza (GO)
+  - Lotação: RECOPAV (a definir via reimportação com coluna LOTACAO)
+
+[2026-07] CONVENÇÃO — Organização do projeto
+  - Criados README.md e HISTORICO.txt na raiz do projeto
+  - A partir de agora: mudanças não triviais são descritas antes de implementar,
+    aguardando confirmação do usuário
+  - HISTORICO.txt atualizado a cada mudança relevante
+
+-------------------------------------------------------------------------------
+PENDÊNCIAS ABERTAS
+- Celular/e-mail dos funcionários da Recopav não constam na planilha original
+  → necessário para envio de Kit SST via WhatsApp/e-mail
+- Integração Nydus RH (Sienge) — aguardando documentação da API
+- Índice central D:\PROJETOS CODE\INDEX.md — atualizar manualmente (caminho local Windows)

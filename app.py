@@ -1265,37 +1265,86 @@ async def save_os_texto(cargo: str, dados: dict, _=Depends(verificar_acesso)):
 #  Fallback:       mtecbo.gov.br (scraping)
 # ══════════════════════════════════════════════════════════
 
+def _cbo_local_buscar_titulo(titulo: str) -> list:
+    """Busca no PGR_SEED local por cargo com código CBO. Retorna lista {codigo, titulo, tipo}."""
+    import re as _re
+    norm = titulo.upper().strip()
+    vistos = {}
+    for item in PGR_SEED:
+        cargo = item.get("cargo", "")
+        cbo   = item.get("cbo", "")
+        if not cbo:
+            continue
+        if norm in cargo.upper() or cargo.upper() in norm:
+            if cbo not in vistos:
+                vistos[cbo] = cargo
+    # Também busca no banco de cargos cadastrados
+    try:
+        for c in banco.listar_cargos_cbo():
+            cbo = str(c.get("cbo_codigo") or "")
+            cargo = c.get("cargo", "")
+            if not cbo:
+                continue
+            if norm in cargo.upper() or cargo.upper() in norm:
+                if cbo not in vistos:
+                    vistos[cbo] = cargo
+    except Exception:
+        pass
+    return [{"codigo": cbo, "titulo": cargo, "tipo": "Ocupação"} for cbo, cargo in vistos.items()]
+
+
+def _cbo_local_buscar_descricao(codigo_familia: str) -> dict:
+    """Busca no PGR_SEED local pela família CBO. Retorna {familia, nome_familia, titulos, descricao_sumaria}."""
+    familia = str(codigo_familia).replace("-", "").replace(".", "").strip()[:4]
+    titulos = []
+    descricao = ""
+    nome_familia = ""
+    vistos = set()
+    for item in PGR_SEED:
+        cbo = str(item.get("cbo", "")).replace("-", "").replace(".", "")
+        if cbo.startswith(familia):
+            cargo = item.get("cargo", "")
+            if cbo not in vistos:
+                vistos.add(cbo)
+                titulos.append({"codigo": cbo, "titulo": cargo})
+                if not nome_familia:
+                    nome_familia = cargo
+                if not descricao and item.get("atividades"):
+                    descricao = item["atividades"]
+    # Complementa com banco de cargos_cbo
+    try:
+        for c in banco.listar_cargos_cbo():
+            cbo = str(c.get("cbo_codigo") or "").replace("-", "").replace(".", "")
+            if cbo.startswith(familia) and cbo not in vistos:
+                vistos.add(cbo)
+                titulos.append({"codigo": cbo, "titulo": c.get("cargo", "")})
+                if not nome_familia:
+                    nome_familia = c.get("cbo_titulo") or c.get("cargo", "")
+                if not descricao and c.get("cbo_descricao"):
+                    descricao = c["cbo_descricao"]
+    except Exception:
+        pass
+    if titulos:
+        return {"familia": familia, "nome_familia": nome_familia,
+                "titulos": titulos, "descricao_sumaria": descricao}
+    return {}
+
+
 def _cbo_buscar_por_titulo(titulo: str) -> list:
     """
     Busca ocupações CBO pelo título.
-    Usa BrasilAPI primeiro; fallback para scraping do MTE.
+    1º fonte local (PGR_SEED + banco), 2º scraping MTE.
     Retorna lista de dicts {codigo, titulo, tipo}
     """
     import requests as _req
     import re as _re
 
-    # ── 1. BrasilAPI ──────────────────────────────────────
-    try:
-        r = _req.get(
-            "https://brasilapi.com.br/api/cbo/v1",
-            params={"query": titulo},
-            timeout=10,
-        )
-        if r.status_code == 200:
-            dados = r.json()
-            resultados = []
-            titulo_norm = titulo.lower()
-            for item in dados:
-                cod  = str(item.get("codigo", ""))
-                tit  = item.get("titulo", "")
-                if titulo_norm in tit.lower() or not titulo_norm:
-                    resultados.append({"codigo": cod, "titulo": tit, "tipo": "Ocupação"})
-            if resultados:
-                return resultados[:30]
-    except Exception:
-        pass
+    # ── 1. Base local ─────────────────────────────────────
+    local = _cbo_local_buscar_titulo(titulo)
+    if local:
+        return local[:30]
 
-    # ── 2. Fallback: scraping MTE ─────────────────────────
+    # ── 2. Scraping MTE ───────────────────────────────────
     try:
         from bs4 import BeautifulSoup
         import urllib3
@@ -1342,54 +1391,19 @@ def _cbo_buscar_descricao(codigo_familia: str) -> dict:
     """
     Dada a família CBO (ex: '7170') ou código completo (ex: '717020'),
     retorna {familia, nome_familia, titulos, descricao_sumaria}.
-    Usa BrasilAPI primeiro; fallback para scraping do MTE.
+    1º base local, 2º scraping MTE.
     """
     import requests as _req
     import re as _re
 
     familia = str(codigo_familia).replace("-", "").replace(".", "").strip()[:4]
 
-    # ── 1. BrasilAPI — busca a família ────────────────────
-    try:
-        # Busca pelo código de família (4 dígitos)
-        r = _req.get(f"https://brasilapi.com.br/api/cbo/v1/{familia}", timeout=10)
-        if r.status_code == 200:
-            item = r.json()
-            # Pode retornar dict único ou lista
-            if isinstance(item, dict):
-                return {
-                    "familia": familia,
-                    "nome_familia": item.get("titulo", ""),
-                    "titulos": [{"codigo": item.get("codigo",""), "titulo": item.get("titulo","")}],
-                    "descricao_sumaria": item.get("descricao") or item.get("titulo", ""),
-                }
-        # Busca lista e filtra pela família
-        r2 = _req.get("https://brasilapi.com.br/api/cbo/v1",
-                      params={"query": familia}, timeout=10)
-        if r2.status_code == 200:
-            dados = r2.json()
-            titulos = []
-            descricao = ""
-            nome_familia = ""
-            for item in dados:
-                cod = str(item.get("codigo", "")).replace("-", "")
-                if cod.startswith(familia):
-                    titulos.append({"codigo": item.get("codigo",""), "titulo": item.get("titulo","")})
-                    if not descricao:
-                        descricao = item.get("descricao") or ""
-                    if not nome_familia:
-                        nome_familia = item.get("titulo", "")
-            if titulos:
-                return {
-                    "familia": familia,
-                    "nome_familia": nome_familia,
-                    "titulos": titulos,
-                    "descricao_sumaria": descricao or nome_familia,
-                }
-    except Exception:
-        pass
+    # ── 1. Base local ─────────────────────────────────────
+    local = _cbo_local_buscar_descricao(familia)
+    if local:
+        return local
 
-    # ── 2. Fallback: scraping MTE ─────────────────────────
+    # ── 2. Scraping MTE ───────────────────────────────────
     try:
         from bs4 import BeautifulSoup
         import urllib3

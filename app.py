@@ -1047,7 +1047,19 @@ PGR_SEED = [
     {"cargo":"OPERADOR DE USINA NIVEL II","cbo":"715420","ambiente":"OPERACIONAL/OBRA","atividades":"","riscos":"Acidentes / Mecânicos: ACIDENTES DE TRÂNSITO. Ergonômicos: Organizacionais - Necessidade de manter ritmos intensos de trabalho. Químicos: CIMENTO ASFÁLTICO DE PETRÓLEO","epis":"BOTINA DE COURO; CIMENTO ASFÁLTICO DE PETRÓLEO; RUÍDO; PROTETOR AURICULAR TIPO PLUG; ÓCULOS DE PROTEÇÃO INCOLOR","epcs":"PLACAS DE TRÂNSITO, CONES REFLETIVOS"},  # mapeado de: OPERADOR DE USINA
     {"cargo":"PEDREIRO NIVEL II","cbo":"715210","ambiente":"OPERACIONAL/OBRA","atividades":"","riscos":"Acidentes / Mecânicos: CONTATO COM PERFURO CORTANTES. Ergonômicos: Biomecânicos - Postura em pé por longos períodos. Físicos: RUÍDO CONTÍNUO OU INTERMITENTE. Químicos: Particulados (insolúveis ou de baixa solubilidade) não especiﬁcados de outra maneira (PNOS) - Fração Respirável","epis":"LUVA PARA PROTEÇÃO CONTRA AGENTES MECÂNICOS; CONTATO COM PERFURO CORTANTES","epcs":""},  # mapeado de: PEDREIRO
     {"cargo":"TEC. SEGURANÇA DO TRABALHO","cbo":"351605","ambiente":"OPERACIONAL/OBRA","atividades":"","riscos":"Acidentes / Mecânicos: Outras situações de risco que poderão contribuir para a ocorrência de acidentes (Quedas, tropeções, escorregões, incisões, perfurações, atropelamento). Ergonômicos: Organizacionais - Necessidade de manter ritmos intensos de trabalho","epis":"BOTINA DE COURO; CAPACETE COM JUGULAR; PROTETOR AURICULAR TIPO PLUG","epcs":""},  # mapeado de: TECNICO EM SEGURANÇA DO TRABALHO
-    {"cargo":"TECNICO SEGURANCA DO TRABALHO","cbo":"351605","ambiente":"OPERACIONAL/OBRA","atividades":"","riscos":"Acidentes / Mecânicos: Outras situações de risco que poderão contribuir para a ocorrência de acidentes (Quedas, tropeções, escorregões, incisões, perfurações, atropelamento). Ergonômicos: Organizacionais - Necessidade de manter ritmos intensos de trabalho","epis":"BOTINA DE COURO; CAPACETE COM JUGULAR; PROTETOR AURICULAR TIPO PLUG","epcs":""},  # mapeado de: TECNICO EM SEGURANÇA DO TRABALHO
+    {"cargo":"TECNICO SEGURANCA DO TRABALHO","cbo":"351605","ambiente":"OPERACIONAL/OBRA","atividades":"","riscos":"Acidentes / Mecânicos: Outras situações de risco que poderão contribuir para a ocorrência de acidentes (Quedas, tropeções, escorregões, incisões, perfurações, atropelamento). Ergonômicos: Organizacionais - Necessidade de manter ritmos intensos de trabalho","epis":"BOTINA DE COURO; CAPACETE COM JUGULAR; PROTETOR AURICULAR TIPO PLUG","epcs":""},
+    {"cargo":"SOLDADOR","cbo":"724410","ambiente":"OPERACIONAL/OBRA","atividades":"Executar trabalhos de soldagem em estruturas metálicas, tubulações e equipamentos, utilizando processos de soldagem MIG/MAG, TIG, eletrodo revestido e outros. Preparar e montar peças para soldagem, verificar qualidade dos cordões de solda e realizar manutenção preventiva dos equipamentos de soldagem.","riscos":"Físicos: RADIAÇÃO NÃO IONIZANTE (luz intensa, ultravioleta e infravermelha). Químicos: FUMOS METÁLICOS. Acidentes / Mecânicos: PROJEÇÃO DE PARTÍCULAS, CHOQUE ELÉTRICO. Ergonômicos: Biomecânicos - Postura em pé por longos períodos.","epis":"MÁSCARA DE SOLDAGEM COM FILTRO; AVENTAL DE RASPA; LUVA DE RASPA; BOTINA DE SEGURANÇA; PROTETOR AURICULAR; ÓCULOS DE PROTEÇÃO","epcs":"VENTILAÇÃO LOCAL EXAUSTORA; BIOMBOS DE PROTEÇÃO"},
+    {"cargo":"SOLDADOR NIVEL I","cbo":"724410","ambiente":"OPERACIONAL/OBRA","atividades":"Executar trabalhos de soldagem em estruturas metálicas, tubulações e equipamentos, utilizando processos de soldagem MIG/MAG, TIG, eletrodo revestido e outros.","riscos":"Físicos: RADIAÇÃO NÃO IONIZANTE. Químicos: FUMOS METÁLICOS. Acidentes / Mecânicos: PROJEÇÃO DE PARTÍCULAS, CHOQUE ELÉTRICO. Ergonômicos: Biomecânicos - Postura em pé por longos períodos.","epis":"MÁSCARA DE SOLDAGEM COM FILTRO; AVENTAL DE RASPA; LUVA DE RASPA; BOTINA DE SEGURANÇA; PROTETOR AURICULAR; ÓCULOS DE PROTEÇÃO","epcs":"VENTILAÇÃO LOCAL EXAUSTORA; BIOMBOS DE PROTEÇÃO"},
+    {"cargo":"SOLDADOR NIVEL II","cbo":"724410","ambiente":"OPERACIONAL/OBRA","atividades":"Executar trabalhos de soldagem em estruturas metálicas, tubulações e equipamentos, utilizando processos de soldagem MIG/MAG, TIG, eletrodo revestido e outros.","riscos":"Físicos: RADIAÇÃO NÃO IONIZANTE. Químicos: FUMOS METÁLICOS. Acidentes / Mecânicos: PROJEÇÃO DE PARTÍCULAS, CHOQUE ELÉTRICO. Ergonômicos: Biomecânicos - Postura em pé por longos períodos.","epis":"MÁSCARA DE SOLDAGEM COM FILTRO; AVENTAL DE RASPA; LUVA DE RASPA; BOTINA DE SEGURANÇA; PROTETOR AURICULAR; ÓCULOS DE PROTEÇÃO","epcs":"VENTILAÇÃO LOCAL EXAUSTORA; BIOMBOS DE PROTEÇÃO"},
+    {"cargo":"CALDEIREIRO","cbo":"724205","ambiente":"OPERACIONAL/OBRA","atividades":"Executar trabalhos de fabricação, montagem e manutenção de estruturas e equipamentos de caldeiraria, como vasos de pressão, tanques, silos e tubulações industriais. Realizar traçado, corte, conformação e montagem de chapas e perfis metálicos.","riscos":"Físicos: RUÍDO CONTÍNUO OU INTERMITENTE; RADIAÇÃO NÃO IONIZANTE. Químicos: FUMOS METÁLICOS; POEIRA METÁLICA. Acidentes / Mecânicos: PROJEÇÃO DE PARTÍCULAS; CHOQUE ELÉTRICO; QUEDA DE MATERIAL.","epis":"CAPACETE COM JUGULAR; BOTINA DE SEGURANÇA; LUVA DE RASPA; AVENTAL DE RASPA; PROTETOR AURICULAR; ÓCULOS DE PROTEÇÃO; MÁSCARA DE SOLDAGEM","epcs":"VENTILAÇÃO LOCAL EXAUSTORA; BIOMBOS DE PROTEÇÃO"},
+    {"cargo":"ENCARREGADO DE USINA","cbo":"717205","ambiente":"OPERACIONAL/OBRA","atividades":"Supervisionar e coordenar as atividades de produção da usina de asfalto, controlar a qualidade do material produzido, gerenciar a equipe operacional, garantir o cumprimento de normas de segurança e produtividade.","riscos":"Químicos: CIMENTO ASFÁLTICO DE PETRÓLEO; FUMOS. Físicos: RUÍDO; CALOR. Ergonômicos: Organizacionais - Necessidade de manter ritmos intensos de trabalho. Acidentes / Mecânicos: ACIDENTES DE TRÂNSITO.","epis":"BOTINA DE COURO; CAPACETE COM JUGULAR; PROTETOR AURICULAR TIPO PLUG; ÓCULOS DE PROTEÇÃO; LUVA PIGMENTADA","epcs":"PLACAS DE TRÂNSITO; CONES REFLETIVOS"},
+    {"cargo":"OPERADOR DE USINA","cbo":"848110","ambiente":"OPERACIONAL/OBRA","atividades":"Operar e monitorar equipamentos da usina de asfalto, controlar temperatura e dosagem dos materiais, realizar manutenção preventiva dos equipamentos, garantir a qualidade do material produzido conforme especificações técnicas.","riscos":"Químicos: CIMENTO ASFÁLTICO DE PETRÓLEO; FUMOS. Físicos: RUÍDO; CALOR INTENSO. Ergonômicos: Biomecânicos - Postura em pé por longos períodos. Acidentes / Mecânicos: QUEDA DE MATERIAL.","epis":"BOTINA DE COURO; CAPACETE COM JUGULAR; PROTETOR AURICULAR TIPO PLUG; ÓCULOS DE PROTEÇÃO; LUVA DE VAQUETA","epcs":"VENTILAÇÃO NATURAL; PLACAS DE SINALIZAÇÃO"},
+    {"cargo":"FATURISTA","cbo":"411010","ambiente":"ADMINISTRATIVO","atividades":"Emitir notas fiscais, controlar faturamento, conferir documentos fiscais, lançar dados no sistema, arquivar documentos, auxiliar no controle de contas a receber e prestar apoio administrativo ao setor financeiro.","riscos":"Ergonômicos: Biomecânicos - Postura sentada por longos períodos.","epis":"","epcs":"VENTILAÇÃO ARTIFICIAL; EXTINTOR DE INCÊNDIO"},
+    {"cargo":"LABORATORISTA","cbo":"311505","ambiente":"OPERACIONAL/OBRA","atividades":"Realizar ensaios e testes laboratoriais de materiais de construção, solos e misturas asfálticas. Coletar amostras, preparar corpos de prova, executar ensaios de granulometria, compactação, resistência e outros conforme normas técnicas.","riscos":"Químicos: SOLVENTES; REAGENTES QUÍMICOS. Ergonômicos: Biomecânicos - Postura em pé por longos períodos. Acidentes / Mecânicos: CONTATO COM PRODUTOS QUÍMICOS.","epis":"LUVA DE PROTEÇÃO QUÍMICA; ÓCULOS DE PROTEÇÃO; JALECO; BOTINA DE SEGURANÇA; MÁSCARA PFF2","epcs":"VENTILAÇÃO LOCAL EXAUSTORA; CHUVEIRO E LAVA-OLHOS DE EMERGÊNCIA"},
+    {"cargo":"PA CARREGADEIRA","cbo":"715510","ambiente":"OPERACIONAL/OBRA","atividades":"Operar pá carregadeira para movimentação de materiais, carregamento de caminhões, limpeza de áreas e execução de serviços de terraplenagem. Realizar manutenção básica e checklist do equipamento.","riscos":"Físicos: RUÍDO; VIBRAÇÃO DE CORPO INTEIRO. Ergonômicos: Biomecânicos - Postura sentada por longos períodos. Acidentes / Mecânicos: ACIDENTES DE TRÂNSITO; CAPOTAMENTO.","epis":"CAPACETE COM JUGULAR; BOTINA DE SEGURANÇA; PROTETOR AURICULAR; CINTO DE SEGURANÇA","epcs":"SINALIZAÇÃO DE TRÂNSITO; ESPELHO RETROVISOR"},
+    {"cargo":"GERENTE","cbo":"131105","ambiente":"ADMINISTRATIVO","atividades":"Planejar, organizar, dirigir e controlar as atividades da empresa ou departamento. Gerenciar equipes, definir metas e estratégias, acompanhar indicadores de desempenho, representar a empresa em negociações e garantir o cumprimento de normas e procedimentos.","riscos":"Ergonômicos: Organizacionais - Pressão por resultados, necessidade de manter ritmos intensos de trabalho.","epis":"","epcs":"VENTILAÇÃO ARTIFICIAL; EXTINTOR DE INCÊNDIO"},
+    {"cargo":"ASS. ADMINISTRATIVO","cbo":"411005","ambiente":"ADMINISTRATIVO","atividades":"Documentos administrativos diversos, emissão de N.F, verificar recebimentos e lançamento no sistema, atendimento ao cliente via telefone.","riscos":"Ergonômicos: Biomecânicos - Postura sentada por longos períodos.","epis":"","epcs":"VENTILAÇÃO ARTIFICIAL; EXTINTOR DE INCÊNDIO"},
+    {"cargo":"VIGIA","cbo":"517330","ambiente":"OPERACIONAL/OBRA","atividades":"Realizar ronda e vigilância patrimonial, controlar acesso de pessoas e veículos, registrar ocorrências, acionar autoridades quando necessário, zelar pela segurança das instalações.","riscos":"Físicos: FRIO; CALOR. Ergonômicos: Organizacionais - Trabalho noturno; necessidade de manter vigília. Acidentes / Mecânicos: AGRESSÃO.","epis":"BOTINA DE SEGURANÇA; COLETE REFLETIVO","epcs":"ILUMINAÇÃO ADEQUADA; COMUNICAÇÃO"},
 ]
 
 @app.get("/api/pgr")
@@ -1403,37 +1415,92 @@ def _cbo_buscar_descricao(codigo_familia: str) -> dict:
     if local:
         return local
 
-    # ── 2. Scraping MTE ───────────────────────────────────
+    # ── 2. Scraping MTE (campo detectado dinamicamente) ───
     try:
         from bs4 import BeautifulSoup
         import urllib3
         urllib3.disable_warnings()
 
-        headers = {"User-Agent": "Mozilla/5.0"}
+        headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"}
         sess = _req.Session()
         url_cod = "http://www.mtecbo.gov.br/cbosite/pages/pesquisas/BuscaPorCodigo.jsf"
-        r = sess.get(url_cod, headers=headers, verify=False, timeout=10)
+        r = sess.get(url_cod, headers=headers, verify=False, timeout=15)
         soup = BeautifulSoup(r.content, "html.parser")
-        campos = {inp.get("name",""): inp.get("value","") for inp in soup.find_all("input") if inp.get("name")}
-        campos["formBuscaPorCodigo:j_idt79"] = familia
-        campos["formBuscaPorCodigo:btConsultar"] = "Consultar"
+
         form = soup.find("form", id="formBuscaPorCodigo")
         if not form:
             return {}
-        r2 = sess.post("http://www.mtecbo.gov.br" + form.get("action",""),
-                       data=campos, headers=headers, verify=False, timeout=10)
+
+        # Coleta todos os campos do form
+        campos = {}
+        for inp in form.find_all("input"):
+            n = inp.get("name", "")
+            if n:
+                campos[n] = inp.get("value", "") or ""
+
+        # Detecta o campo de texto (type=text) dinamicamente — não depende de j_idt fixo
+        campo_texto = None
+        for inp in form.find_all("input", {"type": "text"}):
+            n = inp.get("name", "")
+            if n:
+                campo_texto = n
+                break
+        if not campo_texto:
+            # fallback: campo que contenha "codigo" ou "idt" no nome
+            for k in campos:
+                if "codigo" in k.lower() or ("idt" in k and "bt" not in k.lower()):
+                    campo_texto = k
+                    break
+
+        if not campo_texto:
+            return {}
+
+        campos[campo_texto] = familia
+        # Botão de consulta — detecta dinamicamente também
+        for inp in form.find_all("input", {"type": "submit"}):
+            n = inp.get("name", "")
+            if n and "consultar" in n.lower():
+                campos[n] = inp.get("value", "Consultar")
+                break
+
+        url_action = "http://www.mtecbo.gov.br" + form.get("action", "")
+        r2 = sess.post(url_action, data=campos, headers=headers, verify=False, timeout=15)
         r2.encoding = "iso-8859-1"
         soup2 = BeautifulSoup(r2.text, "html.parser")
-        campos2 = {inp.get("name",""): inp.get("value","") for inp in soup2.find_all("input") if inp.get("name")}
-        campos2[f"formBuscaPorCodigo:objetos2:0:j_idt110"] = f"formBuscaPorCodigo:objetos2:0:j_idt110"
+
+        # Clica no primeiro resultado da família
         form2 = soup2.find("form", id="formBuscaPorCodigo")
         if not form2:
             return {}
-        r3 = sess.post("http://www.mtecbo.gov.br" + form2.get("action",""),
-                       data=campos2, headers=headers, verify=False, timeout=10)
+        campos2 = {}
+        for inp in form2.find_all("input"):
+            n = inp.get("name", "")
+            if n:
+                campos2[n] = inp.get("value", "") or ""
+        # Detecta o botão/link da família (primeiro item da lista)
+        primeiro_btn = None
+        for inp in form2.find_all("input", {"type": "submit"}):
+            n = inp.get("name", "")
+            if n and "objetos" in n:
+                primeiro_btn = n
+                break
+        if not primeiro_btn:
+            # tenta encontrar qualquer submit que não seja "Consultar"
+            for inp in form2.find_all("input", {"type": "submit"}):
+                n = inp.get("name", "")
+                v = inp.get("value", "")
+                if n and "consultar" not in v.lower():
+                    primeiro_btn = n
+                    break
+        if primeiro_btn:
+            campos2[primeiro_btn] = campos2.get(primeiro_btn, primeiro_btn)
+
+        url_action2 = "http://www.mtecbo.gov.br" + form2.get("action", "")
+        r3 = sess.post(url_action2, data=campos2, headers=headers, verify=False, timeout=15)
         r3.encoding = "iso-8859-1"
         soup3 = BeautifulSoup(r3.text, "html.parser")
         texto = soup3.get_text(separator="\n")
+
         m = _re.search(r"Descri[çc][ãa]o\s+Sum[aá]ria\s*(.*?)(?=Todos os direitos|$)", texto, _re.DOTALL)
         descricao_full = m.group(1).strip() if m else ""
         descricao = _re.split(r"\n{2,}|Esta fam[íi]lia n[ãa]o compreende", descricao_full)[0].strip()
@@ -1441,9 +1508,12 @@ def _cbo_buscar_descricao(codigo_familia: str) -> dict:
                    for m2 in _re.finditer(r"(\d{4}-\d{2})\s*-\s*([^\n]+)", texto)]
         m_fam = _re.search(r"\d{4}\s+([A-ZÁÉÍÓÚÃÂÊÎÔÛÀÇ][^\n]{5,80})\n", texto)
         nome_familia = m_fam.group(1).strip() if m_fam else ""
-        return {"familia": familia, "nome_familia": nome_familia,
-                "titulos": titulos, "descricao_sumaria": descricao}
-    except Exception:
+        if titulos or descricao:
+            return {"familia": familia, "nome_familia": nome_familia,
+                    "titulos": titulos, "descricao_sumaria": descricao}
+        return {}
+    except Exception as _e:
+        print(f"[CBO MTE] erro scraping: {_e}")
         return {}
 
 

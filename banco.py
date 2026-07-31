@@ -2104,5 +2104,115 @@ def deletar_treinamento_doc(tid: int):
         conn.close()
 
 
+# ══════════════════════════════════════════════════════════
+#  EMPRESAS
+# ══════════════════════════════════════════════════════════
+
+def listar_empresas():
+    conn = conectar()
+    try:
+        if USE_POSTGRES:
+            cur = conn.cursor()
+            cur.execute("SELECT id, nome, cnpj, resp_sst, (logo IS NOT NULL AND length(logo)>0) AS tem_logo FROM empresas ORDER BY nome")
+            cols = [d[0] for d in cur.description]
+            return [dict(zip(cols, r)) for r in cur.fetchall()]
+        else:
+            cur = conn.cursor()
+            cur.execute("SELECT id, nome, cnpj, resp_sst, (logo IS NOT NULL AND length(logo)>0) AS tem_logo FROM empresas ORDER BY nome")
+            return [dict(r) for r in cur.fetchall()]
+    finally:
+        conn.close()
+
+
+def buscar_empresa_por_nome(nome: str):
+    conn = conectar()
+    try:
+        if USE_POSTGRES:
+            cur = conn.cursor()
+            cur.execute("SELECT id, nome, cnpj, resp_sst, logo FROM empresas WHERE LOWER(nome)=LOWER(%s)", (nome,))
+            row = cur.fetchone()
+        else:
+            cur = conn.cursor()
+            cur.execute("SELECT id, nome, cnpj, resp_sst, logo FROM empresas WHERE LOWER(nome)=LOWER(?)", (nome,))
+            row = cur.fetchone()
+        if not row:
+            return None
+        cols = [d[0] for d in cur.description]
+        return dict(zip(cols, row))
+    finally:
+        conn.close()
+
+
+def salvar_empresa(nome: str, cnpj: str, resp_sst: str, logo_bytes: bytes = None):
+    """Insere ou atualiza empresa. Retorna id."""
+    conn = conectar()
+    try:
+        cur = conn.cursor()
+        if USE_POSTGRES:
+            cur.execute("SELECT id FROM empresas WHERE LOWER(nome)=LOWER(%s)", (nome,))
+            row = cur.fetchone()
+            if row:
+                eid = row[0]
+                if logo_bytes is not None:
+                    cur.execute("UPDATE empresas SET cnpj=%s, resp_sst=%s, logo=%s WHERE id=%s",
+                                (cnpj, resp_sst, logo_bytes, eid))
+                else:
+                    cur.execute("UPDATE empresas SET cnpj=%s, resp_sst=%s WHERE id=%s",
+                                (cnpj, resp_sst, eid))
+            else:
+                cur.execute("INSERT INTO empresas (nome, cnpj, resp_sst, logo) VALUES (%s,%s,%s,%s) RETURNING id",
+                            (nome, cnpj, resp_sst, logo_bytes))
+                eid = cur.fetchone()[0]
+        else:
+            cur.execute("SELECT id FROM empresas WHERE LOWER(nome)=LOWER(?)", (nome,))
+            row = cur.fetchone()
+            if row:
+                eid = row[0]
+                if logo_bytes is not None:
+                    cur.execute("UPDATE empresas SET cnpj=?, resp_sst=?, logo=? WHERE id=?",
+                                (cnpj, resp_sst, logo_bytes, eid))
+                else:
+                    cur.execute("UPDATE empresas SET cnpj=?, resp_sst=? WHERE id=?",
+                                (cnpj, resp_sst, eid))
+            else:
+                cur.execute("INSERT INTO empresas (nome, cnpj, resp_sst, logo) VALUES (?,?,?,?)",
+                            (nome, cnpj, resp_sst, logo_bytes))
+                eid = cur.lastrowid
+        conn.commit()
+        return eid
+    finally:
+        conn.close()
+
+
+def buscar_logo_empresa(nome: str) -> bytes | None:
+    conn = conectar()
+    try:
+        if USE_POSTGRES:
+            cur = conn.cursor()
+            cur.execute("SELECT logo FROM empresas WHERE LOWER(nome)=LOWER(%s)", (nome,))
+        else:
+            cur = conn.cursor()
+            cur.execute("SELECT logo FROM empresas WHERE LOWER(nome)=LOWER(?)", (nome,))
+        row = cur.fetchone()
+        if row and row[0]:
+            return bytes(row[0])
+        return None
+    finally:
+        conn.close()
+
+
+def deletar_empresa(eid: int):
+    conn = conectar()
+    try:
+        cur = conn.cursor()
+        if USE_POSTGRES:
+            cur.execute("DELETE FROM empresas WHERE id=%s", (eid,))
+        else:
+            cur.execute("DELETE FROM empresas WHERE id=?", (eid,))
+        conn.commit()
+    finally:
+        conn.close()
+
+
 if __name__ == "__main__":
     criar_banco()

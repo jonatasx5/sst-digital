@@ -234,6 +234,7 @@ tr:hover td { background:#F9FAFB; }
     <button class="nav-item" data-modulo="acidentes" onclick="irPara('acidentes')"><i class="ti ti-alert-triangle"></i>Acidentes</button>
     <button class="nav-item" data-modulo="historico" onclick="irPara('historico')"><i class="ti ti-clock"></i>Histórico</button>
     <button class="nav-item" data-modulo="diario-obra" onclick="irPara('diario-obra')"><i class="ti ti-camera"></i>Diário de Obra</button>
+    <button class="nav-item" data-modulo="empresas" onclick="irPara('empresas')"><i class="ti ti-building"></i>Empresas</button>
     <button class="nav-item nav-admin" data-modulo="admin" onclick="irPara('admin')"
             style="display:none;margin-top:8px;border-top:1px solid rgba(255,255,255,.1);padding-top:8px;">
       <i class="ti ti-settings"></i>Administração
@@ -1004,6 +1005,52 @@ tr:hover td { background:#F9FAFB; }
 </div>
 
 <!-- ── HISTÓRICO ── -->
+<div class="panel" id="panel-empresas">
+  <div class="page-header">
+    <div>
+      <div class="page-title">Empresas</div>
+      <div class="page-sub">Gerencie empresas, CNPJs e logos para geração automática de documentos</div>
+    </div>
+    <button class="btn btn-primary" onclick="abrirModalEmpresa()"><i class="ti ti-plus"></i> Nova Empresa</button>
+  </div>
+
+  <div id="empresas-lista" style="display:grid;gap:16px;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));margin-top:8px;"></div>
+
+  <!-- Modal empresa -->
+  <div class="modal-overlay" id="modal-empresa" style="display:none">
+    <div class="modal" style="max-width:500px">
+      <div class="modal-header">
+        <span id="modal-empresa-titulo">Nova Empresa</span>
+        <button class="modal-close" onclick="fecharModalEmpresa()">×</button>
+      </div>
+      <div class="modal-body">
+        <input type="hidden" id="emp-id">
+        <div class="form-group">
+          <label class="form-label">Razão Social *</label>
+          <input type="text" class="form-control" id="emp-nome" placeholder="Ex: JS Construtora">
+        </div>
+        <div class="form-group">
+          <label class="form-label">CNPJ</label>
+          <input type="text" class="form-control" id="emp-cnpj" placeholder="00.000.000/0001-00">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Responsável SST</label>
+          <input type="text" class="form-control" id="emp-resp" placeholder="Nome do responsável técnico">
+        </div>
+        <div class="form-group" id="emp-logo-grupo">
+          <label class="form-label">Logo (PNG ou JPG)</label>
+          <input type="file" class="form-control" id="emp-logo-file" accept="image/png,image/jpeg">
+          <div id="emp-logo-preview" style="margin-top:8px;"></div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" onclick="fecharModalEmpresa()">Cancelar</button>
+        <button class="btn btn-primary" onclick="salvarEmpresa()">Salvar</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <div class="panel" id="panel-historico">
   <div class="page-header">
     <div>
@@ -1949,6 +1996,7 @@ const MODULOS = [
   { id:'diario-obra',   label:'Diário de Obra' },
   { id:'alojamentos',   label:'Alojamentos' },
   { id:'acidentes',     label:'Acidentes' },
+  { id:'empresas',      label:'Empresas' },
 ];
 
 let _authToken = null;
@@ -2256,6 +2304,7 @@ function irPara(aba) {
   if (aba==='alojamentos')   alojaInit();
   if (aba==='acidentes')     acidInit();
   if (aba==='admin')         { carregarAdmin(); carregarIntegracaoConfig(); }
+  if (aba==='empresas')      carregarEmpresas();
   // Scroll para o topo e fecha sidebar mobile
   const mainEl = document.querySelector('main.main');
   if (mainEl) mainEl.scrollTop = 0;
@@ -6328,6 +6377,141 @@ function acidNovaOcorrencia() {
   const respNome=document.getElementById('acid-resp-nome'); if(respNome) respNome.value='JONATAS DA COSTA XAVIER';
   const res=document.getElementById('acid-result'); if(res) res.innerHTML='';
   acidToggleAfas(); acidAba('form'); window.scrollTo(0,0);
+}
+
+// ══════════════════════════════════════════════════════════
+//  EMPRESAS
+// ══════════════════════════════════════════════════════════
+
+async function carregarEmpresas() {
+  const lista = document.getElementById('empresas-lista');
+  lista.innerHTML = '<p style="color:#8BA5BF">Carregando...</p>';
+  try {
+    const res = await apiFetch('/api/empresas');
+    if (!res.ok) throw new Error('Erro ao carregar');
+    const empresas = await res.json();
+    if (!empresas.length) {
+      lista.innerHTML = '<p style="color:#8BA5BF">Nenhuma empresa cadastrada.</p>';
+      return;
+    }
+    lista.innerHTML = empresas.map(e => `
+      <div class="card" style="padding:20px;display:flex;flex-direction:column;gap:12px;">
+        <div style="display:flex;align-items:center;gap:14px;">
+          <div id="logo-thumb-${e.id}" style="width:64px;height:48px;border-radius:6px;background:#1A2D3D;display:flex;align-items:center;justify-content:center;overflow:hidden;flex-shrink:0;">
+            ${e.tem_logo
+              ? `<img src="/api/empresas/${e.id}/logo" style="max-width:100%;max-height:100%;object-fit:contain;" onerror="this.parentElement.innerHTML='<i class=\\'ti ti-building\\' style=\\'font-size:24px;color:#4A6785\\'></i>'">`
+              : `<i class="ti ti-building" style="font-size:24px;color:#4A6785"></i>`}
+          </div>
+          <div style="flex:1;min-width:0;">
+            <div style="font-weight:700;font-size:15px;color:#E8F0F8;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${e.nome}</div>
+            <div style="font-size:12px;color:#8BA5BF;margin-top:2px;">CNPJ: ${e.cnpj || '—'}</div>
+            <div style="font-size:12px;color:#8BA5BF;">Resp. SST: ${e.resp_sst || '—'}</div>
+          </div>
+        </div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;">
+          <label class="btn btn-secondary" style="cursor:pointer;font-size:12px;padding:5px 10px;" title="Upload logo">
+            <i class="ti ti-upload"></i> ${e.tem_logo ? 'Trocar logo' : 'Enviar logo'}
+            <input type="file" accept="image/png,image/jpeg" style="display:none" onchange="uploadLogo(${e.id}, this)">
+          </label>
+          <button class="btn btn-secondary" style="font-size:12px;padding:5px 10px;" onclick="editarEmpresa(${e.id},'${e.nome.replace(/'/g,"\\'")}','${(e.cnpj||'').replace(/'/g,"\\'")}','${(e.resp_sst||'').replace(/'/g,"\\'")}')">
+            <i class="ti ti-edit"></i> Editar
+          </button>
+          <button class="btn" style="font-size:12px;padding:5px 10px;background:#c0392b;color:#fff;" onclick="deletarEmpresa(${e.id},'${e.nome.replace(/'/g,"\\'")}')">
+            <i class="ti ti-trash"></i>
+          </button>
+        </div>
+      </div>
+    `).join('');
+  } catch(err) {
+    lista.innerHTML = `<p style="color:#e74c3c">Erro: ${err.message}</p>`;
+  }
+}
+
+function abrirModalEmpresa() {
+  document.getElementById('emp-id').value = '';
+  document.getElementById('emp-nome').value = '';
+  document.getElementById('emp-cnpj').value = '';
+  document.getElementById('emp-resp').value = '';
+  document.getElementById('emp-logo-file').value = '';
+  document.getElementById('emp-logo-preview').innerHTML = '';
+  document.getElementById('emp-logo-grupo').style.display = 'block';
+  document.getElementById('modal-empresa-titulo').textContent = 'Nova Empresa';
+  document.getElementById('modal-empresa').style.display = 'flex';
+}
+
+function fecharModalEmpresa() {
+  document.getElementById('modal-empresa').style.display = 'none';
+}
+
+function editarEmpresa(id, nome, cnpj, resp) {
+  document.getElementById('emp-id').value = id;
+  document.getElementById('emp-nome').value = nome;
+  document.getElementById('emp-cnpj').value = cnpj;
+  document.getElementById('emp-resp').value = resp;
+  document.getElementById('emp-logo-file').value = '';
+  document.getElementById('emp-logo-grupo').style.display = 'block';
+  document.getElementById('emp-logo-preview').innerHTML = `<img src="/api/empresas/${id}/logo" style="max-height:60px;border-radius:4px;" onerror="this.remove()">`;
+  document.getElementById('modal-empresa-titulo').textContent = 'Editar Empresa';
+  document.getElementById('modal-empresa').style.display = 'flex';
+}
+
+async function salvarEmpresa() {
+  const id = document.getElementById('emp-id').value;
+  const nome = document.getElementById('emp-nome').value.trim();
+  const cnpj = document.getElementById('emp-cnpj').value.trim();
+  const resp = document.getElementById('emp-resp').value.trim();
+  const logoFile = document.getElementById('emp-logo-file').files[0];
+  if (!nome) { alert('Nome obrigatório'); return; }
+
+  try {
+    let res;
+    if (id) {
+      res = await apiFetch(`/api/empresas/${id}`, { method:'PUT', headers:{'Content-Type':'application/json'}, body: JSON.stringify({nome, cnpj, resp_sst: resp}) });
+    } else {
+      res = await apiFetch('/api/empresas', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({nome, cnpj, resp_sst: resp}) });
+    }
+    if (!res.ok) throw new Error(await res.text());
+    const dados = await res.json();
+    const eid = id || dados.id;
+
+    // Upload logo se selecionado
+    if (logoFile && eid) {
+      const fd = new FormData();
+      fd.append('file', logoFile);
+      const r2 = await apiFetch(`/api/empresas/${eid}/logo`, { method:'POST', body: fd });
+      if (!r2.ok) alert('Empresa salva, mas falha ao enviar logo: ' + await r2.text());
+    }
+
+    fecharModalEmpresa();
+    carregarEmpresas();
+  } catch(err) {
+    alert('Erro ao salvar: ' + err.message);
+  }
+}
+
+async function uploadLogo(id, input) {
+  const file = input.files[0];
+  if (!file) return;
+  const fd = new FormData();
+  fd.append('file', file);
+  try {
+    const res = await apiFetch(`/api/empresas/${id}/logo`, { method:'POST', body: fd });
+    if (!res.ok) throw new Error(await res.text());
+    carregarEmpresas();
+  } catch(err) {
+    alert('Erro ao enviar logo: ' + err.message);
+  }
+}
+
+async function deletarEmpresa(id, nome) {
+  if (!confirm(`Excluir empresa "${nome}"? Esta ação não pode ser desfeita.`)) return;
+  try {
+    const res = await apiFetch(`/api/empresas/${id}`, { method:'DELETE' });
+    if (!res.ok) throw new Error(await res.text());
+    carregarEmpresas();
+  } catch(err) {
+    alert('Erro ao excluir: ' + err.message);
+  }
 }
 </script>
 </body>

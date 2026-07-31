@@ -201,6 +201,46 @@ async def startup_event():
     except Exception as e:
         print(f"[WARN] migração empresa: {e}")
 
+    # Migração: tabela empresas
+    try:
+        conn = banco.conectar()
+        cur = conn.cursor()
+        if banco.USE_POSTGRES:
+            cur.execute("""CREATE TABLE IF NOT EXISTS empresas (
+                id SERIAL PRIMARY KEY,
+                nome TEXT NOT NULL UNIQUE,
+                cnpj TEXT DEFAULT '',
+                resp_sst TEXT DEFAULT '',
+                logo BYTEA,
+                criado_em TIMESTAMP DEFAULT NOW()
+            )""")
+        else:
+            cur.execute("""CREATE TABLE IF NOT EXISTS empresas (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                nome TEXT NOT NULL UNIQUE,
+                cnpj TEXT DEFAULT '',
+                resp_sst TEXT DEFAULT '',
+                logo BLOB,
+                criado_em TEXT DEFAULT (datetime('now','localtime')))""")
+        conn.commit()
+        # Seed: garante JS Construtora e RECOPAV
+        from config import CNPJ as _CNPJ_DEFAULT, RESP_SST as _RESP_SST_DEFAULT, EMPRESA as _EMPRESA_DEFAULT
+        if banco.USE_POSTGRES:
+            cur.execute("INSERT INTO empresas (nome, cnpj, resp_sst) VALUES (%s,%s,%s) ON CONFLICT (nome) DO NOTHING",
+                        (_EMPRESA_DEFAULT, _CNPJ_DEFAULT, _RESP_SST_DEFAULT))
+            cur.execute("INSERT INTO empresas (nome, cnpj, resp_sst) VALUES (%s,%s,%s) ON CONFLICT (nome) DO NOTHING",
+                        ("RECOPAV ASFALTOS LTDA", "61.773.385/0001-14", _RESP_SST_DEFAULT))
+        else:
+            cur.execute("INSERT OR IGNORE INTO empresas (nome, cnpj, resp_sst) VALUES (?,?,?)",
+                        (_EMPRESA_DEFAULT, _CNPJ_DEFAULT, _RESP_SST_DEFAULT))
+            cur.execute("INSERT OR IGNORE INTO empresas (nome, cnpj, resp_sst) VALUES (?,?,?)",
+                        ("RECOPAV ASFALTOS LTDA", "61.773.385/0001-14", _RESP_SST_DEFAULT))
+        conn.commit()
+        conn.close()
+        print("[STARTUP] tabela empresas OK")
+    except Exception as e:
+        print(f"[WARN] migração empresas: {e}")
+
     _garantir_os_base()
     _garantir_epi_base()
     _seed_modelos_do_disco()
@@ -3452,6 +3492,87 @@ async def pdf_relatorio_acidente(rid: int, _=Depends(verificar_acesso)):
         raise HTTPException(500, "reportlab não instalado")
     except Exception as e:
         raise HTTPException(500, f"Erro ao gerar PDF: {e}")
+
+
+# ══════════════════════════════════════════════════════════
+#  EMPRESAS
+# ══════════════════════════════════════════════════════════
+
+@app.get("/api/empresas")
+async def listar_empresas(_=Depends(verificar_acesso)):
+    return banco.listar_empresas()
+
+
+@app.post("/api/empresas")
+async def criar_empresa(dados: dict = Body(...), _=Depends(verificar_acesso)):
+    nome = (dados.get("nome") or "").strip()
+    if not nome:
+        raise HTTPException(400, "Nome obrigatório")
+    cnpj = (dados.get("cnpj") or "").strip()
+    resp_sst = (dados.get("resp_sst") or "").strip()
+    eid = banco.salvar_empresa(nome, cnpj, resp_sst)
+    return {"ok": True, "id": eid}
+
+
+@app.put("/api/empresas/{eid}")
+async def atualizar_empresa(eid: int, dados: dict = Body(...), _=Depends(verificar_acesso)):
+    nome = (dados.get("nome") or "").strip()
+    if not nome:
+        raise HTTPException(400, "Nome obrigatório")
+    cnpj = (dados.get("cnpj") or "").strip()
+    resp_sst = (dados.get("resp_sst") or "").strip()
+    banco.salvar_empresa(nome, cnpj, resp_sst)
+    return {"ok": True}
+
+
+@app.post("/api/empresas/{eid}/logo")
+async def upload_logo_empresa(eid: int, file: UploadFile = File(...), _=Depends(verificar_acesso)):
+    conteudo = await file.read()
+    if not conteudo:
+        raise HTTPException(400, "Arquivo vazio")
+    conn = banco.conectar()
+    try:
+        cur = conn.cursor()
+        if banco.USE_POSTGRES:
+            cur.execute("UPDATE empresas SET logo=%s WHERE id=%s", (conteudo, eid))
+        else:
+            cur.execute("UPDATE empresas SET logo=? WHERE id=?", (conteudo, eid))
+        conn.commit()
+    finally:
+        conn.close()
+    return {"ok": True}
+
+
+@app.get("/api/empresas/{eid}/logo")
+async def get_logo_empresa(eid: int):
+    import io
+    conn = banco.conectar()
+    try:
+        cur = conn.cursor()
+        if banco.USE_POSTGRES:
+            cur.execute("SELECT logo, nome FROM empresas WHERE id=%s", (eid,))
+        else:
+            cur.execute("SELECT logo, nome FROM empresas WHERE id=?", (eid,))
+        row = cur.fetchone()
+    finally:
+        conn.close()
+    if not row or not row[0]:
+        raise HTTPException(404, "Logo não cadastrada")
+    logo_bytes = bytes(row[0])
+    # Detecta tipo da imagem
+    if logo_bytes[:4] == b'\x89PNG':
+        media_type = "image/png"
+    elif logo_bytes[:2] == b'\xff\xd8':
+        media_type = "image/jpeg"
+    else:
+        media_type = "image/png"
+    return StreamingResponse(io.BytesIO(logo_bytes), media_type=media_type)
+
+
+@app.delete("/api/empresas/{eid}")
+async def deletar_empresa(eid: int, _=Depends(verificar_acesso)):
+    banco.deletar_empresa(eid)
+    return {"ok": True}
 
 
 if __name__ == "__main__":

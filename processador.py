@@ -12,8 +12,11 @@ import subprocess
 from datetime import date
 from pathlib import Path
 
+import io as _io_mod
+
 import openpyxl
 from docx import Document
+from docx.oxml.ns import qn
 
 from config import MODELOS_DIR, OUTPUT_DIR, EMPRESA, RESP_SST, CNPJ, DOCUMENTOS
 
@@ -131,6 +134,63 @@ def ler_planilha(caminho: str) -> tuple[list[dict], list[str]]:
 #  PREENCHIMENTO DO DOCX
 # ══════════════════════════════════════════════════════════
 
+def _substituir_logo_docx(doc: Document, logo_bytes: bytes) -> bool:
+    """
+    Substitui a primeira imagem encontrada no cabeçalho do documento pelo logo_bytes fornecido.
+    Retorna True se substituiu alguma imagem.
+    """
+    if not logo_bytes:
+        return False
+    try:
+        for section in doc.sections:
+            header = section.header
+            # Busca imagens nas relações do header part
+            for rel in header.part.rels.values():
+                if "image" in rel.reltype:
+                    rel._target._blob = logo_bytes
+                    return True
+            # Fallback: procura via XML a:blip
+            for para in header.paragraphs:
+                for run in para.runs:
+                    blips = run._element.findall(".//" + qn("a:blip"))
+                    for blip in blips:
+                        r_embed = blip.get(qn("r:embed"))
+                        if r_embed and r_embed in header.part.rels:
+                            header.part.rels[r_embed]._target._blob = logo_bytes
+                            return True
+            for table in header.tables:
+                for row in table.rows:
+                    for cell in row.cells:
+                        for para in cell.paragraphs:
+                            for run in para.runs:
+                                blips = run._element.findall(".//" + qn("a:blip"))
+                                for blip in blips:
+                                    r_embed = blip.get(qn("r:embed"))
+                                    if r_embed and r_embed in header.part.rels:
+                                        header.part.rels[r_embed]._target._blob = logo_bytes
+                                        return True
+    except Exception as _e:
+        print(f"  ⚠️  substituir_logo: {_e}")
+    return False
+
+
+def _buscar_dados_empresa(nome_empresa: str) -> dict:
+    """Retorna dict com cnpj, resp_sst e logo_bytes da empresa."""
+    try:
+        import banco as _banco
+        emp = _banco.buscar_empresa_por_nome(nome_empresa)
+        if emp:
+            logo = _banco.buscar_logo_empresa(nome_empresa)
+            return {
+                "cnpj": emp.get("cnpj") or CNPJ,
+                "resp_sst": emp.get("resp_sst") or RESP_SST,
+                "logo_bytes": logo,
+            }
+    except Exception as _e:
+        print(f"  ⚠️  buscar_dados_empresa({nome_empresa}): {_e}")
+    return {"cnpj": CNPJ, "resp_sst": RESP_SST, "logo_bytes": None}
+
+
 def _substituir_texto(texto: str, variaveis: dict) -> str:
     """Substitui {{VARIAVEL}} e @variavel pelo valor correspondente."""
     for chave, valor in variaveis.items():
@@ -165,6 +225,13 @@ def preencher_docx(modelo_id: str, funcionario: dict, pasta_saida: str) -> str |
     """
     os.makedirs(pasta_saida, exist_ok=True)
 
+    # Busca dados da empresa do funcionário (CNPJ, resp_sst, logo)
+    nome_empresa = funcionario.get("empresa") or EMPRESA
+    dados_emp = _buscar_dados_empresa(nome_empresa)
+    cnpj_empresa = dados_emp["cnpj"]
+    resp_sst_empresa = dados_emp["resp_sst"]
+    logo_bytes_empresa = dados_emp["logo_bytes"]
+
     # Monta dicionário de variáveis
     variaveis = {
         "NOME":          funcionario.get("nome", ""),
@@ -176,20 +243,20 @@ def preencher_docx(modelo_id: str, funcionario: dict, pasta_saida: str) -> str |
         "DATA_HOJE":     date.today().strftime("%d/%m/%Y"),
         "CELULAR":       funcionario.get("celular", ""),
         "EMAIL":         funcionario.get("email", ""),
-        "EMPRESA":       funcionario.get("empresa") or EMPRESA,
-        "RESP_SST":      RESP_SST,
-        "CNPJ":          CNPJ,
+        "EMPRESA":       nome_empresa,
+        "RESP_SST":      resp_sst_empresa,
+        "CNPJ":          cnpj_empresa,
         # Aliases para formato @variavel usado nos treinamentos
         "funcao":        funcionario.get("cargo", ""),
         "dt_adm":        funcionario.get("admissao", ""),
-        "resp_tecnico":  RESP_SST,
+        "resp_tecnico":  resp_sst_empresa,
         "lotacao":       funcionario.get("lotacao", ""),
         "matricula":     funcionario.get("matricula", funcionario.get("cpf", "")),
         "ctps":          funcionario.get("ctps", ""),
         "rg":            funcionario.get("rg", ""),
         "cpf":           funcionario.get("cpf", ""),
         "nome":          funcionario.get("nome", ""),
-        "empresa":       funcionario.get("empresa") or EMPRESA,
+        "empresa":       nome_empresa,
         "cargo":         funcionario.get("cargo", ""),
         "data_hoje":     date.today().strftime("%d/%m/%Y"),
     }
@@ -251,6 +318,8 @@ def preencher_docx(modelo_id: str, funcionario: dict, pasta_saida: str) -> str |
                     for cell in row.cells:
                         for para in cell.paragraphs:
                             _processar_paragrafo(para, variaveis)
+        if logo_bytes_empresa:
+            _substituir_logo_docx(doc, logo_bytes_empresa)
         buf = _io.BytesIO()
         doc.save(buf)
         caminho = os.path.join(pasta_saida, f"{modelo_id}.docx")
@@ -320,6 +389,12 @@ def preencher_docx(modelo_id: str, funcionario: dict, pasta_saida: str) -> str |
                 for cell in row.cells:
                     for para in cell.paragraphs:
                         _processar_paragrafo(para, variaveis)
+
+    # Substitui logo no cabeçalho se empresa tiver logo cadastrado
+    if logo_bytes_empresa:
+        substituiu = _substituir_logo_docx(doc, logo_bytes_empresa)
+        if substituiu:
+            print(f"  ✅ [{modelo_id}] logo substituído para empresa={nome_empresa!r}")
 
     # Nome seguro para o arquivo
     nome_seguro = re.sub(r"[^\w\s-]", "", funcionario.get("nome", "funcionario"))

@@ -3602,7 +3602,8 @@ async def gerar_treinamentos_lotacao(dados: dict = Body(...), _=Depends(verifica
                         zf.write(docx_path, f"{nome_seguro}/{os.path.basename(docx_path)}")
 
     buf_zip.seek(0)
-    nome_zip = f"Treinamentos_{re.sub(r'[^\\w]','_',lotacao)}.zip"
+    _lot_seg = re.sub(r'[^\w]', '_', lotacao)
+    nome_zip = f"Treinamentos_{_lot_seg}.zip"
     return StreamingResponse(buf_zip, media_type="application/zip",
                              headers={"Content-Disposition": f'attachment; filename="{nome_zip}"'})
 

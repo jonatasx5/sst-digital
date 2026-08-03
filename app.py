@@ -2632,47 +2632,70 @@ async def atualizar_todos_pendentes(_=Depends(verificar_acesso)):
 
 @app.get("/api/envios/{envio_id}/download")
 async def download_pdf_assinado(envio_id: int):
-    """Baixa o PDF assinado direto do ZapSign (sem auth — link direto no browser)."""
+    """Baixa o PDF assinado via ZapSign ou Autentique conforme o provedor do envio."""
+    import io as _io
+    from fastapi.responses import RedirectResponse
+    import traceback
+
     envio = banco.buscar_envio_por_id(envio_id)
     if not envio:
         raise HTTPException(404, "Envio não encontrado")
 
     provedor = envio.get("provedor") or "zapsign"
-    doc_token = envio.get("autentique_id") or envio.get("zapsign_token")
+    doc_token = envio.get("autentique_id") or envio.get("zapsign_token") or ""
+    link = envio.get("link_assinatura") or ""
+
     if not doc_token:
+        if link:
+            return RedirectResponse(url=link)
         raise HTTPException(400, "Envio não possui token de documento")
 
+    nome_arquivo = (envio.get("doc_nome") or "documento").replace("/", "-").replace(" ", "_") + "_assinado.pdf"
+
+    # Tenta baixar pelo provedor principal
+    pdf_bytes, erro = None, None
     try:
         if provedor == "autentique":
             pdf_bytes, erro = autentique.baixar_pdf_assinado(doc_token)
         else:
             pdf_bytes, erro = zapsign.baixar_pdf_assinado(doc_token)
+        print(f"[DOWNLOAD] envio={envio_id} provedor={provedor} erro={erro} bytes={len(pdf_bytes) if pdf_bytes else 0}")
     except Exception as exc:
-        print(f"ERRO download envio {envio_id}: {exc}")
-        link = envio.get("link_assinatura")
-        if link:
-            from fastapi.responses import RedirectResponse
-            return RedirectResponse(url=link)
-        raise HTTPException(500, f"Erro ao baixar PDF: {exc}")
+        erro = str(exc)
+        print(f"[DOWNLOAD] envio={envio_id} EXCEPTION: {traceback.format_exc()}")
 
-    if erro:
-        print(f"ERRO download envio {envio_id}: {erro}")
-        # Se ainda não processado, redireciona para o link de assinatura
-        link = envio.get("link_assinatura")
-        if link:
-            from fastapi.responses import RedirectResponse
-            return RedirectResponse(url=link)
-        raise HTTPException(400, erro)
+    # Se falhou no provedor principal, tenta o alternativo
+    if (not pdf_bytes or erro) and provedor == "zapsign":
+        try:
+            pdf_bytes2, erro2 = autentique.baixar_pdf_assinado(doc_token)
+            if pdf_bytes2:
+                pdf_bytes, erro = pdf_bytes2, None
+                banco.corrigir_provedor_envio(envio_id, "autentique")
+                print(f"[DOWNLOAD] envio={envio_id} fallback autentique OK")
+        except Exception:
+            pass
+    elif (not pdf_bytes or erro) and provedor == "autentique":
+        try:
+            pdf_bytes2, erro2 = zapsign.baixar_pdf_assinado(doc_token)
+            if pdf_bytes2:
+                pdf_bytes, erro = pdf_bytes2, None
+                banco.corrigir_provedor_envio(envio_id, "zapsign")
+                print(f"[DOWNLOAD] envio={envio_id} fallback zapsign OK")
+        except Exception:
+            pass
 
-    nome_arquivo = (envio.get("doc_nome") or "documento").replace("/", "-").replace(" ", "_")
-    nome_arquivo += "_assinado.pdf"
+    if pdf_bytes:
+        return StreamingResponse(
+            _io.BytesIO(pdf_bytes),
+            media_type="application/pdf",
+            headers={"Content-Disposition": f'attachment; filename="{nome_arquivo}"'}
+        )
 
-    import io
-    return StreamingResponse(
-        io.BytesIO(pdf_bytes),
-        media_type="application/pdf",
-        headers={"Content-Disposition": f'attachment; filename="{nome_arquivo}"'}
-    )
+    # Último recurso: redireciona para link de assinatura
+    print(f"[DOWNLOAD] envio={envio_id} todos os provedores falharam, erro={erro}, redirecionando para link")
+    if link:
+        return RedirectResponse(url=link)
+    raise HTTPException(400, f"Não foi possível baixar o PDF: {erro or 'erro desconhecido'}")
 
 
 # ── ALOJAMENTOS ───────────────────────────────────────────────────────────────

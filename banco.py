@@ -2143,41 +2143,60 @@ def buscar_empresa_por_nome(nome: str):
         conn.close()
 
 
-def salvar_empresa(nome: str, cnpj: str, resp_sst: str, logo_bytes: bytes = None):
+def salvar_empresa(nome: str, cnpj: str, resp_sst: str, logo_bytes: bytes = None, eid: int = None):
     """Insere ou atualiza empresa. Retorna id."""
     conn = conectar()
     try:
         cur = conn.cursor()
         if USE_POSTGRES:
-            cur.execute("SELECT id FROM empresas WHERE LOWER(nome)=LOWER(%s)", (nome,))
-            row = cur.fetchone()
-            if row:
-                eid = row[0]
-                if logo_bytes is not None:
-                    cur.execute("UPDATE empresas SET cnpj=%s, resp_sst=%s, logo=%s WHERE id=%s",
-                                (cnpj, resp_sst, logo_bytes, eid))
+            if eid:
+                # Edição por id — só atualiza CNPJ se vier preenchido
+                if cnpj:
+                    cur.execute("UPDATE empresas SET nome=%s, cnpj=%s, resp_sst=%s WHERE id=%s",
+                                (nome, cnpj, resp_sst, eid))
                 else:
-                    cur.execute("UPDATE empresas SET cnpj=%s, resp_sst=%s WHERE id=%s",
-                                (cnpj, resp_sst, eid))
+                    cur.execute("UPDATE empresas SET nome=%s, resp_sst=%s WHERE id=%s",
+                                (nome, resp_sst, eid))
+                if logo_bytes is not None:
+                    cur.execute("UPDATE empresas SET logo=%s WHERE id=%s", (logo_bytes, eid))
             else:
-                cur.execute("INSERT INTO empresas (nome, cnpj, resp_sst, logo) VALUES (%s,%s,%s,%s) RETURNING id",
-                            (nome, cnpj, resp_sst, logo_bytes))
-                eid = cur.fetchone()[0]
+                cur.execute("SELECT id FROM empresas WHERE LOWER(nome)=LOWER(%s)", (nome,))
+                row = cur.fetchone()
+                if row:
+                    eid = row[0]
+                    if cnpj:
+                        cur.execute("UPDATE empresas SET cnpj=%s, resp_sst=%s WHERE id=%s",
+                                    (cnpj, resp_sst, eid))
+                    else:
+                        cur.execute("UPDATE empresas SET resp_sst=%s WHERE id=%s", (resp_sst, eid))
+                else:
+                    cur.execute("INSERT INTO empresas (nome, cnpj, resp_sst, logo) VALUES (%s,%s,%s,%s) RETURNING id",
+                                (nome, cnpj, resp_sst, logo_bytes))
+                    eid = cur.fetchone()[0]
         else:
-            cur.execute("SELECT id FROM empresas WHERE LOWER(nome)=LOWER(?)", (nome,))
-            row = cur.fetchone()
-            if row:
-                eid = row[0]
-                if logo_bytes is not None:
-                    cur.execute("UPDATE empresas SET cnpj=?, resp_sst=?, logo=? WHERE id=?",
-                                (cnpj, resp_sst, logo_bytes, eid))
+            if eid:
+                if cnpj:
+                    cur.execute("UPDATE empresas SET nome=?, cnpj=?, resp_sst=? WHERE id=?",
+                                (nome, cnpj, resp_sst, eid))
                 else:
-                    cur.execute("UPDATE empresas SET cnpj=?, resp_sst=? WHERE id=?",
-                                (cnpj, resp_sst, eid))
+                    cur.execute("UPDATE empresas SET nome=?, resp_sst=? WHERE id=?",
+                                (nome, resp_sst, eid))
+                if logo_bytes is not None:
+                    cur.execute("UPDATE empresas SET logo=? WHERE id=?", (logo_bytes, eid))
             else:
-                cur.execute("INSERT INTO empresas (nome, cnpj, resp_sst, logo) VALUES (?,?,?,?)",
-                            (nome, cnpj, resp_sst, logo_bytes))
-                eid = cur.lastrowid
+                cur.execute("SELECT id FROM empresas WHERE LOWER(nome)=LOWER(?)", (nome,))
+                row = cur.fetchone()
+                if row:
+                    eid = row[0]
+                    if cnpj:
+                        cur.execute("UPDATE empresas SET cnpj=?, resp_sst=? WHERE id=?",
+                                    (cnpj, resp_sst, eid))
+                    else:
+                        cur.execute("UPDATE empresas SET resp_sst=? WHERE id=?", (resp_sst, eid))
+                else:
+                    cur.execute("INSERT INTO empresas (nome, cnpj, resp_sst, logo) VALUES (?,?,?,?)",
+                                (nome, cnpj, resp_sst, logo_bytes))
+                    eid = cur.lastrowid
         conn.commit()
         return eid
     finally:

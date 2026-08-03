@@ -225,16 +225,25 @@ async def startup_event():
         conn.commit()
         # Seed: garante JS Construtora e RECOPAV
         from config import CNPJ as _CNPJ_DEFAULT, RESP_SST as _RESP_SST_DEFAULT, EMPRESA as _EMPRESA_DEFAULT
+        _seed = [
+            (_EMPRESA_DEFAULT, _CNPJ_DEFAULT, _RESP_SST_DEFAULT),
+            ("RECOPAV ASFALTOS LTDA", "61.773.385/0001-14", _RESP_SST_DEFAULT),
+        ]
         if banco.USE_POSTGRES:
-            cur.execute("INSERT INTO empresas (nome, cnpj, resp_sst) VALUES (%s,%s,%s) ON CONFLICT (nome) DO NOTHING",
-                        (_EMPRESA_DEFAULT, _CNPJ_DEFAULT, _RESP_SST_DEFAULT))
-            cur.execute("INSERT INTO empresas (nome, cnpj, resp_sst) VALUES (%s,%s,%s) ON CONFLICT (nome) DO NOTHING",
-                        ("RECOPAV ASFALTOS LTDA", "61.773.385/0001-14", _RESP_SST_DEFAULT))
+            for _nome, _cnpj, _resp in _seed:
+                # Insere se não existe; se existe, só atualiza CNPJ quando vier preenchido
+                cur.execute("""INSERT INTO empresas (nome, cnpj, resp_sst) VALUES (%s,%s,%s)
+                    ON CONFLICT (nome) DO UPDATE SET
+                        cnpj = CASE WHEN %s <> '' THEN %s ELSE empresas.cnpj END,
+                        resp_sst = CASE WHEN %s <> '' THEN %s ELSE empresas.resp_sst END""",
+                    (_nome, _cnpj, _resp, _cnpj, _cnpj, _resp, _resp))
         else:
-            cur.execute("INSERT OR IGNORE INTO empresas (nome, cnpj, resp_sst) VALUES (?,?,?)",
-                        (_EMPRESA_DEFAULT, _CNPJ_DEFAULT, _RESP_SST_DEFAULT))
-            cur.execute("INSERT OR IGNORE INTO empresas (nome, cnpj, resp_sst) VALUES (?,?,?)",
-                        ("RECOPAV ASFALTOS LTDA", "61.773.385/0001-14", _RESP_SST_DEFAULT))
+            for _nome, _cnpj, _resp in _seed:
+                cur.execute("INSERT OR IGNORE INTO empresas (nome, cnpj, resp_sst) VALUES (?,?,?)",
+                            (_nome, _cnpj, _resp))
+                if _cnpj:
+                    cur.execute("UPDATE empresas SET cnpj=? WHERE LOWER(nome)=LOWER(?) AND (cnpj='' OR cnpj IS NULL)",
+                                (_cnpj, _nome))
         conn.commit()
         conn.close()
         print("[STARTUP] tabela empresas OK")
@@ -3808,7 +3817,7 @@ async def atualizar_empresa(eid: int, dados: dict = Body(...), _=Depends(verific
         raise HTTPException(400, "Nome obrigatório")
     cnpj = (dados.get("cnpj") or "").strip()
     resp_sst = (dados.get("resp_sst") or "").strip()
-    banco.salvar_empresa(nome, cnpj, resp_sst)
+    banco.salvar_empresa(nome, cnpj, resp_sst, eid=eid)
     return {"ok": True}
 
 

@@ -2698,6 +2698,17 @@ async def download_pdf_assinado(envio_id: int):
     raise HTTPException(400, f"Não foi possível baixar o PDF: {erro or 'erro desconhecido'}")
 
 
+@app.delete("/api/envios/{envio_id}")
+async def deletar_envio(envio_id: int, payload=Depends(verificar_acesso)):
+    if payload.get("perfil") != "admin":
+        raise HTTPException(403, "Apenas administradores podem excluir registros")
+    envio = banco.buscar_envio_por_id(envio_id)
+    if not envio:
+        raise HTTPException(404, "Envio não encontrado")
+    banco.deletar_envio(envio_id)
+    return {"ok": True}
+
+
 # ── ALOJAMENTOS ───────────────────────────────────────────────────────────────
 
 @app.post("/api/alojamentos/vistorias")

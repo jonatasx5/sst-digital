@@ -1088,6 +1088,9 @@ tr:hover td { background:#F9FAFB; }
     </div>
   </div>
 
+  <!-- Dashboard de stats -->
+  <div id="hist-dashboard" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px;margin-bottom:16px;"></div>
+
   <div id="hist-status-msg"></div>
 
   <!-- Tabela -->
@@ -3803,9 +3806,56 @@ async function carregarHistorico() {
   try {
     const res  = await apiFetch('/api/envios?limite=500');
     _histDados = await res.json();
+    histRenderDashboard(_histDados);
     histFiltrar();
   } catch(e) {
     tbody.innerHTML = `<tr><td colspan="6" style="text-align:center;padding:40px;color:var(--danger);">Erro ao carregar: ${e.message}</td></tr>`;
+  }
+}
+
+function histRenderDashboard(dados) {
+  const dash = document.getElementById('hist-dashboard');
+  if (!dash) return;
+  const total    = dados.length;
+  const assinados = dados.filter(e => e.status === 'signed').length;
+  const pendentes = dados.filter(e => e.status !== 'signed' && e.status !== 'rejected').length;
+  const recusados = dados.filter(e => e.status === 'rejected').length;
+  const taxa = total > 0 ? Math.round(assinados / total * 100) : 0;
+
+  const card = (icon, valor, label, cor, bg) => `
+    <div style="background:${bg};border-radius:12px;padding:16px 18px;display:flex;align-items:center;gap:14px;">
+      <div style="width:42px;height:42px;border-radius:10px;background:${cor}22;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+        <i class="ti ${icon}" style="font-size:22px;color:${cor};"></i>
+      </div>
+      <div>
+        <div style="font-size:26px;font-weight:800;color:${cor};line-height:1;">${valor}</div>
+        <div style="font-size:12px;color:var(--texto2);margin-top:2px;">${label}</div>
+      </div>
+    </div>`;
+
+  dash.innerHTML =
+    card('ti-send',        total,    'Total enviados',    '#4A90D9', 'var(--card)') +
+    card('ti-circle-check',assinados,'Assinados',         '#27ae60', 'var(--card)') +
+    card('ti-clock',       pendentes,'Aguardando',        '#e67e22', 'var(--card)') +
+    card('ti-circle-x',   recusados,'Recusados',         '#c0392b', 'var(--card)') +
+    card('ti-chart-bar',  taxa+'%', 'Taxa de assinatura','#8e44ad', 'var(--card)');
+}
+
+async function histExcluirEnvio(id, funcionario, docNome, btn) {
+  if (!confirm(`Excluir o registro:\n\n"${docNome}" de ${funcionario}?\n\nEsta ação não pode ser desfeita.`)) return;
+  btn.disabled = true;
+  btn.innerHTML = '<i class="ti ti-loader ti-spin" style="font-size:13px;"></i>';
+  try {
+    const res = await apiFetch(`/api/envios/${id}`, { method: 'DELETE' });
+    if (!res.ok) throw new Error(await res.text());
+    const row = document.getElementById(`hist-row-${id}`);
+    if (row) row.remove();
+    _histDados = _histDados.filter(e => e.id !== id);
+    histRenderDashboard(_histDados);
+  } catch(e) {
+    btn.disabled = false;
+    btn.innerHTML = '<i class="ti ti-trash" style="font-size:13px;"></i>';
+    alert('Erro ao excluir: ' + e.message);
   }
 }
 
@@ -3892,7 +3942,16 @@ function histRenderTabela(dados) {
         <i class="ti ti-refresh" style="font-size:13px;"></i>
       </button>`;
 
-    return `<tr style="border-bottom:1px solid var(--borda);">
+    const isAdmin = _authUser?.perfil === 'admin';
+    const btnExcluir = isAdmin
+      ? `<button onclick="histExcluirEnvio(${e.id}, '${(e.funcionario||'').replace(/'/g,"\\'")}', '${(e.doc_nome||'').replace(/'/g,"\\'")}', this)"
+           style="display:inline-flex;align-items:center;padding:5px 7px;border-radius:6px;
+                  background:#fff0f0;color:#c0392b;border:1px solid #f5c6c6;cursor:pointer;"
+           title="Excluir registro (admin)">
+           <i class="ti ti-trash" style="font-size:13px;"></i>
+         </button>` : '';
+
+    return `<tr style="border-bottom:1px solid var(--borda);" id="hist-row-${e.id}">
       <td style="padding:10px 14px;">
         <div style="font-weight:600;font-size:13px;">${e.funcionario||'—'}</div>
         <div style="font-size:11px;color:var(--texto2);">${e.cargo||''}</div>
@@ -3903,7 +3962,7 @@ function histRenderTabela(dados) {
       <td style="padding:10px 14px;text-align:center;">${badge}</td>
       <td style="padding:10px 14px;">
         <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;">
-          ${btnWhatsApp}${btnCopiar}${btnBaixar}${btnAtualizar}
+          ${btnWhatsApp}${btnCopiar}${btnBaixar}${btnAtualizar}${btnExcluir}
         </div>
       </td>
     </tr>`;

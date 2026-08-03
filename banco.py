@@ -1392,6 +1392,19 @@ def buscar_envio_por_id(envio_id: int):
         conn.close()
 
 
+def deletar_envio(envio_id: int):
+    conn = conectar()
+    try:
+        cur = conn.cursor()
+        if USE_POSTGRES:
+            cur.execute("DELETE FROM envios WHERE id=%s", (envio_id,))
+        else:
+            cur.execute("DELETE FROM envios WHERE id=?", (envio_id,))
+        conn.commit()
+    finally:
+        conn.close()
+
+
 def corrigir_provedor_envio(envio_id: int, provedor: str):
     """Corrige o campo provedor de um envio (usado quando o token foi encontrado no provedor alternativo)."""
     conn = conectar()

@@ -250,6 +250,47 @@ async def startup_event():
     except Exception as e:
         print(f"[WARN] migração empresas: {e}")
 
+    # Migração: tabela terceiros
+    try:
+        conn = banco.conectar()
+        cur = conn.cursor()
+        if banco.USE_POSTGRES:
+            cur.execute("""CREATE TABLE IF NOT EXISTS terceiros (
+                id SERIAL PRIMARY KEY,
+                nome TEXT NOT NULL,
+                cpf_cnpj TEXT DEFAULT '',
+                funcao TEXT DEFAULT '',
+                empresa_origem TEXT DEFAULT '',
+                empresa_alocada TEXT DEFAULT '',
+                telefone TEXT DEFAULT '',
+                email TEXT DEFAULT '',
+                data_inicio TEXT DEFAULT '',
+                data_fim TEXT DEFAULT '',
+                status TEXT DEFAULT 'ativo',
+                observacoes TEXT DEFAULT '',
+                criado_em TIMESTAMP DEFAULT NOW()
+            )""")
+        else:
+            cur.execute("""CREATE TABLE IF NOT EXISTS terceiros (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                nome TEXT NOT NULL,
+                cpf_cnpj TEXT DEFAULT '',
+                funcao TEXT DEFAULT '',
+                empresa_origem TEXT DEFAULT '',
+                empresa_alocada TEXT DEFAULT '',
+                telefone TEXT DEFAULT '',
+                email TEXT DEFAULT '',
+                data_inicio TEXT DEFAULT '',
+                data_fim TEXT DEFAULT '',
+                status TEXT DEFAULT 'ativo',
+                observacoes TEXT DEFAULT '',
+                criado_em TEXT DEFAULT (datetime('now','localtime')))""")
+        conn.commit()
+        conn.close()
+        print("[STARTUP] tabela terceiros OK")
+    except Exception as e:
+        print(f"[WARN] migração terceiros: {e}")
+
     _garantir_os_base()
     _garantir_epi_base()
     _seed_modelos_do_disco()
@@ -3902,6 +3943,33 @@ async def get_logo_empresa(eid: int):
 @app.delete("/api/empresas/{eid}")
 async def deletar_empresa(eid: int, _=Depends(verificar_acesso)):
     banco.deletar_empresa(eid)
+    return {"ok": True}
+
+
+# ─── TERCEIROS ────────────────────────────────────────────────────────────────
+
+@app.get("/api/terceiros")
+async def listar_terceiros(empresa: str = None, _=Depends(verificar_acesso)):
+    return banco.listar_terceiros(empresa)
+
+
+@app.post("/api/terceiros")
+async def criar_terceiro(body: dict, _=Depends(verificar_acesso)):
+    tid = banco.salvar_terceiro(body)
+    return {"id": tid, "ok": True}
+
+
+@app.put("/api/terceiros/{tid}")
+async def atualizar_terceiro(tid: int, body: dict, _=Depends(verificar_acesso)):
+    banco.salvar_terceiro(body, tid=tid)
+    return {"ok": True}
+
+
+@app.delete("/api/terceiros/{tid}")
+async def deletar_terceiro(tid: int, payload=Depends(verificar_acesso)):
+    if payload.get("perfil") != "admin":
+        raise HTTPException(403, "Apenas administradores podem excluir registros")
+    banco.deletar_terceiro(tid)
     return {"ok": True}
 
 

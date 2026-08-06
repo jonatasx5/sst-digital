@@ -2246,5 +2246,89 @@ def deletar_empresa(eid: int):
         conn.close()
 
 
+# ─── TERCEIROS ────────────────────────────────────────────────────────────────
+
+def listar_terceiros(empresa: str = None):
+    conn = conectar()
+    try:
+        cur = conn.cursor()
+        if empresa:
+            if USE_POSTGRES:
+                cur.execute("SELECT * FROM terceiros WHERE empresa_alocada=%s ORDER BY nome", (empresa,))
+            else:
+                cur.execute("SELECT * FROM terceiros WHERE empresa_alocada=? ORDER BY nome", (empresa,))
+        else:
+            cur.execute("SELECT * FROM terceiros ORDER BY nome")
+        cols = [d[0] for d in cur.description]
+        return [dict(zip(cols, r)) for r in cur.fetchall()]
+    finally:
+        conn.close()
+
+
+def salvar_terceiro(dados: dict, tid: int = None):
+    """Insere ou atualiza terceiro. Retorna id."""
+    campos = ["nome", "cpf_cnpj", "funcao", "empresa_origem", "empresa_alocada",
+              "telefone", "email", "data_inicio", "data_fim", "status", "observacoes"]
+    conn = conectar()
+    try:
+        cur = conn.cursor()
+        if USE_POSTGRES:
+            if tid:
+                sets = ", ".join(f"{c}=%s" for c in campos)
+                cur.execute(f"UPDATE terceiros SET {sets} WHERE id=%s",
+                            [dados.get(c) for c in campos] + [tid])
+            else:
+                cols = ", ".join(campos)
+                phs = ", ".join(["%s"] * len(campos))
+                cur.execute(f"INSERT INTO terceiros ({cols}) VALUES ({phs}) RETURNING id",
+                            [dados.get(c) for c in campos])
+                tid = cur.fetchone()[0]
+        else:
+            if tid:
+                sets = ", ".join(f"{c}=?" for c in campos)
+                cur.execute(f"UPDATE terceiros SET {sets} WHERE id=?",
+                            [dados.get(c) for c in campos] + [tid])
+            else:
+                cols = ", ".join(campos)
+                phs = ", ".join(["?"] * len(campos))
+                cur.execute(f"INSERT INTO terceiros ({cols}) VALUES ({phs})",
+                            [dados.get(c) for c in campos])
+                tid = cur.lastrowid
+        conn.commit()
+        return tid
+    finally:
+        conn.close()
+
+
+def buscar_terceiro(tid: int):
+    conn = conectar()
+    try:
+        cur = conn.cursor()
+        if USE_POSTGRES:
+            cur.execute("SELECT * FROM terceiros WHERE id=%s", (tid,))
+        else:
+            cur.execute("SELECT * FROM terceiros WHERE id=?", (tid,))
+        row = cur.fetchone()
+        if not row:
+            return None
+        cols = [d[0] for d in cur.description]
+        return dict(zip(cols, row))
+    finally:
+        conn.close()
+
+
+def deletar_terceiro(tid: int):
+    conn = conectar()
+    try:
+        cur = conn.cursor()
+        if USE_POSTGRES:
+            cur.execute("DELETE FROM terceiros WHERE id=%s", (tid,))
+        else:
+            cur.execute("DELETE FROM terceiros WHERE id=?", (tid,))
+        conn.commit()
+    finally:
+        conn.close()
+
+
 if __name__ == "__main__":
     criar_banco()

@@ -235,6 +235,7 @@ tr:hover td { background:#F9FAFB; }
     <button class="nav-item" data-modulo="historico" onclick="irPara('historico')"><i class="ti ti-clock"></i>Histórico</button>
     <button class="nav-item" data-modulo="diario-obra" onclick="irPara('diario-obra')"><i class="ti ti-camera"></i>Diário de Obra</button>
     <button class="nav-item" data-modulo="empresas" onclick="irPara('empresas')"><i class="ti ti-building"></i>Empresas</button>
+    <button class="nav-item" data-modulo="terceiros" onclick="irPara('terceiros')"><i class="ti ti-users"></i>Terceiros</button>
     <button class="nav-item nav-admin" data-modulo="admin" onclick="irPara('admin')"
             style="display:none;margin-top:8px;border-top:1px solid rgba(255,255,255,.1);padding-top:8px;">
       <i class="ti ti-settings"></i>Administração
@@ -1047,6 +1048,131 @@ tr:hover td { background:#F9FAFB; }
         <button class="btn btn-secondary" onclick="fecharModalEmpresa()">Cancelar</button>
         <button class="btn btn-primary" onclick="salvarEmpresa()">Salvar</button>
       </div>
+    </div>
+  </div>
+</div>
+
+<!-- ── TERCEIROS ── -->
+<div class="panel" id="panel-terceiros">
+  <div class="page-header">
+    <div>
+      <div class="page-title">Terceiros</div>
+      <div class="page-subtitle">Controle de prestadores de serviço, PJ e contratados externos</div>
+    </div>
+    <button class="btn btn-primary" onclick="abrirModalTerceiro()">
+      <i class="ti ti-plus"></i> Novo Terceiro
+    </button>
+  </div>
+
+  <!-- Filtros -->
+  <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:16px;align-items:center;">
+    <input id="terc-busca" type="text" class="form-input" placeholder="Buscar por nome, função ou empresa…"
+           style="flex:1;min-width:200px;" oninput="filtrarTerceiros()">
+    <select id="terc-filtro-status" class="form-select" style="width:150px;" onchange="filtrarTerceiros()">
+      <option value="">Todos os status</option>
+      <option value="ativo">Ativo</option>
+      <option value="inativo">Inativo</option>
+      <option value="encerrado">Encerrado</option>
+    </select>
+    <select id="terc-filtro-empresa" class="form-select" style="width:180px;" onchange="filtrarTerceiros()">
+      <option value="">Todas as empresas</option>
+    </select>
+  </div>
+
+  <!-- Dashboard rápido -->
+  <div id="terc-dashboard" style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:20px;"></div>
+
+  <!-- Tabela -->
+  <div class="table-container">
+    <table class="table" id="terc-tabela">
+      <thead>
+        <tr>
+          <th>Nome</th>
+          <th>Função</th>
+          <th>Empresa de Origem</th>
+          <th>Alocado em</th>
+          <th>Contato</th>
+          <th>Período</th>
+          <th>Status</th>
+          <th style="width:100px">Ações</th>
+        </tr>
+      </thead>
+      <tbody id="terc-tbody"></tbody>
+    </table>
+    <div id="terc-vazio" style="display:none;text-align:center;padding:40px;color:var(--text-muted);">
+      <i class="ti ti-users" style="font-size:2rem;"></i>
+      <p>Nenhum terceiro cadastrado.</p>
+    </div>
+  </div>
+</div>
+
+<!-- Modal Terceiro -->
+<div class="modal-overlay" id="modal-terceiro" style="display:none;">
+  <div class="modal" style="max-width:600px;width:95%;">
+    <div class="modal-header">
+      <h3 id="modal-terc-titulo">Novo Terceiro</h3>
+      <button class="modal-close" onclick="fecharModalTerceiro()"><i class="ti ti-x"></i></button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="terc-id">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;">
+        <div class="form-group" style="grid-column:1/-1;">
+          <label class="form-label">Nome completo *</label>
+          <input type="text" id="terc-nome" class="form-input" placeholder="Nome do prestador">
+        </div>
+        <div class="form-group">
+          <label class="form-label">CPF / CNPJ</label>
+          <input type="text" id="terc-cpf-cnpj" class="form-input" placeholder="000.000.000-00">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Função / Cargo</label>
+          <input type="text" id="terc-funcao" class="form-input" placeholder="Ex: Engenheiro Civil">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Empresa de Origem</label>
+          <input type="text" id="terc-empresa-origem" class="form-input" placeholder="Empresa do prestador">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Alocado em</label>
+          <select id="terc-empresa-alocada" class="form-select">
+            <option value="">Selecione…</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Telefone</label>
+          <input type="text" id="terc-telefone" class="form-input" placeholder="(11) 99999-9999">
+        </div>
+        <div class="form-group">
+          <label class="form-label">E-mail</label>
+          <input type="email" id="terc-email" class="form-input" placeholder="email@exemplo.com">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Início do contrato</label>
+          <input type="date" id="terc-inicio" class="form-input">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Fim do contrato</label>
+          <input type="date" id="terc-fim" class="form-input">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Status</label>
+          <select id="terc-status" class="form-select">
+            <option value="ativo">Ativo</option>
+            <option value="inativo">Inativo</option>
+            <option value="encerrado">Encerrado</option>
+          </select>
+        </div>
+        <div class="form-group" style="grid-column:1/-1;">
+          <label class="form-label">Observações</label>
+          <textarea id="terc-obs" class="form-input" rows="3" placeholder="Informações adicionais…"></textarea>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="fecharModalTerceiro()">Cancelar</button>
+      <button class="btn btn-primary" onclick="salvarTerceiro()">
+        <i class="ti ti-device-floppy"></i> Salvar
+      </button>
     </div>
   </div>
 </div>
@@ -2000,6 +2126,7 @@ const MODULOS = [
   { id:'alojamentos',   label:'Alojamentos' },
   { id:'acidentes',     label:'Acidentes' },
   { id:'empresas',      label:'Empresas' },
+  { id:'terceiros',     label:'Terceiros' },
 ];
 
 let _authToken = null;
@@ -2308,6 +2435,7 @@ function irPara(aba) {
   if (aba==='acidentes')     acidInit();
   if (aba==='admin')         { carregarAdmin(); carregarIntegracaoConfig(); }
   if (aba==='empresas')      carregarEmpresas();
+  if (aba==='terceiros')     carregarTerceiros();
   // Scroll para o topo e fecha sidebar mobile
   const mainEl = document.querySelector('main.main');
   if (mainEl) mainEl.scrollTop = 0;
@@ -6570,6 +6698,186 @@ async function deletarEmpresa(id, nome) {
     carregarEmpresas();
   } catch(err) {
     alert('Erro ao excluir: ' + err.message);
+  }
+}
+
+// ══════════════════════════════════════════════════════════
+//  TERCEIROS
+// ══════════════════════════════════════════════════════════
+
+let _tercDados = [];
+
+async function carregarTerceiros() {
+  try {
+    const [resTerc, resEmp] = await Promise.all([
+      apiFetch('/api/terceiros'),
+      apiFetch('/api/empresas'),
+    ]);
+    _tercDados = resTerc.ok ? await resTerc.json() : [];
+    const empresas = resEmp.ok ? await resEmp.json() : [];
+
+    // Popular selects de empresa
+    const selFiltro = document.getElementById('terc-filtro-empresa');
+    const selAlocada = document.getElementById('terc-empresa-alocada');
+    const optsEmp = empresas.map(e => `<option value="${e.nome}">${e.nome}</option>`).join('');
+    selFiltro.innerHTML = '<option value="">Todas as empresas</option>' + optsEmp;
+    selAlocada.innerHTML = '<option value="">Selecione…</option>' + optsEmp;
+
+    _renderTerceiros(_tercDados);
+    _renderTercDashboard(_tercDados);
+  } catch(e) {
+    console.error(e);
+  }
+}
+
+function _renderTercDashboard(lista) {
+  const total    = lista.length;
+  const ativos   = lista.filter(t => t.status === 'ativo').length;
+  const inativos = lista.filter(t => t.status === 'inativo').length;
+  const encerr   = lista.filter(t => t.status === 'encerrado').length;
+  const dash = document.getElementById('terc-dashboard');
+  dash.innerHTML = [
+    { label:'Total', val: total,    color:'#3B82F6' },
+    { label:'Ativos', val: ativos,  color:'#10B981' },
+    { label:'Inativos', val: inativos, color:'#F59E0B' },
+    { label:'Encerrados', val: encerr, color:'#6B7280' },
+  ].map(c => `
+    <div style="background:var(--bg-card);border:1px solid var(--border);border-radius:10px;
+                padding:14px 20px;min-width:120px;text-align:center;border-top:3px solid ${c.color}">
+      <div style="font-size:1.6rem;font-weight:700;color:${c.color}">${c.val}</div>
+      <div style="font-size:.8rem;color:var(--text-muted);margin-top:2px">${c.label}</div>
+    </div>`).join('');
+}
+
+function _renderTerceiros(lista) {
+  const tbody = document.getElementById('terc-tbody');
+  const vazio = document.getElementById('terc-vazio');
+  if (!lista.length) {
+    tbody.innerHTML = '';
+    vazio.style.display = 'block';
+    return;
+  }
+  vazio.style.display = 'none';
+
+  const statusBadge = s => {
+    const map = { ativo:'#10B981', inativo:'#F59E0B', encerrado:'#6B7280' };
+    return `<span style="background:${map[s]||'#6B7280'}22;color:${map[s]||'#6B7280'};
+      padding:2px 10px;border-radius:20px;font-size:.8rem;font-weight:600;text-transform:capitalize">${s}</span>`;
+  };
+
+  tbody.innerHTML = lista.map(t => `
+    <tr>
+      <td><strong>${t.nome}</strong>${t.cpf_cnpj ? `<br><small style="color:var(--text-muted)">${t.cpf_cnpj}</small>` : ''}</td>
+      <td>${t.funcao || '—'}</td>
+      <td>${t.empresa_origem || '—'}</td>
+      <td>${t.empresa_alocada || '—'}</td>
+      <td>${t.telefone ? `<a href="tel:${t.telefone}" style="color:inherit">${t.telefone}</a>` : ''}
+          ${t.email ? `<br><small>${t.email}</small>` : ''}</td>
+      <td style="white-space:nowrap;font-size:.85rem">
+        ${t.data_inicio || ''}${t.data_inicio && t.data_fim ? ' →<br>' : ''}${t.data_fim ? t.data_fim : ''}
+        ${!t.data_inicio && !t.data_fim ? '—' : ''}
+      </td>
+      <td>${statusBadge(t.status)}</td>
+      <td>
+        <button class="btn btn-sm" title="Editar" onclick="editarTerceiro(${t.id})"
+                style="padding:4px 8px;margin-right:4px"><i class="ti ti-pencil"></i></button>
+        ${_authUser?.perfil==='admin' ? `<button class="btn btn-sm" title="Excluir"
+          onclick="deletarTerceiro(${t.id},'${t.nome.replace(/'/g,"\\'")}',this)"
+          style="padding:4px 8px;background:#ef444422;color:#ef4444">
+          <i class="ti ti-trash"></i></button>` : ''}
+      </td>
+    </tr>`).join('');
+}
+
+function filtrarTerceiros() {
+  const q = (document.getElementById('terc-busca').value || '').toLowerCase();
+  const st = document.getElementById('terc-filtro-status').value;
+  const emp = document.getElementById('terc-filtro-empresa').value;
+  const filtrados = _tercDados.filter(t => {
+    const matchQ = !q || t.nome.toLowerCase().includes(q)
+      || (t.funcao||'').toLowerCase().includes(q)
+      || (t.empresa_origem||'').toLowerCase().includes(q);
+    const matchSt = !st || t.status === st;
+    const matchEmp = !emp || t.empresa_alocada === emp;
+    return matchQ && matchSt && matchEmp;
+  });
+  _renderTerceiros(filtrados);
+}
+
+function abrirModalTerceiro() {
+  document.getElementById('terc-id').value = '';
+  document.getElementById('modal-terc-titulo').textContent = 'Novo Terceiro';
+  ['nome','cpf-cnpj','funcao','empresa-origem','telefone','email','obs'].forEach(f =>
+    document.getElementById('terc-' + f).value = '');
+  document.getElementById('terc-empresa-alocada').value = '';
+  document.getElementById('terc-inicio').value = '';
+  document.getElementById('terc-fim').value = '';
+  document.getElementById('terc-status').value = 'ativo';
+  document.getElementById('modal-terceiro').style.display = 'flex';
+}
+
+function fecharModalTerceiro() {
+  document.getElementById('modal-terceiro').style.display = 'none';
+}
+
+function editarTerceiro(id) {
+  const t = _tercDados.find(x => x.id === id);
+  if (!t) return;
+  document.getElementById('terc-id').value = t.id;
+  document.getElementById('modal-terc-titulo').textContent = 'Editar Terceiro';
+  document.getElementById('terc-nome').value = t.nome || '';
+  document.getElementById('terc-cpf-cnpj').value = t.cpf_cnpj || '';
+  document.getElementById('terc-funcao').value = t.funcao || '';
+  document.getElementById('terc-empresa-origem').value = t.empresa_origem || '';
+  document.getElementById('terc-empresa-alocada').value = t.empresa_alocada || '';
+  document.getElementById('terc-telefone').value = t.telefone || '';
+  document.getElementById('terc-email').value = t.email || '';
+  document.getElementById('terc-inicio').value = t.data_inicio || '';
+  document.getElementById('terc-fim').value = t.data_fim || '';
+  document.getElementById('terc-status').value = t.status || 'ativo';
+  document.getElementById('terc-obs').value = t.observacoes || '';
+  document.getElementById('modal-terceiro').style.display = 'flex';
+}
+
+async function salvarTerceiro() {
+  const nome = document.getElementById('terc-nome').value.trim();
+  if (!nome) { alert('Nome obrigatório.'); return; }
+  const tid = document.getElementById('terc-id').value;
+  const body = {
+    nome,
+    cpf_cnpj:       document.getElementById('terc-cpf-cnpj').value.trim(),
+    funcao:         document.getElementById('terc-funcao').value.trim(),
+    empresa_origem: document.getElementById('terc-empresa-origem').value.trim(),
+    empresa_alocada:document.getElementById('terc-empresa-alocada').value,
+    telefone:       document.getElementById('terc-telefone').value.trim(),
+    email:          document.getElementById('terc-email').value.trim(),
+    data_inicio:    document.getElementById('terc-inicio').value,
+    data_fim:       document.getElementById('terc-fim').value,
+    status:         document.getElementById('terc-status').value,
+    observacoes:    document.getElementById('terc-obs').value.trim(),
+  };
+  const url    = tid ? `/api/terceiros/${tid}` : '/api/terceiros';
+  const method = tid ? 'PUT' : 'POST';
+  try {
+    const res = await apiFetch(url, { method, headers:{'Content-Type':'application/json'}, body: JSON.stringify(body) });
+    if (!res.ok) throw new Error(await res.text());
+    fecharModalTerceiro();
+    carregarTerceiros();
+  } catch(err) {
+    alert('Erro ao salvar: ' + err.message);
+  }
+}
+
+async function deletarTerceiro(id, nome, btn) {
+  if (!confirm(`Excluir terceiro "${nome}"?`)) return;
+  btn.disabled = true;
+  try {
+    const res = await apiFetch(`/api/terceiros/${id}`, { method:'DELETE' });
+    if (!res.ok) throw new Error(await res.text());
+    carregarTerceiros();
+  } catch(err) {
+    alert('Erro ao excluir: ' + err.message);
+    btn.disabled = false;
   }
 }
 </script>

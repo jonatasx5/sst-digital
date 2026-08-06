@@ -1107,73 +1107,187 @@ tr:hover td { background:#F9FAFB; }
 </div>
 
 <!-- Modal Terceiro -->
-<div class="modal-overlay" id="modal-terceiro" style="display:none;">
-  <div class="modal" style="max-width:600px;width:95%;">
-    <div class="modal-header">
-      <h3 id="modal-terc-titulo">Novo Terceiro</h3>
-      <button class="modal-close" onclick="fecharModalTerceiro()"><i class="ti ti-x"></i></button>
-    </div>
-    <div class="modal-body">
-      <input type="hidden" id="terc-id">
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;">
-        <div class="form-group" style="grid-column:1/-1;">
-          <label class="form-label">Nome completo *</label>
-          <input type="text" id="terc-nome" class="form-input" placeholder="Nome do prestador">
+<div class="modal-overlay" id="modal-terceiro" style="display:none;align-items:center;justify-content:center;">
+  <div style="background:#fff;border-radius:16px;width:95%;max-width:620px;max-height:92vh;
+              display:flex;flex-direction:column;box-shadow:0 20px 60px rgba(0,0,0,.18);overflow:hidden;">
+
+    <!-- Cabeçalho colorido -->
+    <div style="background:linear-gradient(135deg,#1e40af,#3b82f6);padding:24px 28px;position:relative;flex-shrink:0;">
+      <div style="display:flex;align-items:center;gap:14px;">
+        <div style="width:44px;height:44px;background:rgba(255,255,255,.2);border-radius:12px;
+                    display:flex;align-items:center;justify-content:center;">
+          <i class="ti ti-user-plus" style="font-size:1.4rem;color:#fff;"></i>
         </div>
-        <div class="form-group">
-          <label class="form-label">CPF / CNPJ</label>
-          <input type="text" id="terc-cpf-cnpj" class="form-input" placeholder="000.000.000-00">
-        </div>
-        <div class="form-group">
-          <label class="form-label">Função / Cargo</label>
-          <input type="text" id="terc-funcao" class="form-input" placeholder="Ex: Engenheiro Civil">
-        </div>
-        <div class="form-group">
-          <label class="form-label">Empresa de Origem</label>
-          <input type="text" id="terc-empresa-origem" class="form-input" placeholder="Empresa do prestador">
-        </div>
-        <div class="form-group">
-          <label class="form-label">Alocado em</label>
-          <select id="terc-empresa-alocada" class="form-select">
-            <option value="">Selecione…</option>
-          </select>
-        </div>
-        <div class="form-group">
-          <label class="form-label">Telefone</label>
-          <input type="text" id="terc-telefone" class="form-input" placeholder="(11) 99999-9999">
-        </div>
-        <div class="form-group">
-          <label class="form-label">E-mail</label>
-          <input type="email" id="terc-email" class="form-input" placeholder="email@exemplo.com">
-        </div>
-        <div class="form-group">
-          <label class="form-label">Início do contrato</label>
-          <input type="date" id="terc-inicio" class="form-input">
-        </div>
-        <div class="form-group">
-          <label class="form-label">Fim do contrato</label>
-          <input type="date" id="terc-fim" class="form-input">
-        </div>
-        <div class="form-group">
-          <label class="form-label">Status</label>
-          <select id="terc-status" class="form-select">
-            <option value="ativo">Ativo</option>
-            <option value="inativo">Inativo</option>
-            <option value="encerrado">Encerrado</option>
-          </select>
-        </div>
-        <div class="form-group" style="grid-column:1/-1;">
-          <label class="form-label">Observações</label>
-          <textarea id="terc-obs" class="form-input" rows="3" placeholder="Informações adicionais…"></textarea>
+        <div>
+          <h3 id="modal-terc-titulo" style="margin:0;color:#fff;font-size:1.2rem;font-weight:700;">Novo Terceiro</h3>
+          <p style="margin:2px 0 0;color:rgba(255,255,255,.75);font-size:.83rem;">Preencha os dados do prestador de serviço</p>
         </div>
       </div>
+      <button onclick="fecharModalTerceiro()" style="position:absolute;top:16px;right:16px;background:rgba(255,255,255,.15);
+              border:none;border-radius:8px;width:32px;height:32px;cursor:pointer;color:#fff;font-size:1rem;
+              display:flex;align-items:center;justify-content:center;">
+        <i class="ti ti-x"></i>
+      </button>
     </div>
-    <div class="modal-footer">
-      <button class="btn btn-secondary" onclick="fecharModalTerceiro()">Cancelar</button>
-      <button class="btn btn-primary" onclick="salvarTerceiro()">
+
+    <!-- Corpo com scroll -->
+    <div style="overflow-y:auto;flex:1;padding:24px 28px;">
+      <input type="hidden" id="terc-id">
+
+      <!-- Seção: Identificação -->
+      <div style="margin-bottom:20px;">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:14px;">
+          <div style="width:3px;height:18px;background:#3b82f6;border-radius:2px;"></div>
+          <span style="font-size:.8rem;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:#6b7280;">Identificação</span>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr;gap:12px;">
+          <div>
+            <label style="display:block;font-size:.82rem;font-weight:600;color:#374151;margin-bottom:5px;">
+              Nome completo <span style="color:#ef4444;">*</span>
+            </label>
+            <input type="text" id="terc-nome" placeholder="Nome completo do prestador"
+              style="width:100%;padding:10px 14px;border:1.5px solid #e5e7eb;border-radius:8px;
+                     font-size:.92rem;color:#111827;outline:none;box-sizing:border-box;background:#f9fafb;"
+              onfocus="this.style.borderColor='#3b82f6';this.style.background='#fff'"
+              onblur="this.style.borderColor='#e5e7eb';this.style.background='#f9fafb'">
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+            <div>
+              <label style="display:block;font-size:.82rem;font-weight:600;color:#374151;margin-bottom:5px;">CPF / CNPJ</label>
+              <input type="text" id="terc-cpf-cnpj" placeholder="000.000.000-00"
+                style="width:100%;padding:10px 14px;border:1.5px solid #e5e7eb;border-radius:8px;
+                       font-size:.92rem;color:#111827;outline:none;box-sizing:border-box;background:#f9fafb;"
+                onfocus="this.style.borderColor='#3b82f6';this.style.background='#fff'"
+                onblur="this.style.borderColor='#e5e7eb';this.style.background='#f9fafb'">
+            </div>
+            <div>
+              <label style="display:block;font-size:.82rem;font-weight:600;color:#374151;margin-bottom:5px;">Função / Cargo</label>
+              <input type="text" id="terc-funcao" placeholder="Ex: Engenheiro Civil"
+                style="width:100%;padding:10px 14px;border:1.5px solid #e5e7eb;border-radius:8px;
+                       font-size:.92rem;color:#111827;outline:none;box-sizing:border-box;background:#f9fafb;"
+                onfocus="this.style.borderColor='#3b82f6';this.style.background='#fff'"
+                onblur="this.style.borderColor='#e5e7eb';this.style.background='#f9fafb'">
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Seção: Vínculo -->
+      <div style="margin-bottom:20px;">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:14px;">
+          <div style="width:3px;height:18px;background:#10b981;border-radius:2px;"></div>
+          <span style="font-size:.8rem;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:#6b7280;">Vínculo</span>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+          <div>
+            <label style="display:block;font-size:.82rem;font-weight:600;color:#374151;margin-bottom:5px;">Empresa de Origem</label>
+            <input type="text" id="terc-empresa-origem" placeholder="Empresa do prestador"
+              style="width:100%;padding:10px 14px;border:1.5px solid #e5e7eb;border-radius:8px;
+                     font-size:.92rem;color:#111827;outline:none;box-sizing:border-box;background:#f9fafb;"
+              onfocus="this.style.borderColor='#3b82f6';this.style.background='#fff'"
+              onblur="this.style.borderColor='#e5e7eb';this.style.background='#f9fafb'">
+          </div>
+          <div>
+            <label style="display:block;font-size:.82rem;font-weight:600;color:#374151;margin-bottom:5px;">Alocado em</label>
+            <select id="terc-empresa-alocada"
+              style="width:100%;padding:10px 14px;border:1.5px solid #e5e7eb;border-radius:8px;
+                     font-size:.92rem;color:#111827;outline:none;box-sizing:border-box;background:#f9fafb;appearance:auto;">
+              <option value="">Selecione a empresa…</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <!-- Seção: Contato -->
+      <div style="margin-bottom:20px;">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:14px;">
+          <div style="width:3px;height:18px;background:#f59e0b;border-radius:2px;"></div>
+          <span style="font-size:.8rem;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:#6b7280;">Contato</span>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+          <div>
+            <label style="display:block;font-size:.82rem;font-weight:600;color:#374151;margin-bottom:5px;">Telefone</label>
+            <input type="text" id="terc-telefone" placeholder="(11) 99999-9999"
+              style="width:100%;padding:10px 14px;border:1.5px solid #e5e7eb;border-radius:8px;
+                     font-size:.92rem;color:#111827;outline:none;box-sizing:border-box;background:#f9fafb;"
+              onfocus="this.style.borderColor='#3b82f6';this.style.background='#fff'"
+              onblur="this.style.borderColor='#e5e7eb';this.style.background='#f9fafb'">
+          </div>
+          <div>
+            <label style="display:block;font-size:.82rem;font-weight:600;color:#374151;margin-bottom:5px;">E-mail</label>
+            <input type="email" id="terc-email" placeholder="email@exemplo.com"
+              style="width:100%;padding:10px 14px;border:1.5px solid #e5e7eb;border-radius:8px;
+                     font-size:.92rem;color:#111827;outline:none;box-sizing:border-box;background:#f9fafb;"
+              onfocus="this.style.borderColor='#3b82f6';this.style.background='#fff'"
+              onblur="this.style.borderColor='#e5e7eb';this.style.background='#f9fafb'">
+          </div>
+        </div>
+      </div>
+
+      <!-- Seção: Contrato -->
+      <div style="margin-bottom:20px;">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:14px;">
+          <div style="width:3px;height:18px;background:#8b5cf6;border-radius:2px;"></div>
+          <span style="font-size:.8rem;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:#6b7280;">Contrato</span>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;">
+          <div>
+            <label style="display:block;font-size:.82rem;font-weight:600;color:#374151;margin-bottom:5px;">Início</label>
+            <input type="date" id="terc-inicio"
+              style="width:100%;padding:10px 14px;border:1.5px solid #e5e7eb;border-radius:8px;
+                     font-size:.92rem;color:#111827;outline:none;box-sizing:border-box;background:#f9fafb;"
+              onfocus="this.style.borderColor='#3b82f6';this.style.background='#fff'"
+              onblur="this.style.borderColor='#e5e7eb';this.style.background='#f9fafb'">
+          </div>
+          <div>
+            <label style="display:block;font-size:.82rem;font-weight:600;color:#374151;margin-bottom:5px;">Fim</label>
+            <input type="date" id="terc-fim"
+              style="width:100%;padding:10px 14px;border:1.5px solid #e5e7eb;border-radius:8px;
+                     font-size:.92rem;color:#111827;outline:none;box-sizing:border-box;background:#f9fafb;"
+              onfocus="this.style.borderColor='#3b82f6';this.style.background='#fff'"
+              onblur="this.style.borderColor='#e5e7eb';this.style.background='#f9fafb'">
+          </div>
+          <div>
+            <label style="display:block;font-size:.82rem;font-weight:600;color:#374151;margin-bottom:5px;">Status</label>
+            <select id="terc-status"
+              style="width:100%;padding:10px 14px;border:1.5px solid #e5e7eb;border-radius:8px;
+                     font-size:.92rem;color:#111827;outline:none;box-sizing:border-box;background:#f9fafb;appearance:auto;">
+              <option value="ativo">✅ Ativo</option>
+              <option value="inativo">⏸ Inativo</option>
+              <option value="encerrado">🔴 Encerrado</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <!-- Observações -->
+      <div>
+        <label style="display:block;font-size:.82rem;font-weight:600;color:#374151;margin-bottom:5px;">Observações</label>
+        <textarea id="terc-obs" rows="3" placeholder="Informações adicionais sobre este prestador…"
+          style="width:100%;padding:10px 14px;border:1.5px solid #e5e7eb;border-radius:8px;
+                 font-size:.92rem;color:#111827;outline:none;box-sizing:border-box;background:#f9fafb;
+                 resize:vertical;font-family:inherit;"
+          onfocus="this.style.borderColor='#3b82f6';this.style.background='#fff'"
+          onblur="this.style.borderColor='#e5e7eb';this.style.background='#f9fafb'"></textarea>
+      </div>
+    </div>
+
+    <!-- Rodapé -->
+    <div style="padding:16px 28px;border-top:1px solid #f3f4f6;display:flex;justify-content:flex-end;gap:10px;
+                background:#fafafa;flex-shrink:0;">
+      <button onclick="fecharModalTerceiro()"
+        style="padding:10px 22px;border-radius:8px;border:1.5px solid #e5e7eb;background:#fff;
+               color:#374151;font-size:.9rem;font-weight:600;cursor:pointer;">
+        Cancelar
+      </button>
+      <button onclick="salvarTerceiro()"
+        style="padding:10px 22px;border-radius:8px;border:none;background:linear-gradient(135deg,#1e40af,#3b82f6);
+               color:#fff;font-size:.9rem;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:6px;">
         <i class="ti ti-device-floppy"></i> Salvar
       </button>
     </div>
+  </div>
+</div>
   </div>
 </div>
 

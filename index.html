@@ -1177,6 +1177,48 @@ tr:hover td { background:#F9FAFB; }
   </div>
 </div>
 
+<!-- Modal Documentos do Terceiro -->
+<div class="modal-overlay" id="modal-terc-docs" style="display:none;">
+  <div class="modal" style="max-width:680px;width:95%;max-height:90vh;display:flex;flex-direction:column;">
+    <div class="modal-header" style="flex-shrink:0;">
+      <div>
+        <h3 id="modal-terc-docs-titulo">Documentos</h3>
+        <p id="modal-terc-docs-sub" style="font-size:.85rem;color:var(--text-muted);margin:2px 0 0"></p>
+      </div>
+      <button class="modal-close" onclick="fecharModalDocs()"><i class="ti ti-x"></i></button>
+    </div>
+    <div class="modal-body" style="overflow-y:auto;flex:1;">
+
+      <!-- Aviso LGPD -->
+      <div style="background:#fef9c3;border:1px solid #fde047;border-radius:8px;padding:10px 14px;
+                  margin-bottom:18px;display:flex;gap:10px;align-items:flex-start;">
+        <i class="ti ti-lock" style="color:#ca8a04;margin-top:2px;flex-shrink:0;"></i>
+        <span style="font-size:.83rem;color:#713f12;line-height:1.5;">
+          <strong>Atenção — Proteção de Dados (LGPD):</strong> Os documentos físicos (ASO, treinamentos, certidões)
+          devem ser arquivados na <strong>pasta de segurança</strong> do prestador.
+          Nenhum arquivo é anexado ao sistema.
+        </span>
+      </div>
+
+      <!-- Lista de documentos -->
+      <div id="terc-docs-lista"></div>
+
+      <!-- Botão adicionar documento extra -->
+      <button onclick="adicionarDocTerceiro()" style="margin-top:12px;display:flex;align-items:center;gap:6px;
+              padding:8px 16px;border-radius:8px;background:var(--bg-card);border:1px dashed var(--border);
+              color:var(--text-muted);cursor:pointer;width:100%;justify-content:center;font-size:.9rem;">
+        <i class="ti ti-plus"></i> Adicionar documento
+      </button>
+    </div>
+    <div class="modal-footer" style="flex-shrink:0;">
+      <button class="btn btn-secondary" onclick="fecharModalDocs()">Fechar</button>
+      <button class="btn btn-primary" onclick="salvarDocsTerceiro()">
+        <i class="ti ti-device-floppy"></i> Salvar documentos
+      </button>
+    </div>
+  </div>
+</div>
+
 <div class="panel" id="panel-historico">
   <div class="page-header">
     <div>
@@ -6781,6 +6823,9 @@ function _renderTerceiros(lista) {
       </td>
       <td>${statusBadge(t.status)}</td>
       <td>
+        <button class="btn btn-sm" title="Documentos" onclick="abrirDocsTerceiro(${t.id},'${t.nome.replace(/'/g,"\\'")}')"
+                style="padding:4px 8px;margin-right:4px;background:#e0f2fe;color:#0369a1;border-color:#bae6fd">
+          <i class="ti ti-file-text"></i></button>
         <button class="btn btn-sm" title="Editar" onclick="editarTerceiro(${t.id})"
                 style="padding:4px 8px;margin-right:4px"><i class="ti ti-pencil"></i></button>
         ${_authUser?.perfil==='admin' ? `<button class="btn btn-sm" title="Excluir"
@@ -6880,6 +6925,136 @@ async function deletarTerceiro(id, nome, btn) {
   } catch(err) {
     alert('Erro ao excluir: ' + err.message);
     btn.disabled = false;
+  }
+}
+
+// ── DOCUMENTOS DO TERCEIRO ─────────────────────────────────────────────────
+
+let _tercDocsId   = null;
+let _tercDocsNome = '';
+let _tercDocs     = [];
+
+const DOCS_PADRAO = [
+  'ASO — Atestado de Saúde Ocupacional',
+  'NR-6 — Treinamento de EPI',
+  'NR-35 — Trabalho em Altura',
+  'Treinamento de Integração SST',
+  'Contrato / Ordem de Serviço',
+];
+
+async function abrirDocsTerceiro(tid, nome) {
+  _tercDocsId   = tid;
+  _tercDocsNome = nome;
+  document.getElementById('modal-terc-docs-titulo').textContent = 'Documentos — ' + nome;
+  document.getElementById('modal-terc-docs-sub').textContent = 'Registro de documentos apresentados pelo prestador';
+  document.getElementById('modal-terc-docs').style.display = 'flex';
+
+  const res = await apiFetch(`/api/terceiros/${tid}/docs`);
+  _tercDocs = res.ok ? await res.json() : [];
+
+  // Se não há documentos ainda, pré-popula com os padrões
+  if (!_tercDocs.length) {
+    _tercDocs = DOCS_PADRAO.map((nome, i) => ({ id: null, nome, possui: false, observacao: '', ordem: i }));
+  }
+
+  _renderDocsTerceiro();
+}
+
+function fecharModalDocs() {
+  document.getElementById('modal-terc-docs').style.display = 'none';
+  _tercDocsId = null;
+  _tercDocs   = [];
+}
+
+function _renderDocsTerceiro() {
+  const lista = document.getElementById('terc-docs-lista');
+  lista.innerHTML = _tercDocs.map((d, i) => `
+    <div style="border:1px solid var(--border);border-radius:10px;padding:14px 16px;
+                margin-bottom:10px;background:var(--bg-card);" id="terc-doc-item-${i}">
+      <div style="display:flex;gap:10px;align-items:flex-start;flex-wrap:wrap;">
+
+        <!-- Nome editável -->
+        <input type="text" value="${(d.nome||'').replace(/"/g,'&quot;')}"
+          oninput="_tercDocs[${i}].nome=this.value"
+          style="flex:1;min-width:180px;padding:6px 10px;border-radius:6px;
+                 border:1px solid var(--border);background:var(--bg);color:var(--text);font-size:.9rem;"
+          placeholder="Nome do documento">
+
+        <!-- Toggle possui/não possui -->
+        <div style="display:flex;gap:0;border-radius:6px;overflow:hidden;border:1px solid var(--border);flex-shrink:0;">
+          <button onclick="_setPosse(${i},true)" style="padding:6px 14px;font-size:.82rem;font-weight:600;cursor:pointer;border:none;
+            background:${d.possui ? '#16a34a' : 'var(--bg)'};color:${d.possui ? '#fff' : 'var(--text-muted)'};">
+            <i class="ti ti-check"></i> Possui
+          </button>
+          <button onclick="_setPosse(${i},false)" style="padding:6px 14px;font-size:.82rem;font-weight:600;cursor:pointer;border:none;
+            background:${!d.possui ? '#dc2626' : 'var(--bg)'};color:${!d.possui ? '#fff' : 'var(--text-muted)'};">
+            <i class="ti ti-x"></i> Não possui
+          </button>
+        </div>
+
+        <!-- Remover linha (apenas extras) -->
+        ${i >= DOCS_PADRAO.length || d.id === null && !DOCS_PADRAO[i] ? `
+          <button onclick="_removerDocLinha(${i})" title="Remover"
+            style="padding:6px 8px;border-radius:6px;border:1px solid #fca5a5;
+                   background:#fee2e2;color:#dc2626;cursor:pointer;">
+            <i class="ti ti-trash" style="font-size:14px;"></i>
+          </button>` : ''}
+      </div>
+
+      <!-- Observação -->
+      <textarea placeholder="Observação (opcional)…" rows="2"
+        oninput="_tercDocs[${i}].observacao=this.value"
+        style="width:100%;margin-top:8px;padding:6px 10px;border-radius:6px;resize:vertical;
+               border:1px solid var(--border);background:var(--bg);color:var(--text);font-size:.85rem;box-sizing:border-box;"
+      >${d.observacao||''}</textarea>
+    </div>`).join('');
+}
+
+function _setPosse(i, val) {
+  _tercDocs[i].possui = val;
+  _renderDocsTerceiro();
+}
+
+function _removerDocLinha(i) {
+  const doc = _tercDocs[i];
+  if (doc.id) {
+    apiFetch(`/api/terceiros/${_tercDocsId}/docs/${doc.id}`, { method:'DELETE' }).catch(()=>{});
+  }
+  _tercDocs.splice(i, 1);
+  _renderDocsTerceiro();
+}
+
+function adicionarDocTerceiro() {
+  _tercDocs.push({ id: null, nome: '', possui: false, observacao: '', ordem: _tercDocs.length });
+  _renderDocsTerceiro();
+  // Foca no último campo de nome adicionado
+  setTimeout(() => {
+    const inputs = document.querySelectorAll('#terc-docs-lista input[type=text]');
+    if (inputs.length) inputs[inputs.length - 1].focus();
+  }, 50);
+}
+
+async function salvarDocsTerceiro() {
+  if (!_tercDocsId) return;
+  try {
+    for (let i = 0; i < _tercDocs.length; i++) {
+      const d = _tercDocs[i];
+      if (!d.nome.trim()) continue;
+      const body = { nome: d.nome.trim(), possui: d.possui, observacao: d.observacao || '', ordem: i };
+      if (d.id) {
+        await apiFetch(`/api/terceiros/${_tercDocsId}/docs/${d.id}`, {
+          method:'PUT', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body)
+        });
+      } else {
+        const res = await apiFetch(`/api/terceiros/${_tercDocsId}/docs`, {
+          method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body)
+        });
+        if (res.ok) { const r = await res.json(); _tercDocs[i].id = r.id; }
+      }
+    }
+    fecharModalDocs();
+  } catch(err) {
+    alert('Erro ao salvar: ' + err.message);
   }
 }
 </script>

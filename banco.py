@@ -2330,5 +2330,60 @@ def deletar_terceiro(tid: int):
         conn.close()
 
 
+# ─── TERCEIROS — DOCUMENTOS ───────────────────────────────────────────────────
+
+def listar_docs_terceiro(terceiro_id: int):
+    conn = conectar()
+    try:
+        cur = conn.cursor()
+        if USE_POSTGRES:
+            cur.execute("SELECT * FROM terceiros_docs WHERE terceiro_id=%s ORDER BY ordem, id", (terceiro_id,))
+        else:
+            cur.execute("SELECT * FROM terceiros_docs WHERE terceiro_id=? ORDER BY ordem, id", (terceiro_id,))
+        cols = [d[0] for d in cur.description]
+        return [dict(zip(cols, r)) for r in cur.fetchall()]
+    finally:
+        conn.close()
+
+
+def salvar_doc_terceiro(terceiro_id: int, nome: str, possui: bool, observacao: str, ordem: int = 0, did: int = None):
+    conn = conectar()
+    try:
+        cur = conn.cursor()
+        if USE_POSTGRES:
+            if did:
+                cur.execute("UPDATE terceiros_docs SET nome=%s, possui=%s, observacao=%s, ordem=%s WHERE id=%s",
+                            (nome, possui, observacao, ordem, did))
+            else:
+                cur.execute("INSERT INTO terceiros_docs (terceiro_id, nome, possui, observacao, ordem) VALUES (%s,%s,%s,%s,%s) RETURNING id",
+                            (terceiro_id, nome, possui, observacao, ordem))
+                did = cur.fetchone()[0]
+        else:
+            if did:
+                cur.execute("UPDATE terceiros_docs SET nome=?, possui=?, observacao=?, ordem=? WHERE id=?",
+                            (nome, possui, observacao, ordem, did))
+            else:
+                cur.execute("INSERT INTO terceiros_docs (terceiro_id, nome, possui, observacao, ordem) VALUES (?,?,?,?,?)",
+                            (terceiro_id, nome, possui, observacao, ordem))
+                did = cur.lastrowid
+        conn.commit()
+        return did
+    finally:
+        conn.close()
+
+
+def deletar_doc_terceiro(did: int):
+    conn = conectar()
+    try:
+        cur = conn.cursor()
+        if USE_POSTGRES:
+            cur.execute("DELETE FROM terceiros_docs WHERE id=%s", (did,))
+        else:
+            cur.execute("DELETE FROM terceiros_docs WHERE id=?", (did,))
+        conn.commit()
+    finally:
+        conn.close()
+
+
 if __name__ == "__main__":
     criar_banco()

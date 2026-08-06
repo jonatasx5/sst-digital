@@ -291,6 +291,35 @@ async def startup_event():
     except Exception as e:
         print(f"[WARN] migração terceiros: {e}")
 
+    # Migração: tabela terceiros_docs
+    try:
+        conn = banco.conectar()
+        cur = conn.cursor()
+        if banco.USE_POSTGRES:
+            cur.execute("""CREATE TABLE IF NOT EXISTS terceiros_docs (
+                id SERIAL PRIMARY KEY,
+                terceiro_id INTEGER NOT NULL REFERENCES terceiros(id) ON DELETE CASCADE,
+                nome TEXT NOT NULL,
+                possui BOOLEAN DEFAULT FALSE,
+                observacao TEXT DEFAULT '',
+                ordem INTEGER DEFAULT 0,
+                atualizado_em TIMESTAMP DEFAULT NOW()
+            )""")
+        else:
+            cur.execute("""CREATE TABLE IF NOT EXISTS terceiros_docs (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                terceiro_id INTEGER NOT NULL,
+                nome TEXT NOT NULL,
+                possui INTEGER DEFAULT 0,
+                observacao TEXT DEFAULT '',
+                ordem INTEGER DEFAULT 0,
+                atualizado_em TEXT DEFAULT (datetime('now','localtime')))""")
+        conn.commit()
+        conn.close()
+        print("[STARTUP] tabela terceiros_docs OK")
+    except Exception as e:
+        print(f"[WARN] migração terceiros_docs: {e}")
+
     _garantir_os_base()
     _garantir_epi_base()
     _seed_modelos_do_disco()
@@ -3983,6 +4012,42 @@ async def deletar_terceiro(tid: int, payload=Depends(verificar_acesso)):
     if payload.get("perfil") != "admin":
         raise HTTPException(403, "Apenas administradores podem excluir registros")
     banco.deletar_terceiro(tid)
+    return {"ok": True}
+
+
+@app.get("/api/terceiros/{tid}/docs")
+async def listar_docs_terceiro(tid: int, _=Depends(verificar_acesso)):
+    return banco.listar_docs_terceiro(tid)
+
+
+@app.post("/api/terceiros/{tid}/docs")
+async def criar_doc_terceiro(tid: int, body: dict, _=Depends(verificar_acesso)):
+    did = banco.salvar_doc_terceiro(
+        terceiro_id=tid,
+        nome=body.get("nome", ""),
+        possui=bool(body.get("possui", False)),
+        observacao=body.get("observacao", ""),
+        ordem=body.get("ordem", 0),
+    )
+    return {"id": did, "ok": True}
+
+
+@app.put("/api/terceiros/{tid}/docs/{did}")
+async def atualizar_doc_terceiro(tid: int, did: int, body: dict, _=Depends(verificar_acesso)):
+    banco.salvar_doc_terceiro(
+        terceiro_id=tid,
+        nome=body.get("nome", ""),
+        possui=bool(body.get("possui", False)),
+        observacao=body.get("observacao", ""),
+        ordem=body.get("ordem", 0),
+        did=did,
+    )
+    return {"ok": True}
+
+
+@app.delete("/api/terceiros/{tid}/docs/{did}")
+async def deletar_doc_terceiro(tid: int, did: int, _=Depends(verificar_acesso)):
+    banco.deletar_doc_terceiro(did)
     return {"ok": True}
 
 

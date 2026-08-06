@@ -4055,8 +4055,9 @@ function histRenderTabela(dados) {
            <i class="ti ti-copy" style="font-size:13px;"></i> Link
          </button>` : '';
 
+    const _nomeArq = ((e.doc_nome || 'Kit SST') + ' - ' + (e.funcionario || '')).replace(/'/g, '').trim();
     const btnBaixar = assinado
-      ? `<button onclick="histBaixarPDF(${e.id}, this)"
+      ? `<button onclick="histBaixarPDF(${e.id}, this, '${_nomeArq}')"
            style="display:inline-flex;align-items:center;gap:4px;padding:4px 10px;border-radius:6px;
                   background:#f0fdf4;color:#16a34a;border:1px solid #bbf7d0;
                   cursor:pointer;font-size:12px;font-weight:600;white-space:nowrap;" title="Baixar PDF assinado">
@@ -4130,7 +4131,7 @@ function histAbrirWhatsApp(envioId, link, celular, nomeFuncionario, nomeDoc, btn
   abrirModal('modal-whatsapp');
 }
 
-async function histBaixarPDF(envioId, btn) {
+async function histBaixarPDF(envioId, btn, nomeDoc) {
   const orig = btn.innerHTML;
   btn.disabled = true;
   btn.innerHTML = '<i class="ti ti-loader-2" style="font-size:13px;animation:spin 1s linear infinite;"></i> Baixando...';
@@ -4150,9 +4151,7 @@ async function histBaixarPDF(envioId, btn) {
       return;
     }
     const blob = await res.blob();
-    const disposition = res.headers.get('Content-Disposition') || '';
-    const match = disposition.match(/filename="?([^"]+)"?/);
-    const nomeArquivo = match ? match[1] : `documento_${envioId}.pdf`;
+    const nomeArquivo = (nomeDoc ? nomeDoc + '_assinado.pdf' : `documento_${envioId}.pdf`);
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;

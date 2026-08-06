@@ -2680,68 +2680,68 @@ async def download_pdf_assinado(envio_id: int, _=Depends(verificar_acesso)):
 
     try:
         envio = banco.buscar_envio_por_id(envio_id)
-    except Exception as exc:
-        print(f"[DOWNLOAD] envio={envio_id} erro ao buscar no banco: {_tb.format_exc()}")
-        raise HTTPException(500, f"Erro ao buscar envio: {exc}")
+        if not envio:
+            raise HTTPException(404, "Envio não encontrado")
 
-    if not envio:
-        raise HTTPException(404, "Envio não encontrado")
+        provedor  = (envio.get("provedor") or "zapsign").lower().strip()
+        doc_token = (envio.get("autentique_id") or "").strip()
+        link      = (envio.get("link_assinatura") or "").strip()
 
-    provedor  = (envio.get("provedor") or "zapsign").lower().strip()
-    doc_token = (envio.get("autentique_id") or envio.get("zapsign_token") or "").strip()
-    link      = (envio.get("link_assinatura") or "").strip()
+        print(f"[DOWNLOAD] id={envio_id} provedor={provedor} token={doc_token[:30]!r} link={bool(link)}")
 
-    print(f"[DOWNLOAD] envio={envio_id} provedor={provedor!r} token={doc_token[:20]!r}... link={bool(link)}")
+        if not doc_token:
+            if link:
+                return RedirectResponse(url=link)
+            raise HTTPException(400, "Envio não possui token")
 
-    if not doc_token:
+        nome_arquivo = (envio.get("doc_nome") or "documento").replace("/", "-").replace(" ", "_") + "_assinado.pdf"
+
+        pdf_bytes = None
+        ultimo_erro = "nenhum provedor respondeu"
+
+        # Provedor principal
+        try:
+            if provedor == "autentique":
+                pdf_bytes, ultimo_erro = autentique.baixar_pdf_assinado(doc_token)
+            else:
+                pdf_bytes, ultimo_erro = zapsign.baixar_pdf_assinado(doc_token)
+            print(f"[DOWNLOAD] principal={provedor} bytes={len(pdf_bytes) if pdf_bytes else 0} erro={ultimo_erro!r}")
+        except Exception as e:
+            ultimo_erro = str(e)
+            print(f"[DOWNLOAD] principal={provedor} exception: {e}")
+
+        # Fallback provedor alternativo
+        if not pdf_bytes:
+            alt = "autentique" if provedor != "autentique" else "zapsign"
+            try:
+                if alt == "autentique":
+                    pdf_bytes, ultimo_erro = autentique.baixar_pdf_assinado(doc_token)
+                else:
+                    pdf_bytes, ultimo_erro = zapsign.baixar_pdf_assinado(doc_token)
+                if pdf_bytes:
+                    banco.corrigir_provedor_envio(envio_id, alt)
+                print(f"[DOWNLOAD] fallback={alt} bytes={len(pdf_bytes) if pdf_bytes else 0} erro={ultimo_erro!r}")
+            except Exception as e:
+                print(f"[DOWNLOAD] fallback={alt} exception: {e}")
+
+        if pdf_bytes:
+            return StreamingResponse(
+                _io_dl.BytesIO(pdf_bytes),
+                media_type="application/pdf",
+                headers={"Content-Disposition": f'attachment; filename="{nome_arquivo}"'}
+            )
+
+        # Último recurso: abre link de assinatura
+        print(f"[DOWNLOAD] todos os provedores falharam: {ultimo_erro!r}")
         if link:
             return RedirectResponse(url=link)
-        raise HTTPException(400, "Envio não possui token de documento")
+        raise HTTPException(400, f"PDF não disponível: {ultimo_erro}")
 
-    nome_arquivo = (envio.get("doc_nome") or "documento").replace("/", "-").replace(" ", "_") + "_assinado.pdf"
-
-    pdf_bytes, erro = None, "sem resposta"
-
-    # Provedor principal
-    try:
-        if provedor == "autentique":
-            pdf_bytes, erro = autentique.baixar_pdf_assinado(doc_token)
-        else:
-            pdf_bytes, erro = zapsign.baixar_pdf_assinado(doc_token)
-        print(f"[DOWNLOAD] provedor={provedor} resultado: bytes={len(pdf_bytes) if pdf_bytes else 0} erro={erro!r}")
+    except HTTPException:
+        raise
     except Exception as exc:
-        erro = str(exc)
-        print(f"[DOWNLOAD] provedor={provedor} EXCEPTION: {_tb.format_exc()}")
-
-    # Fallback: tenta provedor alternativo
-    if not pdf_bytes:
-        try:
-            alt = "autentique" if provedor == "zapsign" else "zapsign"
-            if alt == "autentique":
-                pdf_bytes2, erro2 = autentique.baixar_pdf_assinado(doc_token)
-            else:
-                pdf_bytes2, erro2 = zapsign.baixar_pdf_assinado(doc_token)
-            if pdf_bytes2:
-                pdf_bytes = pdf_bytes2
-                banco.corrigir_provedor_envio(envio_id, alt)
-                print(f"[DOWNLOAD] fallback {alt} OK")
-            else:
-                print(f"[DOWNLOAD] fallback {alt} também falhou: {erro2!r}")
-        except Exception as exc2:
-            print(f"[DOWNLOAD] fallback EXCEPTION: {exc2}")
-
-    if pdf_bytes:
-        return StreamingResponse(
-            _io_dl.BytesIO(pdf_bytes),
-            media_type="application/pdf",
-            headers={"Content-Disposition": f'attachment; filename="{nome_arquivo}"'}
-        )
-
-    # Último recurso: redireciona para o link de assinatura
-    print(f"[DOWNLOAD] envio={envio_id} falhou tudo, erro={erro!r}, link={link!r}")
-    if link:
-        return RedirectResponse(url=link)
-    raise HTTPException(400, f"Não foi possível baixar o PDF assinado: {erro or 'erro desconhecido'}")
+        print(f"[DOWNLOAD] ERRO INESPERADO envio={envio_id}: {_tb.format_exc()}")
+        raise HTTPException(500, f"Erro interno: {exc}")
 
 
 @app.delete("/api/envios/{envio_id}")

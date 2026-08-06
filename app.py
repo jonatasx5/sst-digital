@@ -2695,8 +2695,13 @@ async def download_pdf_assinado(envio_id: int, _=Depends(verificar_acesso)):
             raise HTTPException(400, "Envio não possui token")
 
         _nome_base = (envio.get("doc_nome") or "documento")
-        _nome_base = _nome_base.encode("ascii", "ignore").decode("ascii")
-        _nome_base = _nome_base.replace("/", "-").replace(" ", "_").strip("_") or "documento"
+        # Substitui caracteres problemáticos em headers HTTP mantendo legibilidade
+        _nome_base = (_nome_base
+            .replace("—", "-").replace("–", "-")  # travessões → hífen
+            .replace("/", "-").replace("\\", "-")
+            .replace('"', "").replace("'", "")
+            .encode("latin-1", "replace").decode("latin-1")
+            .strip() or "documento")
         nome_arquivo = _nome_base + "_assinado.pdf"
 
         pdf_bytes = None

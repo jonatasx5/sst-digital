@@ -2694,7 +2694,10 @@ async def download_pdf_assinado(envio_id: int, _=Depends(verificar_acesso)):
                 return RedirectResponse(url=link)
             raise HTTPException(400, "Envio não possui token")
 
-        nome_arquivo = (envio.get("doc_nome") or "documento").replace("/", "-").replace(" ", "_") + "_assinado.pdf"
+        _nome_base = (envio.get("doc_nome") or "documento")
+        _nome_base = _nome_base.encode("ascii", "ignore").decode("ascii")
+        _nome_base = _nome_base.replace("/", "-").replace(" ", "_").strip("_") or "documento"
+        nome_arquivo = _nome_base + "_assinado.pdf"
 
         pdf_bytes = None
         ultimo_erro = "nenhum provedor respondeu"

@@ -4150,10 +4150,13 @@ async function histBaixarPDF(envioId, btn) {
       return;
     }
     const blob = await res.blob();
+    const disposition = res.headers.get('Content-Disposition') || '';
+    const match = disposition.match(/filename="?([^"]+)"?/);
+    const nomeArquivo = match ? match[1] : `documento_${envioId}.pdf`;
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `documento_${envioId}.pdf`;
+    a.download = nomeArquivo;
     a.click();
     URL.revokeObjectURL(url);
     btn.innerHTML = '<i class="ti ti-check" style="font-size:13px;"></i> Baixado!';

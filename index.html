@@ -2641,6 +2641,9 @@ async function adminExcluir(uid, nome) {
 // ══════════════════════════════════════════════════════
 async function irPara(aba) {
   if (aba !== 'admin' && !temPermissao(aba)) return;
+  // Reseta scroll ANTES de trocar o painel visível
+  const mainEl = document.querySelector('main.main');
+  if (mainEl) mainEl.scrollTop = 0;
   document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
   document.querySelectorAll('.nav-item').forEach(b => b.classList.remove('active'));
   document.getElementById('panel-'+aba).classList.add('active');
@@ -2664,9 +2667,9 @@ async function irPara(aba) {
   if (aba==='empresas')      carregarEmpresas();
   if (aba==='terceiros')     carregarTerceiros();
 
-  // Scroll ao topo DEPOIS de tudo renderizado
+  // Scroll ao topo — duplo para garantir após renderização assíncrona
   const mainEl = document.querySelector('main.main');
-  if (mainEl) mainEl.scrollTop = 0;
+  if (mainEl) { mainEl.scrollTop = 0; setTimeout(() => { mainEl.scrollTop = 0; }, 50); }
 }
 
 function toggleSidebar() {

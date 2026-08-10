@@ -1408,7 +1408,7 @@ tr:hover td { background:#F9FAFB; }
   </div>
 
   <!-- Dashboard de stats -->
-  <div id="hist-dashboard" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px;margin-bottom:16px;"></div>
+  <div id="hist-dashboard" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px;margin-bottom:16px;min-height:0;"></div>
 
   <div id="hist-status-msg"></div>
 
@@ -2654,19 +2654,21 @@ function irPara(aba) {
   if (aba==='lote')          { filtrarLote(); renderLoteSel(); }
   if (aba==='envio-lote')   { elReset(); filtrarLote(); renderLoteSel(); }
   if (aba==='ordem-servico') carregarOSCargos();
-  if (aba==='historico')     carregarHistorico().then(() => { const m = document.querySelector('main.main'); if(m) m.scrollTop=0; window.scrollTo(0,0); });
+  if (aba==='historico')     carregarHistorico();
   if (aba==='diario-obra')   doInit();
   if (aba==='alojamentos')   alojaInit();
   if (aba==='acidentes')     acidInit();
   if (aba==='admin')         { carregarAdmin(); carregarIntegracaoConfig(); _adminCarregarLogoPreview(); }
   if (aba==='empresas')      carregarEmpresas();
   if (aba==='terceiros')     carregarTerceiros();
-  // Scroll para o topo e fecha sidebar mobile
-  if (aba !== 'historico') {
+  // Scroll para o topo após renderização
+  setTimeout(() => {
     const mainEl = document.querySelector('main.main');
     if (mainEl) mainEl.scrollTop = 0;
     window.scrollTo(0, 0);
-  }
+    const panel = document.getElementById('panel-' + aba);
+    if (panel) panel.scrollIntoView({ block: 'start' });
+  }, 50);
   document.getElementById('sidebar').classList.remove('open');
 }
 
@@ -4166,6 +4168,12 @@ async function carregarHistorico() {
   } catch(e) {
     tbody.innerHTML = `<tr><td colspan="6" style="text-align:center;padding:40px;color:var(--danger);">Erro ao carregar: ${e.message}</td></tr>`;
   }
+  // Garante scroll ao topo após renderização completa
+  requestAnimationFrame(() => {
+    const mainEl = document.querySelector('main.main');
+    if (mainEl) mainEl.scrollTop = 0;
+    window.scrollTo(0, 0);
+  });
 }
 
 function histRenderDashboard(dados) {

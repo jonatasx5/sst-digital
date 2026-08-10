@@ -2654,7 +2654,7 @@ function irPara(aba) {
   if (aba==='lote')          { filtrarLote(); renderLoteSel(); }
   if (aba==='envio-lote')   { elReset(); filtrarLote(); renderLoteSel(); }
   if (aba==='ordem-servico') carregarOSCargos();
-  if (aba==='historico')     carregarHistorico();
+  if (aba==='historico')     carregarHistorico().then(() => { const m = document.querySelector('main.main'); if(m) m.scrollTop=0; window.scrollTo(0,0); });
   if (aba==='diario-obra')   doInit();
   if (aba==='alojamentos')   alojaInit();
   if (aba==='acidentes')     acidInit();
@@ -2662,9 +2662,11 @@ function irPara(aba) {
   if (aba==='empresas')      carregarEmpresas();
   if (aba==='terceiros')     carregarTerceiros();
   // Scroll para o topo e fecha sidebar mobile
-  const mainEl = document.querySelector('main.main');
-  if (mainEl) mainEl.scrollTop = 0;
-  window.scrollTo(0, 0);
+  if (aba !== 'historico') {
+    const mainEl = document.querySelector('main.main');
+    if (mainEl) mainEl.scrollTop = 0;
+    window.scrollTo(0, 0);
+  }
   document.getElementById('sidebar').classList.remove('open');
 }
 

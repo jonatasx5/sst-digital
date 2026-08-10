@@ -2639,7 +2639,7 @@ async function adminExcluir(uid, nome) {
 // ══════════════════════════════════════════════════════
 //  NAVEGAÇÃO
 // ══════════════════════════════════════════════════════
-function irPara(aba) {
+async function irPara(aba) {
   if (aba !== 'admin' && !temPermissao(aba)) return;
   document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
   document.querySelectorAll('.nav-item').forEach(b => b.classList.remove('active'));
@@ -2647,24 +2647,26 @@ function irPara(aba) {
   document.querySelectorAll('.nav-item').forEach(b => {
     if (b.getAttribute('onclick')?.includes("'"+aba+"'")) b.classList.add('active');
   });
+  document.getElementById('sidebar').classList.remove('open');
+
   if (aba==='funcionarios')  carregarFuncionarios();
   if (aba==='modelos')       { carregarModelos(); carregarTabelaEpiOs(); popularSelectEditor(); }
   if (aba==='cadastro-epi')  carregarPainelCadEpi();
   if (aba==='envio-epi')     { buscarFuncEpi(); filtrarEpiLote(); }
   if (aba==='lote')          { filtrarLote(); renderLoteSel(); }
-  if (aba==='envio-lote')   { elReset(); filtrarLote(); renderLoteSel(); }
+  if (aba==='envio-lote')    { elReset(); filtrarLote(); renderLoteSel(); }
   if (aba==='ordem-servico') carregarOSCargos();
-  if (aba==='historico')     carregarHistorico();
+  if (aba==='historico')     await carregarHistorico();
   if (aba==='diario-obra')   doInit();
   if (aba==='alojamentos')   alojaInit();
   if (aba==='acidentes')     acidInit();
   if (aba==='admin')         { carregarAdmin(); carregarIntegracaoConfig(); _adminCarregarLogoPreview(); }
   if (aba==='empresas')      carregarEmpresas();
   if (aba==='terceiros')     carregarTerceiros();
-  // Scroll para o topo
+
+  // Scroll ao topo DEPOIS de tudo renderizado
   const mainEl = document.querySelector('main.main');
   if (mainEl) mainEl.scrollTop = 0;
-  document.getElementById('sidebar').classList.remove('open');
 }
 
 function toggleSidebar() {

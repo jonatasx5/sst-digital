@@ -27,7 +27,7 @@ body { font-family: 'Inter', sans-serif; background: var(--fundo); color: var(--
 /* ── Layout ── */
 .layout { display: flex; min-height: 100vh; }
 .sidebar { width: var(--sidebar-w); background: #0F1923; position: fixed; top:0; left:0; height:100vh; display:flex; flex-direction:column; z-index:100; }
-.main { margin-left: var(--sidebar-w); flex:1; padding: 24px; min-height:100vh; overflow-y:auto; height:100vh; }
+.main { margin-left: var(--sidebar-w); flex:1; padding: 24px; min-height:100vh; overflow-y:auto; height:100vh; overflow-anchor:none; }
 
 /* ── Sidebar ── */
 .sb-logo { padding: 20px 16px 16px; border-bottom: 1px solid #1E2D3D; }
@@ -2661,14 +2661,9 @@ function irPara(aba) {
   if (aba==='admin')         { carregarAdmin(); carregarIntegracaoConfig(); _adminCarregarLogoPreview(); }
   if (aba==='empresas')      carregarEmpresas();
   if (aba==='terceiros')     carregarTerceiros();
-  // Scroll para o topo após renderização
-  setTimeout(() => {
-    const mainEl = document.querySelector('main.main');
-    if (mainEl) mainEl.scrollTop = 0;
-    window.scrollTo(0, 0);
-    const panel = document.getElementById('panel-' + aba);
-    if (panel) panel.scrollIntoView({ block: 'start' });
-  }, 50);
+  // Scroll para o topo
+  const mainEl = document.querySelector('main.main');
+  if (mainEl) mainEl.scrollTop = 0;
   document.getElementById('sidebar').classList.remove('open');
 }
 
@@ -4168,12 +4163,6 @@ async function carregarHistorico() {
   } catch(e) {
     tbody.innerHTML = `<tr><td colspan="6" style="text-align:center;padding:40px;color:var(--danger);">Erro ao carregar: ${e.message}</td></tr>`;
   }
-  // Garante scroll ao topo após renderização completa
-  requestAnimationFrame(() => {
-    const mainEl = document.querySelector('main.main');
-    if (mainEl) mainEl.scrollTop = 0;
-    window.scrollTo(0, 0);
-  });
 }
 
 function histRenderDashboard(dados) {

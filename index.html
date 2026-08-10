@@ -4168,6 +4168,9 @@ async function carregarHistorico() {
   } catch(e) {
     tbody.innerHTML = `<tr><td colspan="6" style="text-align:center;padding:40px;color:var(--danger);">Erro ao carregar: ${e.message}</td></tr>`;
   }
+  // Garante topo após renderização dos dados (async pode deslocar scroll)
+  const mainEl = document.querySelector('main.main');
+  if (mainEl) mainEl.scrollTop = 0;
 }
 
 function histRenderDashboard(dados) {

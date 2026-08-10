@@ -1407,9 +1407,6 @@ tr:hover td { background:#F9FAFB; }
     </div>
   </div>
 
-  <!-- Dashboard de stats -->
-  <div id="hist-dashboard" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px;margin-bottom:16px;min-height:0;"></div>
-
   <div id="hist-status-msg"></div>
 
   <!-- Tabela -->
@@ -1432,6 +1429,9 @@ tr:hover td { background:#F9FAFB; }
       </table>
     </div>
   </div>
+
+  <!-- Dashboard de stats — abaixo da tabela para não causar deslocamento -->
+  <div id="hist-dashboard" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px;margin-top:16px;"></div>
 </div>
 
 <!-- ── MODAL WHATSAPP ── -->
@@ -2656,7 +2656,7 @@ async function irPara(aba) {
   if (aba==='lote')          { filtrarLote(); renderLoteSel(); }
   if (aba==='envio-lote')    { elReset(); filtrarLote(); renderLoteSel(); }
   if (aba==='ordem-servico') carregarOSCargos();
-  if (aba==='historico')     await carregarHistorico();
+  if (aba==='historico')     carregarHistorico();
   if (aba==='diario-obra')   doInit();
   if (aba==='alojamentos')   alojaInit();
   if (aba==='acidentes')     acidInit();

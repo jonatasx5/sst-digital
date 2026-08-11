@@ -563,6 +563,106 @@ async def deletar_engenheiro(eid: int, _=Depends(verificar_acesso)):
 
 
 # ══════════════════════════════════════════════════════════
+#  OBRAS
+# ══════════════════════════════════════════════════════════
+
+@app.get("/api/obras")
+async def listar_obras(_=Depends(verificar_acesso)):
+    return banco.listar_obras()
+
+@app.post("/api/obras")
+async def criar_obra(dados: dict, _=Depends(verificar_acesso)):
+    oid = banco.salvar_obra(None, dados.get("nome",""), dados.get("empresa",""))
+    return {"ok": True, "id": oid}
+
+@app.put("/api/obras/{oid}")
+async def atualizar_obra(oid: int, dados: dict, _=Depends(verificar_acesso)):
+    banco.salvar_obra(oid, dados.get("nome",""), dados.get("empresa",""))
+    return {"ok": True}
+
+@app.delete("/api/obras/{oid}")
+async def deletar_obra(oid: int, _=Depends(verificar_acesso)):
+    banco.deletar_obra(oid)
+    return {"ok": True}
+
+
+# ══════════════════════════════════════════════════════════
+#  ENCARREGADOS
+# ══════════════════════════════════════════════════════════
+
+@app.get("/api/encarregados")
+async def listar_encarregados(obra_id: int = None, _=Depends(verificar_acesso)):
+    return banco.listar_encarregados(obra_id)
+
+@app.post("/api/encarregados")
+async def criar_encarregado(dados: dict, _=Depends(verificar_acesso)):
+    eid = banco.salvar_encarregado(None, dados.get("nome",""), dados.get("telefone",""), dados.get("obra_id"))
+    return {"ok": True, "id": eid}
+
+@app.put("/api/encarregados/{eid}")
+async def atualizar_encarregado(eid: int, dados: dict, _=Depends(verificar_acesso)):
+    banco.salvar_encarregado(eid, dados.get("nome",""), dados.get("telefone",""), dados.get("obra_id"))
+    return {"ok": True}
+
+@app.delete("/api/encarregados/{eid}")
+async def deletar_encarregado(eid: int, _=Depends(verificar_acesso)):
+    banco.deletar_encarregado(eid)
+    return {"ok": True}
+
+
+# ══════════════════════════════════════════════════════════
+#  DIÁRIO DE OBRA
+# ══════════════════════════════════════════════════════════
+
+@app.get("/api/diario")
+async def listar_diario(obra_id: int = None, data_ini: str = None, data_fim: str = None, _=Depends(verificar_acesso)):
+    return banco.listar_diario(obra_id, data_ini, data_fim)
+
+@app.post("/api/diario")
+async def criar_diario(dados: dict, payload=Depends(verificar_acesso)):
+    criado_por = payload.get("nome","") if payload else ""
+    rid = banco.salvar_diario(
+        None,
+        dados.get("data_registro",""),
+        dados.get("obra_id"),
+        dados.get("encarregado_id"),
+        dados.get("descricao",""),
+        dados.get("fotos_json","[]"),
+        criado_por
+    )
+    return {"ok": True, "id": rid}
+
+@app.put("/api/diario/{rid}")
+async def atualizar_diario(rid: int, dados: dict, _=Depends(verificar_acesso)):
+    reg = banco.buscar_diario(rid)
+    if not reg:
+        from fastapi import HTTPException
+        raise HTTPException(404)
+    banco.salvar_diario(
+        rid,
+        dados.get("data_registro", reg["data_registro"]),
+        dados.get("obra_id", reg["obra_id"]),
+        dados.get("encarregado_id", reg["encarregado_id"]),
+        dados.get("descricao", reg["descricao"]),
+        dados.get("fotos_json", reg["fotos_json"]),
+    )
+    return {"ok": True}
+
+@app.get("/api/diario/{rid}")
+async def buscar_diario(rid: int, _=Depends(verificar_acesso)):
+    reg = banco.buscar_diario(rid)
+    if not reg:
+        from fastapi import HTTPException
+        raise HTTPException(404)
+    return reg
+
+@app.delete("/api/diario/{rid}")
+async def deletar_diario(rid: int, _=Depends(verificar_acesso)):
+    banco.deletar_diario(rid)
+    return {"ok": True}
+
+
+# ══════════════════════════════════════════════════════════
 #  ROTA PRINCIPAL — serve o HTML
 # ══════════════════════════════════════════════════════════
 

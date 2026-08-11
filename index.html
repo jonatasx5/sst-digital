@@ -1643,128 +1643,182 @@ tr:hover td { background:#F9FAFB; }
   <div class="page-header">
     <div>
       <div class="page-title">Diário de Obra</div>
-      <div class="page-sub">Relatório fotográfico — AGETOP/Goiás</div>
+      <div class="page-sub">Registro diário por obra e equipe</div>
     </div>
-  </div>
-
-  <!-- Steps nav -->
-  <div style="display:flex;gap:0;margin-bottom:20px;border-radius:10px;overflow:hidden;border:1px solid var(--borda);">
-    <button onclick="doStep(0)" id="doTab0" class="do-tab do-tab-active" style="flex:1;padding:10px;border:none;cursor:pointer;font-size:13px;font-weight:600;transition:all .15s;">1. Obra</button>
-    <button onclick="doStep(1)" id="doTab1" class="do-tab" style="flex:1;padding:10px;border:none;cursor:pointer;font-size:13px;font-weight:500;transition:all .15s;border-left:1px solid var(--borda);">2. Fotos</button>
-    <button onclick="doStep(2)" id="doTab2" class="do-tab" style="flex:1;padding:10px;border:none;cursor:pointer;font-size:13px;font-weight:500;transition:all .15s;border-left:1px solid var(--borda);">3. Relatório</button>
-  </div>
-
-  <!-- Step 0: Dados da obra -->
-  <div id="doStep0">
-    <div class="card">
-      <div class="card-title"><i class="ti ti-building-factory-2"></i>Dados da Obra</div>
-      <div class="grid2">
-        <div class="field"><label>Nome da Obra *</label>
-          <select id="do-obra" style="width:100%;padding:10px;border:1.5px solid var(--borda);border-radius:8px;font-size:14px;background:var(--fundo);">
-            <option value="">Carregando obras...</option>
-          </select>
-          <div id="do-obra-manual-container" style="display:none;margin-top:6px">
-            <input type="text" id="do-obra-manual" placeholder="Digite o nome da obra" style="width:100%;padding:10px;border:1.5px solid var(--borda);border-radius:8px;font-size:14px;">
-          </div>
-        </div>
-        <div class="field"><label>Executora *</label>
-          <select id="do-executora" style="width:100%;padding:10px;border:1.5px solid var(--borda);border-radius:8px;font-size:14px;background:var(--fundo);">
-            <option value="JS Construtora">JS Construtora</option>
-            <option value="__outro__">Outra...</option>
-          </select>
-          <div id="do-executora-manual-container" style="display:none;margin-top:6px">
-            <input type="text" id="do-executora-manual" placeholder="Digite o nome da executora" style="width:100%;padding:10px;border:1.5px solid var(--borda);border-radius:8px;font-size:14px;">
-          </div>
-        </div>
-      </div>
-      <div class="grid2">
-        <div class="field"><label>Engenheiro Responsável</label>
-          <select id="do-engenheiro" style="width:100%;padding:10px;border:1.5px solid var(--borda);border-radius:8px;font-size:14px;background:var(--fundo);">
-            <option value="">Selecione o engenheiro</option>
-          </select>
-        </div>
-        <div class="field"><label>Mês de Referência *</label>
-          <select id="do-mes" style="width:100%;padding:10px;border:1.5px solid var(--borda);border-radius:8px;font-size:14px;background:var(--fundo);">
-            <option value="">Selecione o mês</option>
-            <option>JAN</option><option>FEV</option><option>MAR</option><option>ABR</option>
-            <option>MAI</option><option>JUN</option><option>JUL</option><option>AGO</option>
-            <option>SET</option><option>OUT</option><option>NOV</option><option>DEZ</option>
-          </select>
-        </div>
-      </div>
-      <div class="grid2">
-        <div class="field"><label>Ano</label>
-          <div style="display:flex;align-items:center;gap:8px;">
-            <button onclick="document.getElementById('do-ano').stepDown()" style="padding:8px 14px;border:1.5px solid var(--borda);border-radius:8px;background:#fff;cursor:pointer;font-size:16px;">−</button>
-            <input type="number" id="do-ano" value="2026" min="2020" max="2035" style="width:90px;padding:10px;border:1.5px solid var(--borda);border-radius:8px;font-size:14px;text-align:center;">
-            <button onclick="document.getElementById('do-ano').stepUp()" style="padding:8px 14px;border:1.5px solid var(--borda);border-radius:8px;background:#fff;cursor:pointer;font-size:16px;">+</button>
-          </div>
-        </div>
-        <div></div>
-      </div>
-    </div>
-
-    <!-- Cadastro de engenheiros -->
-    <div class="card" style="margin-top:12px;">
-      <div class="card-title" style="margin-bottom:12px;"><i class="ti ti-user-check"></i>Engenheiros Responsáveis
-        <button onclick="doAbrirCadEngenheiro()" class="btn btn-outline btn-sm" style="margin-left:auto"><i class="ti ti-plus"></i>Cadastrar</button>
-      </div>
-      <div id="do-eng-lista" style="font-size:13px;color:var(--texto2);">Carregando...</div>
-    </div>
-
-    <button class="btn btn-primary" onclick="doStep(1)" style="display:flex;align-items:center;gap:6px;margin-top:12px;">
-      <i class="ti ti-arrow-right"></i>Avançar → Adicionar Fotos
-    </button>
-  </div>
-
-  <!-- Step 1: Fotos -->
-  <div id="doStep1" style="display:none;">
-    <div class="card">
-      <div class="card-title"><i class="ti ti-camera"></i>Adicionar Fotos</div>
-      <div class="alert al-info" style="margin-bottom:14px;">
-        <i class="ti ti-info-circle"></i>As coordenadas GPS e data/hora são lidas automaticamente das fotos tiradas pelo celular.
-      </div>
-      <div class="field">
-        <label>Dia do registro *</label>
-        <select id="do-dia" style="width:100%;max-width:200px;padding:10px;border:1.5px solid var(--borda);border-radius:8px;font-size:14px;background:var(--fundo);">
-          <option value="">Selecione o dia</option>
-        </select>
-      </div>
-      <div id="do-upload-zone" onclick="document.getElementById('do-fotoInput').click()"
-           style="margin-top:12px;border:2px dashed var(--verde);border-radius:12px;padding:28px 16px;
-                  text-align:center;background:var(--verde-light);cursor:pointer;">
-        <input type="file" id="do-fotoInput" accept="image/*" multiple style="display:none" onchange="doHandleFotos(this)">
-        <i class="ti ti-photo-plus" style="font-size:36px;color:var(--verde);display:block;margin-bottom:8px;"></i>
-        <div style="color:var(--verde);font-size:14px;font-weight:600;">Clique para selecionar fotos</div>
-        <div style="color:var(--texto2);font-size:12px;margin-top:4px;">Selecione uma ou várias de uma vez</div>
-      </div>
-    </div>
-
-    <div id="do-listaFotos"></div>
-
-    <div id="do-btnAvancar" style="display:none;">
-      <button class="btn btn-primary" onclick="doStep(2)" style="display:flex;align-items:center;gap:6px;">
-        <i class="ti ti-arrow-right"></i>Ver Resumo e Exportar
+    <div style="display:flex;gap:8px;">
+      <button class="btn btn-outline btn-sm" onclick="doAbrirCadastros()" style="display:flex;align-items:center;gap:5px;">
+        <i class="ti ti-settings"></i>Cadastros
+      </button>
+      <button class="btn btn-primary" onclick="doAbrirModalRegistro()" style="display:flex;align-items:center;gap:5px;">
+        <i class="ti ti-plus"></i>Novo Registro
       </button>
     </div>
   </div>
 
-  <!-- Step 2: Relatório -->
-  <div id="doStep2" style="display:none;">
-    <div id="do-resumoContent"></div>
-    <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:4px;">
-      <button class="btn btn-primary" onclick="doExportarXLSX()" style="display:flex;align-items:center;gap:6px;flex:1;justify-content:center;">
-        <i class="ti ti-file-spreadsheet"></i>Exportar Relatório XLSX
-      </button>
-      <button class="btn btn-secondary" onclick="doStep(1)" style="display:flex;align-items:center;gap:6px;">
-        <i class="ti ti-arrow-left"></i>Voltar
-      </button>
-      <button class="btn btn-secondary" onclick="doNovoRelatorio()" style="display:flex;align-items:center;gap:6px;color:var(--danger);border-color:var(--danger);">
-        <i class="ti ti-refresh"></i>Novo Relatório
-      </button>
+  <!-- Filtros -->
+  <div class="card" style="padding:14px;margin-bottom:16px;">
+    <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;">
+      <select id="do-filtro-obra" onchange="doCarregarRegistros()" style="padding:9px 12px;border:1.5px solid var(--borda);border-radius:8px;font-size:13px;background:var(--card);min-width:180px;">
+        <option value="">Todas as obras</option>
+      </select>
+      <input type="date" id="do-filtro-ini" onchange="doCarregarRegistros()" style="padding:9px 12px;border:1.5px solid var(--borda);border-radius:8px;font-size:13px;">
+      <input type="date" id="do-filtro-fim" onchange="doCarregarRegistros()" style="padding:9px 12px;border:1.5px solid var(--borda);border-radius:8px;font-size:13px;">
+      <button class="btn btn-outline btn-sm" onclick="doLimparFiltros()" style="white-space:nowrap;">Limpar filtros</button>
+    </div>
+  </div>
+
+  <!-- Tabela de registros -->
+  <div class="card" style="padding:0;overflow:hidden;">
+    <div style="overflow-x:auto;">
+      <table style="width:100%;border-collapse:collapse;font-size:13px;">
+        <thead>
+          <tr style="background:var(--fundo);border-bottom:2px solid var(--borda);">
+            <th style="padding:11px 14px;text-align:left;color:var(--texto2);font-weight:600;">Data</th>
+            <th style="padding:11px 14px;text-align:left;color:var(--texto2);font-weight:600;">Obra</th>
+            <th style="padding:11px 14px;text-align:left;color:var(--texto2);font-weight:600;">Equipe</th>
+            <th style="padding:11px 14px;text-align:left;color:var(--texto2);font-weight:600;">Descrição</th>
+            <th style="padding:11px 14px;text-align:center;color:var(--texto2);font-weight:600;">Fotos</th>
+            <th style="padding:11px 14px;text-align:center;color:var(--texto2);font-weight:600;">Ações</th>
+          </tr>
+        </thead>
+        <tbody id="do-tbody">
+          <tr><td colspan="6" style="text-align:center;padding:40px;color:var(--texto2);">Carregando...</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Painel de cadastros (oculto por padrão) -->
+  <div id="do-painel-cadastros" style="display:none;margin-top:20px;">
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
+
+      <!-- Obras -->
+      <div class="card">
+        <div class="card-title"><i class="ti ti-building-factory-2"></i>Obras / Locais
+          <button onclick="doAbrirModalObra()" class="btn btn-outline btn-sm" style="margin-left:auto;"><i class="ti ti-plus"></i>Nova</button>
+        </div>
+        <div id="do-lista-obras" style="font-size:13px;">Carregando...</div>
+      </div>
+
+      <!-- Encarregados -->
+      <div class="card">
+        <div class="card-title"><i class="ti ti-hard-hat"></i>Encarregados
+          <button onclick="doAbrirModalEncarregado()" class="btn btn-outline btn-sm" style="margin-left:auto;"><i class="ti ti-plus"></i>Novo</button>
+        </div>
+        <div id="do-lista-encarregados" style="font-size:13px;">Carregando...</div>
+      </div>
+
     </div>
   </div>
 </div><!-- fecha panel-diario-obra -->
+
+<!-- Modal Novo Registro Diário -->
+<div class="modal-bg" id="modal-do-registro">
+  <div class="modal" style="max-width:600px;">
+    <div class="modal-title">
+      <span><i class="ti ti-notebook" style="color:var(--verde);margin-right:6px;"></i><span id="do-reg-titulo">Novo Registro</span></span>
+      <button class="modal-close" onclick="fecharModal('modal-do-registro')">×</button>
+    </div>
+    <input type="hidden" id="do-reg-id">
+    <div class="grid2">
+      <div class="field">
+        <label>Data *</label>
+        <input type="date" id="do-reg-data" style="width:100%;padding:10px;border:1.5px solid var(--borda);border-radius:8px;font-size:14px;">
+      </div>
+      <div class="field">
+        <label>Obra / Local *</label>
+        <select id="do-reg-obra" onchange="doCarregarEncarregadosDaObra()" style="width:100%;padding:10px;border:1.5px solid var(--borda);border-radius:8px;font-size:14px;background:var(--fundo);">
+          <option value="">Selecione a obra</option>
+        </select>
+      </div>
+    </div>
+    <div class="field" id="do-reg-equipe-box" style="background:#f0fdf4;border-radius:8px;padding:12px 14px;margin-bottom:12px;display:none;">
+      <div style="font-size:11px;font-weight:700;color:var(--verde);text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px;">Equipe responsável</div>
+      <select id="do-reg-encarregado" style="width:100%;padding:8px 10px;border:1.5px solid #bbf7d0;border-radius:8px;font-size:14px;font-weight:600;background:#fff;">
+        <option value="">Selecione o encarregado</option>
+      </select>
+    </div>
+    <div class="field">
+      <label>Atividades realizadas</label>
+      <textarea id="do-reg-descricao" rows="4" placeholder="Descreva as atividades do dia..." style="width:100%;padding:10px;border:1.5px solid var(--borda);border-radius:8px;font-size:13px;resize:vertical;font-family:inherit;"></textarea>
+    </div>
+    <div class="field">
+      <label>Fotos do dia</label>
+      <div id="do-reg-upload" onclick="document.getElementById('do-reg-foto-input').click()"
+           style="border:2px dashed var(--verde);border-radius:10px;padding:20px;text-align:center;cursor:pointer;background:var(--verde-light);">
+        <input type="file" id="do-reg-foto-input" accept="image/*" multiple style="display:none" onchange="doHandleFotosReg(this)">
+        <i class="ti ti-photo-plus" style="font-size:28px;color:var(--verde);display:block;margin-bottom:6px;"></i>
+        <div style="color:var(--verde);font-size:13px;font-weight:600;">Clique para adicionar fotos</div>
+        <div style="color:var(--texto2);font-size:11px;margin-top:2px;">Várias fotos de uma vez</div>
+      </div>
+      <div id="do-reg-fotos-preview" style="display:flex;flex-wrap:wrap;gap:8px;margin-top:10px;"></div>
+    </div>
+    <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:4px;">
+      <button class="btn btn-outline" onclick="fecharModal('modal-do-registro')">Cancelar</button>
+      <button class="btn btn-primary" onclick="doSalvarRegistro()" style="display:flex;align-items:center;gap:6px;">
+        <i class="ti ti-device-floppy"></i>Salvar Registro
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal Obra -->
+<div class="modal-bg" id="modal-do-obra">
+  <div class="modal" style="max-width:420px;">
+    <div class="modal-title">
+      <span><i class="ti ti-building-factory-2" style="color:var(--verde);margin-right:6px;"></i><span id="do-obra-titulo">Nova Obra</span></span>
+      <button class="modal-close" onclick="fecharModal('modal-do-obra')">×</button>
+    </div>
+    <input type="hidden" id="do-obra-id">
+    <div class="field"><label>Nome da Obra *</label>
+      <input type="text" id="do-obra-nome" placeholder="Ex: Lote 11, Conjunto Habitacional A..." style="width:100%;padding:10px;border:1.5px solid var(--borda);border-radius:8px;font-size:14px;">
+    </div>
+    <div class="field"><label>Empresa</label>
+      <input type="text" id="do-obra-empresa" placeholder="Ex: JS Construtora, RECOPAV..." style="width:100%;padding:10px;border:1.5px solid var(--borda);border-radius:8px;font-size:14px;">
+    </div>
+    <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:4px;">
+      <button class="btn btn-outline" onclick="fecharModal('modal-do-obra')">Cancelar</button>
+      <button class="btn btn-primary" onclick="doSalvarObra()"><i class="ti ti-device-floppy"></i> Salvar</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal Encarregado -->
+<div class="modal-bg" id="modal-do-encarregado">
+  <div class="modal" style="max-width:420px;">
+    <div class="modal-title">
+      <span><i class="ti ti-hard-hat" style="color:var(--verde);margin-right:6px;"></i><span id="do-enc-titulo">Novo Encarregado</span></span>
+      <button class="modal-close" onclick="fecharModal('modal-do-encarregado')">×</button>
+    </div>
+    <input type="hidden" id="do-enc-id">
+    <div class="field"><label>Nome do Encarregado *</label>
+      <input type="text" id="do-enc-nome" placeholder="Nome completo" style="width:100%;padding:10px;border:1.5px solid var(--borda);border-radius:8px;font-size:14px;">
+    </div>
+    <div class="field"><label>Obra vinculada *</label>
+      <select id="do-enc-obra" style="width:100%;padding:10px;border:1.5px solid var(--borda);border-radius:8px;font-size:14px;background:var(--fundo);">
+        <option value="">Selecione a obra</option>
+      </select>
+    </div>
+    <div class="field"><label>Telefone</label>
+      <input type="tel" id="do-enc-tel" placeholder="(62) 9xxxx-xxxx" style="width:100%;padding:10px;border:1.5px solid var(--borda);border-radius:8px;font-size:14px;">
+    </div>
+    <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:4px;">
+      <button class="btn btn-outline" onclick="fecharModal('modal-do-encarregado')">Cancelar</button>
+      <button class="btn btn-primary" onclick="doSalvarEncarregado()"><i class="ti ti-device-floppy"></i> Salvar</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal Ver Registro (fotos) -->
+<div class="modal-bg" id="modal-do-ver">
+  <div class="modal" style="max-width:680px;">
+    <div class="modal-title">
+      <span><i class="ti ti-camera" style="color:var(--verde);margin-right:6px;"></i>Registro do Dia</span>
+      <button class="modal-close" onclick="fecharModal('modal-do-ver')">×</button>
+    </div>
+    <div id="do-ver-conteudo"></div>
+  </div>
+</div>
 
 <!-- ── ALOJAMENTOS ── -->
 <div class="panel" id="panel-alojamentos">
@@ -5503,441 +5557,336 @@ async function gerarOSLotacao() {
 // ══════════════════════════════════════════════════════
 //  DIÁRIO DE OBRA
 // ══════════════════════════════════════════════════════
-const DO_SERVICOS = [
-  'ADMINISTRAÇÃO LOCAL','BARREIRAS DE CONCRETO','BUEIRO',
-  'CANTEIRO DE OBRA','CONSERVAÇÃO ROTINEIRA','CUSTOS ADMINISTRATIVOS E OVERHEAD',
-  'DRENAGEM','ESCAVAÇÃO','ESCAVAÇÃO - OAE','ESCORAMENTO',
-  'GALERIA DE ÁGUAS PLUVIAIS/DRENAGEM URBANA','INFRA - ESTRUTURA',
-  'INSTALAÇÃO DE CANTEIRO','MESO-ESTRUTURA','MOBILIZAÇÃO DE EQUIPAMENTOS',
-  'MOBILIZAÇÃO E DESMOBILIZAÇÃO','MOBILIZAÇÃO E INSTALAÇÃO DO CANTEIRO',
-  'MOBILIZAÇÃO/DESMOBIL, CANTEIRO E ADMINISTRAÇÃO','OBRAS COMPLEMENTARES',
-  'OBRAS DE ARTE CORRENTES','PAVIMENTAÇÃO','PAVIMENTAÇÃO URBANA','PROTENSÃO',
-  'REFLORESTAMENTO','REVESTIMENTO ASFALTICO','SERVIÇOS COMPLEMENTARES',
-  'SERVIÇOS DIVERSOS','SERVIÇOS PRELIMINARES OAE','SINALIZAÇÃO','SUPER-ESTRUTURA'
-];
-
-let doFotos = [];
-let doStepAtual = 0;
+let _doObras = [];
+let _doEncarregados = [];
+let _doFotosReg = [];   // fotos do modal de registro atual
 
 async function doInit() {
-  // Preenche select de dias
-  const sel = document.getElementById('do-dia');
-  if (sel.options.length <= 1) {
-    for (let i = 1; i <= 31; i++) {
-      const o = document.createElement('option');
-      o.value = i; o.textContent = i;
-      sel.appendChild(o);
-    }
-  }
-
-  // Carrega lotações dos funcionários para o select de obras
-  const obrasSel = document.getElementById('do-obra');
-  const valorAtual = obrasSel.value;
-  try {
-    const res = await apiFetch('/api/funcionarios');
-    if (res && res.ok) {
-      const funcs = await res.json();
-      const lotacoes = [...new Set(funcs.map(f => f.lotacao).filter(l => l && l.trim()))].sort();
-      obrasSel.innerHTML = '<option value="">Selecione a obra</option>'
-        + lotacoes.map(l => `<option value="${l}" ${l===valorAtual?'selected':''}>${l}</option>`).join('')
-        + '<option value="__outro__">Outra (digitar manualmente)</option>';
-    }
-  } catch(e) {
-    obrasSel.innerHTML = '<option value="">Erro ao carregar obras</option>';
-  }
-
-  obrasSel.onchange = function() {
-    document.getElementById('do-obra-manual-container').style.display = this.value === '__outro__' ? '' : 'none';
-  };
-
-  // Executora — toggle manual
-  document.getElementById('do-executora').onchange = function() {
-    document.getElementById('do-executora-manual-container').style.display = this.value === '__outro__' ? '' : 'none';
-  };
-
-  // Carrega engenheiros
-  await doCarregarEngenheiros();
-
-  doRenderFotos();
+  await doCarregarObras();
+  await doCarregarEncarregados();
+  await doCarregarRegistros();
 }
 
-// ── ENGENHEIROS ────────────────────────────────────────
-async function doCarregarEngenheiros() {
-  const res = await apiFetch('/api/engenheiros');
+// ── Obras ─────────────────────────────────────────────
+async function doCarregarObras() {
+  const res = await apiFetch('/api/obras');
   if (!res || !res.ok) return;
-  const lista = await res.json();
+  _doObras = await res.json();
+  _doRenderObras();
+  _doPopularSelectObras();
+}
 
-  // Atualiza select
-  const engSel = document.getElementById('do-engenheiro');
-  const valAtual = engSel.value;
-  engSel.innerHTML = '<option value="">Selecione o engenheiro</option>'
-    + lista.map(e => `<option value="${e.nome}" ${e.nome===valAtual?'selected':''}>${e.nome}${e.crea?' — '+e.crea:''}</option>`).join('');
-
-  // Atualiza lista de cadastrados
-  const listaEl = document.getElementById('do-eng-lista');
-  if (!lista.length) {
-    listaEl.innerHTML = '<span style="color:var(--texto2)">Nenhum engenheiro cadastrado.</span>';
+function _doRenderObras() {
+  const el = document.getElementById('do-lista-obras');
+  if (!el) return;
+  if (!_doObras.length) {
+    el.innerHTML = '<span style="color:var(--texto2)">Nenhuma obra cadastrada.</span>';
     return;
   }
-  listaEl.innerHTML = lista.map(e => `
+  el.innerHTML = _doObras.map(o => `
     <div style="display:flex;align-items:center;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--borda);">
       <div>
-        <span style="font-weight:600;">${e.nome}</span>
-        ${e.crea ? `<span style="color:var(--texto2);font-size:12px;margin-left:8px;">${e.crea}</span>` : ''}
+        <span style="font-weight:600;">${o.nome}</span>
+        ${o.empresa ? `<span style="color:var(--texto2);font-size:12px;margin-left:8px;">${o.empresa}</span>` : ''}
       </div>
-      <div style="display:flex;gap:6px;">
-        <button onclick="doAbrirCadEngenheiro(${JSON.stringify(e).replace(/"/g,'&quot;')})" class="btn btn-outline btn-sm"><i class="ti ti-edit"></i></button>
-        <button onclick="doDeletarEngenheiro(${e.id})" class="btn btn-danger btn-sm"><i class="ti ti-trash"></i></button>
+      <div style="display:flex;gap:5px;">
+        <button onclick="doAbrirModalObra(${JSON.stringify(o).replace(/"/g,'&quot;')})" class="btn btn-outline btn-sm"><i class="ti ti-edit"></i></button>
+        <button onclick="doDeletarObra(${o.id})" class="btn btn-danger btn-sm"><i class="ti ti-trash"></i></button>
       </div>
     </div>`).join('');
 }
 
-function doAbrirCadEngenheiro(eng) {
-  document.getElementById('eng-id').value   = eng?.id || '';
-  document.getElementById('eng-nome').value = eng?.nome || '';
-  document.getElementById('eng-crea').value = eng?.crea || '';
-  abrirModal('modal-engenheiro');
+function _doPopularSelectObras() {
+  ['do-reg-obra','do-enc-obra','do-filtro-obra'].forEach(id => {
+    const sel = document.getElementById(id);
+    if (!sel) return;
+    const val = sel.value;
+    const first = id === 'do-filtro-obra' ? '<option value="">Todas as obras</option>' : '<option value="">Selecione a obra</option>';
+    sel.innerHTML = first + _doObras.map(o => `<option value="${o.id}" ${String(o.id)===String(val)?'selected':''}>${o.nome}</option>`).join('');
+  });
 }
 
-async function doSalvarEngenheiro() {
-  const id   = document.getElementById('eng-id').value;
-  const nome = document.getElementById('eng-nome').value.trim();
-  const crea = document.getElementById('eng-crea').value.trim();
-  if (!nome) { alert('Informe o nome do engenheiro.'); return; }
+function doAbrirModalObra(obra) {
+  document.getElementById('do-obra-id').value   = obra?.id || '';
+  document.getElementById('do-obra-nome').value = obra?.nome || '';
+  document.getElementById('do-obra-empresa').value = obra?.empresa || '';
+  document.getElementById('do-obra-titulo').textContent = obra ? 'Editar Obra' : 'Nova Obra';
+  abrirModal('modal-do-obra');
+}
+
+async function doSalvarObra() {
+  const id   = document.getElementById('do-obra-id').value;
+  const nome = document.getElementById('do-obra-nome').value.trim();
+  const empresa = document.getElementById('do-obra-empresa').value.trim();
+  if (!nome) { alert('Informe o nome da obra.'); return; }
   const method = id ? 'PUT' : 'POST';
-  const url    = id ? `/api/engenheiros/${id}` : '/api/engenheiros';
-  const res = await apiFetch(url, {
-    method, headers: {'Content-Type':'application/json'},
-    body: JSON.stringify({nome, crea})
-  });
-  if (!res || !res.ok) { alert('Erro ao salvar.'); return; }
-  fecharModal('modal-engenheiro');
-  doCarregarEngenheiros();
+  const url    = id ? `/api/obras/${id}` : '/api/obras';
+  const res = await apiFetch(url, { method, headers: {'Content-Type':'application/json'}, body: JSON.stringify({nome, empresa}) });
+  if (!res || !res.ok) { alert('Erro ao salvar obra.'); return; }
+  fecharModal('modal-do-obra');
+  await doCarregarObras();
 }
 
-async function doDeletarEngenheiro(id) {
-  if (!confirm('Excluir este engenheiro?')) return;
-  await apiFetch(`/api/engenheiros/${id}`, { method: 'DELETE' });
-  doCarregarEngenheiros();
+async function doDeletarObra(id) {
+  if (!confirm('Excluir esta obra?')) return;
+  await apiFetch(`/api/obras/${id}`, { method: 'DELETE' });
+  await doCarregarObras();
 }
 
-function doStep(n) {
-  if (n === 2) doBuildResumo();
-  [0,1,2].forEach(i => {
-    document.getElementById('doStep'+i).style.display = i===n ? '' : 'none';
-    const tab = document.getElementById('doTab'+i);
-    tab.style.background = i===n ? 'var(--verde)' : 'var(--card)';
-    tab.style.color = i===n ? '#fff' : 'var(--texto2)';
-  });
-  doStepAtual = n;
+// ── Encarregados ───────────────────────────────────────
+async function doCarregarEncarregados() {
+  const res = await apiFetch('/api/encarregados');
+  if (!res || !res.ok) return;
+  _doEncarregados = await res.json();
+  _doRenderEncarregados();
 }
 
-// ── EXIF ──────────────────────────────────────────────
-function doReadEXIF(file) {
-  return new Promise(resolve => {
-    const reader = new FileReader();
-    reader.onload = function(e) {
-      const view = new DataView(e.target.result);
-      const result = { lat: null, lon: null, datetime: null };
-      if (view.getUint16(0) !== 0xFFD8) { resolve(result); return; }
-      let offset = 2;
-      while (offset < view.byteLength - 2) {
-        const marker = view.getUint16(offset);
-        if (marker === 0xFFE1) {
-          const exifLen = view.getUint16(offset + 2);
-          const exifData = new DataView(e.target.result, offset + 4, exifLen - 2);
-          try { Object.assign(result, doParseEXIF(exifData)); } catch(err) {}
-          break;
-        }
-        if (marker === 0xFFDA) break;
-        const len = view.getUint16(offset + 2);
-        offset += 2 + len;
-      }
-      resolve(result);
-    };
-    reader.readAsArrayBuffer(file.slice(0, 128 * 1024));
-  });
-}
-
-function doParseEXIF(view) {
-  const result = { lat: null, lon: null, datetime: null };
-  if (view.byteLength < 6) return result;
-  const header = String.fromCharCode(view.getUint8(0),view.getUint8(1),view.getUint8(2),view.getUint8(3));
-  if (header !== 'Exif') return result;
-  const tiffStart = 6;
-  const endian = view.getUint16(tiffStart);
-  const le = endian === 0x4949;
-  const get16 = o => view.getUint16(tiffStart + o, le);
-  const get32 = o => view.getUint32(tiffStart + o, le);
-  if (get16(4) !== 0x002A) return result;
-  let ifdOffset = get32(6);
-  function readIFD(offset) {
-    const tags = {}, n = get16(offset);
-    for (let i = 0; i < n; i++) {
-      const o = offset + 2 + i * 12;
-      tags[get16(o)] = { type: get16(o+2), count: get32(o+4), valOff: o+8 };
-    }
-    return tags;
-  }
-  function readRational(o) { const num=get32(o),den=get32(o+4); return den===0?0:num/den; }
-  function dmsToDecimal(o, ref) {
-    let dec = readRational(o) + readRational(o+8)/60 + readRational(o+16)/3600;
-    if (ref==='S'||ref==='W') dec=-dec;
-    return dec;
-  }
-  function readAscii(o, count) {
-    let s='';
-    for(let i=0;i<count-1;i++) s+=String.fromCharCode(view.getUint8(tiffStart+o+i));
-    return s;
-  }
-  try {
-    const ifd0 = readIFD(ifdOffset);
-    if (ifd0[0x0132]) {
-      const t=ifd0[0x0132], off=t.count<=4?t.valOff:get32(t.valOff);
-      result.datetime = readAscii(off, t.count);
-    }
-    if (ifd0[0x8825]) {
-      const gpsOff=get32(ifd0[0x8825].valOff), gps=readIFD(gpsOff);
-      let latRef='N', lonRef='E';
-      if(gps[0x0001]){const o=gps[0x0001].count<=4?gps[0x0001].valOff:get32(gps[0x0001].valOff);latRef=String.fromCharCode(view.getUint8(tiffStart+o));}
-      if(gps[0x0003]){const o=gps[0x0003].count<=4?gps[0x0003].valOff:get32(gps[0x0003].valOff);lonRef=String.fromCharCode(view.getUint8(tiffStart+o));}
-      if(gps[0x0002]){result.lat=dmsToDecimal(get32(gps[0x0002].valOff),latRef).toFixed(6);}
-      if(gps[0x0004]){result.lon=dmsToDecimal(get32(gps[0x0004].valOff),lonRef).toFixed(6);}
-    }
-  } catch(e) {}
-  return result;
-}
-
-// ── HANDLE FOTOS ──────────────────────────────────────
-async function doHandleFotos(input) {
-  const dia = document.getElementById('do-dia').value;
-  if (!dia) { alert('Selecione o dia antes de adicionar as fotos!'); input.value=''; return; }
-  for (const file of Array.from(input.files)) {
-    const exif = await doReadEXIF(file);
-    doFotos.push({
-      id: Date.now() + Math.random(),
-      dia: parseInt(dia),
-      nome: file.name,
-      thumb: URL.createObjectURL(file),
-      lat: exif.lat, lon: exif.lon, datetime: exif.datetime,
-      tipo:'', estaca:'', legenda:'', obs:''
-    });
-  }
-  input.value = '';
-  doRenderFotos();
-}
-
-function doUpdateFoto(id, field, value) {
-  const f = doFotos.find(f => String(f.id)===String(id));
-  if (f) f[field] = value;
-}
-
-function doDeleteFoto(id) {
-  doFotos = doFotos.filter(f => String(f.id)!==String(id));
-  doRenderFotos();
-}
-
-// ── RENDER ────────────────────────────────────────────
-function doRenderFotos() {
-  const container = document.getElementById('do-listaFotos');
-  document.getElementById('do-btnAvancar').style.display = doFotos.length ? '' : 'none';
-  if (!doFotos.length) {
-    container.innerHTML = `<div style="text-align:center;padding:40px;color:var(--texto2);">
-      <i class="ti ti-photo-off" style="font-size:40px;display:block;margin-bottom:8px;"></i>
-      Nenhuma foto adicionada ainda</div>`;
+function _doRenderEncarregados() {
+  const el = document.getElementById('do-lista-encarregados');
+  if (!el) return;
+  if (!_doEncarregados.length) {
+    el.innerHTML = '<span style="color:var(--texto2)">Nenhum encarregado cadastrado.</span>';
     return;
   }
-  const dias = [...new Set(doFotos.map(f=>f.dia))].sort((a,b)=>a-b);
-  container.innerHTML = dias.map(dia => {
-    const fotosDia = doFotos.filter(f=>f.dia===dia);
-    return `<div style="font-size:13px;font-weight:700;color:var(--texto2);margin:16px 0 8px;display:flex;align-items:center;gap:8px;">
-        <i class="ti ti-calendar"></i>Dia ${dia}
-        <span style="background:var(--verde);color:#fff;border-radius:20px;padding:1px 8px;font-size:11px;">${fotosDia.length} foto(s)</span>
+  el.innerHTML = _doEncarregados.map(e => `
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--borda);">
+      <div>
+        <span style="font-weight:600;">${e.nome}</span>
+        <span style="color:var(--texto2);font-size:12px;margin-left:8px;">${e.obra_nome || '—'}</span>
+        ${e.telefone ? `<span style="color:var(--texto2);font-size:11px;margin-left:6px;"><i class="ti ti-phone" style="font-size:10px;"></i> ${e.telefone}</span>` : ''}
       </div>
-      ${fotosDia.map((foto) => {
-        const gpsOk = foto.lat && foto.lon;
-        const idx = fotosDia.indexOf(foto)+1;
-        const svcOpts = DO_SERVICOS.map(s=>`<option value="${s}" ${s===foto.tipo?'selected':''}>${s}</option>`).join('');
-        return `<div class="card" style="margin-bottom:10px;">
-          <div style="display:flex;gap:12px;align-items:flex-start;">
-            <img src="${foto.thumb}" style="width:72px;height:72px;object-fit:cover;border-radius:8px;border:2px solid var(--borda);flex-shrink:0;"
-                 onerror="this.style.display='none'">
-            <div style="flex:1;">
-              <div style="display:flex;justify-content:space-between;align-items:center;">
-                <span style="background:var(--verde);color:#fff;border-radius:20px;padding:2px 10px;font-size:11px;font-weight:700;">Foto ${idx}</span>
-                <button onclick="doDeleteFoto('${foto.id}')" style="background:none;border:none;cursor:pointer;color:var(--danger);font-size:18px;line-height:1;">×</button>
-              </div>
-              <div style="font-size:12px;font-weight:600;color:var(--texto);margin-top:4px;">${foto.nome}</div>
-              <div style="font-size:11px;margin-top:2px;color:${gpsOk?'#16a34a':'var(--danger)'};">
-                ${gpsOk?`📍 ${foto.lat}, ${foto.lon}`:'⚠️ GPS não encontrado — preencha manualmente'}
-              </div>
-              ${foto.datetime?`<div style="font-size:11px;color:var(--texto2);">🕐 ${foto.datetime}</div>`:''}
-            </div>
-          </div>
-          <div style="margin-top:12px;">
-            <label style="font-size:12px;color:var(--texto2);font-weight:600;display:block;margin-bottom:4px;">Tipo de Serviço *</label>
-            <select onchange="doUpdateFoto('${foto.id}','tipo',this.value)"
-                    style="width:100%;padding:9px;border:1.5px solid var(--borda);border-radius:8px;font-size:13px;background:var(--fundo);">
-              <option value="">-- Selecione --</option>${svcOpts}
-            </select>
-            <label style="font-size:12px;color:var(--texto2);font-weight:600;display:block;margin:8px 0 4px;">Estaca</label>
-            <input type="text" value="${foto.estaca}" placeholder="Ex: 120+5"
-                   style="width:100%;padding:9px;border:1.5px solid var(--borda);border-radius:8px;font-size:13px;"
-                   onchange="doUpdateFoto('${foto.id}','estaca',this.value)">
-            ${!gpsOk?`
-            <div style="display:flex;gap:10px;margin-top:8px;">
-              <div style="flex:1;">
-                <label style="font-size:12px;color:var(--texto2);font-weight:600;display:block;margin-bottom:4px;">Latitude (manual)</label>
-                <input type="text" value="${foto.lat||''}" placeholder="-16.5109"
-                       style="width:100%;padding:9px;border:1.5px solid var(--borda);border-radius:8px;font-size:13px;"
-                       onchange="doUpdateFoto('${foto.id}','lat',this.value)">
-              </div>
-              <div style="flex:1;">
-                <label style="font-size:12px;color:var(--texto2);font-weight:600;display:block;margin-bottom:4px;">Longitude (manual)</label>
-                <input type="text" value="${foto.lon||''}" placeholder="-49.4198"
-                       style="width:100%;padding:9px;border:1.5px solid var(--borda);border-radius:8px;font-size:13px;"
-                       onchange="doUpdateFoto('${foto.id}','lon',this.value)">
-              </div>
-            </div>`:''}
-            <label style="font-size:12px;color:var(--texto2);font-weight:600;display:block;margin:8px 0 4px;">Legenda *</label>
-            <textarea placeholder="Descreva o que a foto mostra..."
-                      style="width:100%;padding:9px;border:1.5px solid var(--borda);border-radius:8px;font-size:13px;resize:vertical;min-height:60px;font-family:inherit;"
-                      onchange="doUpdateFoto('${foto.id}','legenda',this.value)">${foto.legenda}</textarea>
-            <label style="font-size:12px;color:var(--texto2);font-weight:600;display:block;margin:8px 0 4px;">Observações</label>
-            <input type="text" value="${foto.obs}" placeholder="Não conformidade, alerta, etc."
-                   style="width:100%;padding:9px;border:1.5px solid var(--borda);border-radius:8px;font-size:13px;"
-                   onchange="doUpdateFoto('${foto.id}','obs',this.value)">
-          </div>
-        </div>`;
-      }).join('')}`;
-  }).join('');
+      <div style="display:flex;gap:5px;">
+        <button onclick="doAbrirModalEncarregado(${JSON.stringify(e).replace(/"/g,'&quot;')})" class="btn btn-outline btn-sm"><i class="ti ti-edit"></i></button>
+        <button onclick="doDeletarEncarregado(${e.id})" class="btn btn-danger btn-sm"><i class="ti ti-trash"></i></button>
+      </div>
+    </div>`).join('');
 }
 
-// ── RESUMO ────────────────────────────────────────────
-function doBuildResumo() {
-  const _obraVal = document.getElementById('do-obra').value;
-  const obra = (_obraVal === '__outro__' ? document.getElementById('do-obra-manual')?.value : _obraVal) || '(não informado)';
-  const mes  = document.getElementById('do-mes').value  || '(não informado)';
-  const ano  = document.getElementById('do-ano').value  || '';
-  const dias = [...new Set(doFotos.map(f=>f.dia))].sort((a,b)=>a-b);
-  const semGps  = doFotos.filter(f=>!f.lat||!f.lon).length;
-  const semTipo = doFotos.filter(f=>!f.tipo).length;
+function doAbrirModalEncarregado(enc) {
+  document.getElementById('do-enc-id').value   = enc?.id || '';
+  document.getElementById('do-enc-nome').value = enc?.nome || '';
+  document.getElementById('do-enc-tel').value  = enc?.telefone || '';
+  document.getElementById('do-enc-titulo').textContent = enc ? 'Editar Encarregado' : 'Novo Encarregado';
+  const sel = document.getElementById('do-enc-obra');
+  sel.innerHTML = '<option value="">Selecione a obra</option>' + _doObras.map(o => `<option value="${o.id}" ${String(o.id)===String(enc?.obra_id)?'selected':''}>${o.nome}</option>`).join('');
+  abrirModal('modal-do-encarregado');
+}
 
-  let html = `<div class="card">
-    <div class="card-title"><i class="ti ti-chart-bar"></i>Resumo do Relatório</div>
-    <div style="display:flex;flex-direction:column;gap:8px;">
-      ${[['Obra',obra],['Período',`${mes}/${ano}`],['Total de fotos',doFotos.length],['Dias registrados',dias.join(', ')||'—']]
-        .map(([l,v])=>`<div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--borda);font-size:13px;">
-          <span style="color:var(--texto2);">${l}</span><span style="font-weight:700;">${v}</span></div>`).join('')}
-    </div>
-  </div>`;
+async function doSalvarEncarregado() {
+  const id      = document.getElementById('do-enc-id').value;
+  const nome    = document.getElementById('do-enc-nome').value.trim();
+  const obra_id = document.getElementById('do-enc-obra').value;
+  const telefone = document.getElementById('do-enc-tel').value.trim();
+  if (!nome) { alert('Informe o nome do encarregado.'); return; }
+  if (!obra_id) { alert('Selecione a obra vinculada.'); return; }
+  const method = id ? 'PUT' : 'POST';
+  const url    = id ? `/api/encarregados/${id}` : '/api/encarregados';
+  const res = await apiFetch(url, { method, headers: {'Content-Type':'application/json'}, body: JSON.stringify({nome, obra_id: parseInt(obra_id), telefone}) });
+  if (!res || !res.ok) { alert('Erro ao salvar encarregado.'); return; }
+  fecharModal('modal-do-encarregado');
+  await doCarregarEncarregados();
+}
 
-  if (semGps>0||semTipo>0) {
-    html += `<div class="alert al-warn"><i class="ti ti-alert-triangle"></i>
-      ${semGps>0?`${semGps} foto(s) sem GPS. `:''} ${semTipo>0?`${semTipo} foto(s) sem tipo de serviço.`:''}</div>`;
-  } else {
-    html += `<div class="alert al-success"><i class="ti ti-circle-check"></i>Todas as fotos estão completas!</div>`;
+async function doDeletarEncarregado(id) {
+  if (!confirm('Excluir este encarregado?')) return;
+  await apiFetch(`/api/encarregados/${id}`, { method: 'DELETE' });
+  await doCarregarEncarregados();
+}
+
+// ── Registros diários ──────────────────────────────────
+async function doCarregarRegistros() {
+  const tbody = document.getElementById('do-tbody');
+  tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:30px;color:var(--texto2);">Carregando...</td></tr>';
+  const obraId  = document.getElementById('do-filtro-obra')?.value || '';
+  const dataIni = document.getElementById('do-filtro-ini')?.value || '';
+  const dataFim = document.getElementById('do-filtro-fim')?.value || '';
+  let url = '/api/diario?';
+  if (obraId)  url += `obra_id=${obraId}&`;
+  if (dataIni) url += `data_ini=${dataIni}&`;
+  if (dataFim) url += `data_fim=${dataFim}&`;
+  try {
+    const res = await apiFetch(url);
+    if (!res || !res.ok) throw new Error('Erro na API');
+    const dados = await res.json();
+    if (!dados.length) {
+      tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:40px;color:var(--texto2);">Nenhum registro encontrado.</td></tr>';
+      return;
+    }
+    tbody.innerHTML = dados.map(r => {
+      const fotos = (() => { try { return JSON.parse(r.fotos_json || '[]'); } catch(e) { return []; } })();
+      const dataFmt = r.data_registro ? r.data_registro.split('-').reverse().join('/') : '—';
+      return `<tr id="do-row-${r.id}">
+        <td style="padding:10px 14px;font-weight:600;">${dataFmt}</td>
+        <td style="padding:10px 14px;">${r.obra_nome || '—'}</td>
+        <td style="padding:10px 14px;">
+          <span style="display:inline-flex;align-items:center;gap:5px;background:#f0fdf4;color:#065f46;padding:3px 10px;border-radius:20px;font-size:12px;font-weight:600;">
+            <i class="ti ti-hard-hat" style="font-size:11px;"></i>
+            Equipe do ${r.encarregado_nome || '—'}
+          </span>
+        </td>
+        <td style="padding:10px 14px;color:var(--texto2);max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${(r.descricao||'').replace(/"/g,'&quot;')}">${r.descricao || '—'}</td>
+        <td style="padding:10px 14px;text-align:center;">
+          ${fotos.length ? `<span onclick="doVerRegistro(${r.id})" style="cursor:pointer;display:inline-flex;align-items:center;gap:4px;color:var(--verde);font-weight:600;font-size:12px;"><i class="ti ti-camera"></i>${fotos.length}</span>` : '<span style="color:var(--texto2);font-size:12px;">—</span>'}
+        </td>
+        <td style="padding:10px 14px;text-align:center;">
+          <div style="display:flex;gap:5px;justify-content:center;">
+            <button onclick="doVerRegistro(${r.id})" class="btn btn-outline btn-sm" title="Ver detalhes"><i class="ti ti-eye"></i></button>
+            <button onclick="doEditarRegistro(${r.id})" class="btn btn-outline btn-sm" title="Editar"><i class="ti ti-edit"></i></button>
+            <button onclick="doDeletarRegistro(${r.id})" class="btn btn-danger btn-sm" title="Excluir"><i class="ti ti-trash"></i></button>
+          </div>
+        </td>
+      </tr>`;
+    }).join('');
+  } catch(e) {
+    tbody.innerHTML = `<tr><td colspan="6" style="text-align:center;padding:30px;color:var(--danger);">Erro ao carregar: ${e.message}</td></tr>`;
   }
+}
 
-  dias.forEach(dia => {
-    const fotosDia = doFotos.filter(f=>f.dia===dia);
-    html += `<div class="card"><div class="card-title"><i class="ti ti-calendar"></i>Dia ${dia} — ${fotosDia.length} foto(s)</div>
-      ${fotosDia.map((f,i)=>`<div style="font-size:12px;padding:6px 0;border-bottom:1px solid var(--borda);">
-        <b>Foto ${i+1}:</b> ${f.legenda||'<em>sem legenda</em>'}
-        ${f.tipo?`<span style="background:var(--verde-light);color:var(--verde);border-radius:20px;padding:2px 8px;font-size:11px;margin-left:4px;">${f.tipo}</span>`:''}
-        ${f.lat?`<span style="background:#dcfce7;color:#16a34a;border-radius:20px;padding:2px 8px;font-size:11px;margin-left:4px;">📍 ${f.lat}</span>`
-               :`<span style="background:#fee2e2;color:var(--danger);border-radius:20px;padding:2px 8px;font-size:11px;margin-left:4px;">sem GPS</span>`}
-      </div>`).join('')}
+function doLimparFiltros() {
+  document.getElementById('do-filtro-obra').value = '';
+  document.getElementById('do-filtro-ini').value  = '';
+  document.getElementById('do-filtro-fim').value  = '';
+  doCarregarRegistros();
+}
+
+// ── Modal de Registro ──────────────────────────────────
+function doAbrirModalRegistro(reg) {
+  _doFotosReg = [];
+  document.getElementById('do-reg-id').value = reg?.id || '';
+  document.getElementById('do-reg-titulo').textContent = reg ? 'Editar Registro' : 'Novo Registro';
+  document.getElementById('do-reg-data').value = reg?.data_registro || new Date().toISOString().split('T')[0];
+  document.getElementById('do-reg-descricao').value = reg?.descricao || '';
+  document.getElementById('do-reg-fotos-preview').innerHTML = '';
+  // Popular select de obras
+  _doPopularSelectObras();
+  document.getElementById('do-reg-obra').value = reg?.obra_id || '';
+  document.getElementById('do-reg-equipe-box').style.display = 'none';
+  if (reg?.obra_id) doCarregarEncarregadosDaObra(reg.encarregado_id);
+  // Carregar fotos existentes se editando
+  if (reg?.fotos_json) {
+    try { _doFotosReg = JSON.parse(reg.fotos_json); } catch(e) { _doFotosReg = []; }
+    doRenderFotosPreview();
+  }
+  abrirModal('modal-do-registro');
+}
+
+async function doCarregarEncarregadosDaObra(encIdSel) {
+  const obraId = document.getElementById('do-reg-obra').value;
+  const box = document.getElementById('do-reg-equipe-box');
+  const sel = document.getElementById('do-reg-encarregado');
+  if (!obraId) { box.style.display = 'none'; return; }
+  const encs = _doEncarregados.filter(e => String(e.obra_id) === String(obraId));
+  if (!encs.length) { box.style.display = 'none'; return; }
+  sel.innerHTML = '<option value="">Selecione o encarregado</option>' +
+    encs.map(e => `<option value="${e.id}" ${String(e.id)===String(encIdSel)?'selected':''}>${e.nome}</option>`).join('');
+  box.style.display = '';
+}
+
+function doHandleFotosReg(input) {
+  const files = Array.from(input.files);
+  files.forEach(file => {
+    const reader = new FileReader();
+    reader.onload = e => {
+      _doFotosReg.push({ nome: file.name, b64: e.target.result });
+      doRenderFotosPreview();
+    };
+    reader.readAsDataURL(file);
+  });
+  input.value = '';
+}
+
+function doRenderFotosPreview() {
+  const el = document.getElementById('do-reg-fotos-preview');
+  if (!el) return;
+  el.innerHTML = _doFotosReg.map((f, i) => `
+    <div style="position:relative;width:80px;height:80px;">
+      <img src="${f.b64}" style="width:80px;height:80px;object-fit:cover;border-radius:8px;border:1px solid var(--borda);">
+      <button onclick="_doRemoverFoto(${i})" style="position:absolute;top:-5px;right:-5px;width:20px;height:20px;border-radius:50%;background:var(--danger);color:#fff;border:none;cursor:pointer;font-size:13px;line-height:1;display:flex;align-items:center;justify-content:center;">×</button>
+    </div>`).join('');
+}
+
+function _doRemoverFoto(idx) {
+  _doFotosReg.splice(idx, 1);
+  doRenderFotosPreview();
+}
+
+async function doSalvarRegistro() {
+  const id     = document.getElementById('do-reg-id').value;
+  const data   = document.getElementById('do-reg-data').value;
+  const obraId = document.getElementById('do-reg-obra').value;
+  const encId  = document.getElementById('do-reg-encarregado')?.value || '';
+  const desc   = document.getElementById('do-reg-descricao').value.trim();
+  if (!data)   { alert('Informe a data.'); return; }
+  if (!obraId) { alert('Selecione a obra.'); return; }
+  const fotos_json = JSON.stringify(_doFotosReg.map(f => ({ nome: f.nome, b64: f.b64 })));
+  const body = { data_registro: data, obra_id: parseInt(obraId), encarregado_id: encId ? parseInt(encId) : null, descricao: desc, fotos_json };
+  const method = id ? 'PUT' : 'POST';
+  const url    = id ? `/api/diario/${id}` : '/api/diario';
+  const res = await apiFetch(url, { method, headers: {'Content-Type':'application/json'}, body: JSON.stringify(body) });
+  if (!res || !res.ok) { alert('Erro ao salvar registro.'); return; }
+  fecharModal('modal-do-registro');
+  await doCarregarRegistros();
+}
+
+async function doEditarRegistro(id) {
+  const res = await apiFetch(`/api/diario/${id}`);
+  if (!res || !res.ok) { alert('Erro ao carregar registro.'); return; }
+  const reg = await res.json();
+  doAbrirModalRegistro(reg);
+}
+
+async function doVerRegistro(id) {
+  const res = await apiFetch(`/api/diario/${id}`);
+  if (!res || !res.ok) return;
+  const r = await res.json();
+  const fotos = (() => { try { return JSON.parse(r.fotos_json || '[]'); } catch(e) { return []; } })();
+  const dataFmt = r.data_registro ? r.data_registro.split('-').reverse().join('/') : '—';
+  document.getElementById('do-ver-conteudo').innerHTML = `
+    <div style="margin-bottom:16px;">
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-bottom:12px;">
+        <div style="background:var(--fundo);border-radius:8px;padding:12px;">
+          <div style="font-size:11px;color:var(--texto2);font-weight:600;text-transform:uppercase;margin-bottom:4px;">Data</div>
+          <div style="font-weight:700;">${dataFmt}</div>
+        </div>
+        <div style="background:var(--fundo);border-radius:8px;padding:12px;">
+          <div style="font-size:11px;color:var(--texto2);font-weight:600;text-transform:uppercase;margin-bottom:4px;">Obra</div>
+          <div style="font-weight:700;">${r.obra_nome || '—'}</div>
+        </div>
+        <div style="background:#f0fdf4;border-radius:8px;padding:12px;">
+          <div style="font-size:11px;color:#065f46;font-weight:600;text-transform:uppercase;margin-bottom:4px;">Equipe</div>
+          <div style="font-weight:700;color:#065f46;">Equipe do ${r.encarregado_nome || '—'}</div>
+        </div>
+      </div>
+      ${r.descricao ? `<div style="background:var(--fundo);border-radius:8px;padding:12px;margin-bottom:12px;">
+        <div style="font-size:11px;color:var(--texto2);font-weight:600;text-transform:uppercase;margin-bottom:6px;">Atividades</div>
+        <div style="font-size:13px;white-space:pre-line;">${r.descricao}</div>
+      </div>` : ''}
+      ${fotos.length ? `<div>
+        <div style="font-size:11px;color:var(--texto2);font-weight:600;text-transform:uppercase;margin-bottom:8px;">${fotos.length} foto(s)</div>
+        <div style="display:flex;flex-wrap:wrap;gap:8px;">
+          ${fotos.map(f => `<img src="${f.b64}" style="width:120px;height:90px;object-fit:cover;border-radius:8px;border:1px solid var(--borda);cursor:pointer;" onclick="window.open(this.src,'_blank')">`).join('')}
+        </div>
+      </div>` : ''}
     </div>`;
-  });
-
-  document.getElementById('do-resumoContent').innerHTML = html;
+  abrirModal('modal-do-ver');
 }
 
-// ── EXPORTAR XLSX ─────────────────────────────────────
-function doExportarXLSX() {
-  if (!doFotos.length) { alert('Adicione fotos antes de exportar!'); return; }
-  if (typeof XLSX === 'undefined') { alert('Biblioteca XLSX ainda carregando, tente novamente em instantes.'); return; }
-
-  const wb   = XLSX.utils.book_new();
-  const _obraVal2 = document.getElementById('do-obra').value;
-  const obra = (_obraVal2 === '__outro__' ? document.getElementById('do-obra-manual')?.value : _obraVal2) || '';
-  const exec = document.getElementById('do-executora').value||'';
-  const sup  = document.getElementById('do-supervisora').value||'';
-  const cont = document.getElementById('do-contrato').value||'';
-  const med  = document.getElementById('do-medicao').value||'';
-  const mes  = document.getElementById('do-mes').value||'';
-  const ano  = document.getElementById('do-ano').value||'';
-  const dias = [...new Set(doFotos.map(f=>f.dia))].sort((a,b)=>a-b);
-
-  // Aba REGISTRO
-  const regData = [
-    ['ESTADO DE GOIÁS — AGÊNCIA GOIANA DE INFRAESTRUTURA E TRANSPORTES'],
-    ['RELATÓRIO FOTOGRÁFICO — REGISTRO MENSAL'],
-    [],
-    ['Obra:',obra,'','Executora:',exec],
-    ['Supervisora:',sup,'','Contrato:',cont],
-    ['Medição Nº:',med,'','Mês/Ano:',`${mes}/${ano}`],
-    [],
-    ['DIA','Nº FOTO','TIPO DE SERVIÇO','ESTACA','LATITUDE','LONGITUDE','LEGENDA','NOME DO ARQUIVO','OBS','DATA/HORA FOTO']
-  ];
-  dias.forEach(dia => {
-    doFotos.filter(f=>f.dia===dia).forEach((f,i) => {
-      regData.push([dia,i+1,f.tipo,f.estaca,
-        f.lat?parseFloat(f.lat):'', f.lon?parseFloat(f.lon):'',
-        f.legenda,f.nome,f.obs,f.datetime||'']);
-    });
-  });
-  const wsReg = XLSX.utils.aoa_to_sheet(regData);
-  wsReg['!cols'] = [{wch:6},{wch:8},{wch:34},{wch:12},{wch:14},{wch:14},{wch:40},{wch:30},{wch:25},{wch:20}];
-  wsReg['!merges'] = [{s:{r:0,c:0},e:{r:0,c:9}},{s:{r:1,c:0},e:{r:1,c:9}}];
-  XLSX.utils.book_append_sheet(wb, wsReg, 'REGISTRO');
-
-  // Aba CAPA
-  const wsCapa = XLSX.utils.aoa_to_sheet([
-    ['ESTADO DE GOIÁS'],
-    ['AGÊNCIA GOIANA DE INFRAESTRUTURA E TRANSPORTES'],
-    ['RELATÓRIO FOTOGRÁFICO'],[],
-    ['Obra:',obra],['Número da Medição:',med],['Mês:',mes],['Ano:',ano],[],
-    ['Executora:',exec],['Contrato de Execução:',cont],[],['Supervisora:',sup]
-  ]);
-  wsCapa['!cols'] = [{wch:25},{wch:50}];
-  XLSX.utils.book_append_sheet(wb, wsCapa, 'CAPA');
-
-  // Uma aba por dia
-  dias.forEach(dia => {
-    const fotosDia = doFotos.filter(f=>f.dia===dia);
-    const sheetData = [
-      ['ESTADO DE GOIÁS — AGÊNCIA GOIANA DE INFRAESTRUTURA E TRANSPORTES'],
-      ['Obra:',obra,'','','DATA:',`${dia}-${mes}-${ano}`],
-      ['Executora:',exec,'','Contrato:',cont],
-      ['Supervisora:',sup,'','Medição Nº:',med],[],
-      ['Nº','TIPO DE SERVIÇO','ESTACA','LATITUDE','LONGITUDE','LEGENDA','ARQUIVO','OBS'],
-    ];
-    fotosDia.forEach((f,i) => sheetData.push([
-      i+1,f.tipo,f.estaca,
-      f.lat?parseFloat(f.lat):'', f.lon?parseFloat(f.lon):'',
-      f.legenda,f.nome,f.obs
-    ]));
-    const wsDia = XLSX.utils.aoa_to_sheet(sheetData);
-    wsDia['!cols'] = [{wch:5},{wch:34},{wch:12},{wch:14},{wch:14},{wch:40},{wch:28},{wch:25}];
-    wsDia['!merges'] = [{s:{r:0,c:0},e:{r:0,c:7}}];
-    XLSX.utils.book_append_sheet(wb, wsDia, String(dia).padStart(2,'0'));
-  });
-
-  XLSX.writeFile(wb, `RelFoto_${obra.replace(/\s+/g,'_').substring(0,20)}_${mes}${ano}.xlsx`);
+async function doDeletarRegistro(id) {
+  if (!confirm('Excluir este registro? Esta ação não pode ser desfeita.')) return;
+  const res = await apiFetch(`/api/diario/${id}`, { method: 'DELETE' });
+  if (res && res.ok) await doCarregarRegistros();
 }
 
-function doNovoRelatorio() {
-  if (!confirm('Isso vai apagar todas as fotos e dados. Confirma?')) return;
-  doFotos = [];
-  ['do-obra','do-executora','do-supervisora','do-contrato','do-medicao'].forEach(id => {
-    document.getElementById(id).value = '';
-  });
-  document.getElementById('do-mes').value = '';
-  doRenderFotos();
-  doStep(0);
+function doAbrirCadastros() {
+  const painel = document.getElementById('do-painel-cadastros');
+  const isOpen = painel.style.display !== 'none';
+  painel.style.display = isOpen ? 'none' : '';
+  if (!isOpen) {
+    _doRenderObras();
+    _doRenderEncarregados();
+  }
 }
+
 
 // ══════════════════════════════════════════════════════
 //  ALOJAMENTOS

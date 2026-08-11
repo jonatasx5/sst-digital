@@ -381,6 +381,64 @@ def criar_banco():
                 criado_em TEXT DEFAULT (datetime('now','localtime')))""")
         conn.commit()
 
+        # Tabelas obras e encarregados (Diário de Obra)
+        if USE_POSTGRES:
+            cur.execute("""
+                CREATE TABLE IF NOT EXISTS obras (
+                    id SERIAL PRIMARY KEY,
+                    nome TEXT NOT NULL,
+                    empresa TEXT DEFAULT '',
+                    ativo INTEGER DEFAULT 1,
+                    criado_em TIMESTAMP DEFAULT NOW()
+                )
+            """)
+            cur.execute("""
+                CREATE TABLE IF NOT EXISTS encarregados (
+                    id SERIAL PRIMARY KEY,
+                    nome TEXT NOT NULL,
+                    telefone TEXT DEFAULT '',
+                    obra_id INTEGER REFERENCES obras(id) ON DELETE SET NULL,
+                    ativo INTEGER DEFAULT 1,
+                    criado_em TIMESTAMP DEFAULT NOW()
+                )
+            """)
+            cur.execute("""
+                CREATE TABLE IF NOT EXISTS diario_registros (
+                    id SERIAL PRIMARY KEY,
+                    data_registro TEXT NOT NULL,
+                    obra_id INTEGER REFERENCES obras(id) ON DELETE SET NULL,
+                    encarregado_id INTEGER REFERENCES encarregados(id) ON DELETE SET NULL,
+                    descricao TEXT DEFAULT '',
+                    fotos_json TEXT DEFAULT '[]',
+                    criado_por TEXT DEFAULT '',
+                    criado_em TIMESTAMP DEFAULT NOW()
+                )
+            """)
+        else:
+            cur.execute("""CREATE TABLE IF NOT EXISTS obras (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                nome TEXT NOT NULL,
+                empresa TEXT DEFAULT '',
+                ativo INTEGER DEFAULT 1,
+                criado_em TEXT DEFAULT (datetime('now','localtime')))""")
+            cur.execute("""CREATE TABLE IF NOT EXISTS encarregados (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                nome TEXT NOT NULL,
+                telefone TEXT DEFAULT '',
+                obra_id INTEGER,
+                ativo INTEGER DEFAULT 1,
+                criado_em TEXT DEFAULT (datetime('now','localtime')))""")
+            cur.execute("""CREATE TABLE IF NOT EXISTS diario_registros (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                data_registro TEXT NOT NULL,
+                obra_id INTEGER,
+                encarregado_id INTEGER,
+                descricao TEXT DEFAULT '',
+                fotos_json TEXT DEFAULT '[]',
+                criado_por TEXT DEFAULT '',
+                criado_em TEXT DEFAULT (datetime('now','localtime')))""")
+        conn.commit()
+
         # Tabelas de Alojamentos
         if USE_POSTGRES:
             cur.execute("""
@@ -2380,6 +2438,198 @@ def deletar_doc_terceiro(did: int):
             cur.execute("DELETE FROM terceiros_docs WHERE id=%s", (did,))
         else:
             cur.execute("DELETE FROM terceiros_docs WHERE id=?", (did,))
+        conn.commit()
+    finally:
+        conn.close()
+
+
+# ─── OBRAS ────────────────────────────────────────────────────────────────────
+
+def listar_obras() -> list:
+    conn = conectar()
+    try:
+        cur = conn.cursor()
+        cur.execute("SELECT id, nome, empresa FROM obras WHERE ativo=1 ORDER BY nome")
+        cols = [d[0] for d in cur.description]
+        return [dict(zip(cols, r)) for r in cur.fetchall()]
+    finally:
+        conn.close()
+
+def salvar_obra(oid, nome: str, empresa: str = '') -> int:
+    conn = conectar()
+    try:
+        cur = conn.cursor()
+        if oid:
+            if USE_POSTGRES:
+                cur.execute("UPDATE obras SET nome=%s, empresa=%s WHERE id=%s", (nome, empresa, oid))
+            else:
+                cur.execute("UPDATE obras SET nome=?, empresa=? WHERE id=?", (nome, empresa, oid))
+        else:
+            if USE_POSTGRES:
+                cur.execute("INSERT INTO obras (nome, empresa) VALUES (%s,%s) RETURNING id", (nome, empresa))
+                oid = cur.fetchone()[0]
+            else:
+                cur.execute("INSERT INTO obras (nome, empresa) VALUES (?,?)", (nome, empresa))
+                oid = cur.lastrowid
+        conn.commit()
+        return oid
+    finally:
+        conn.close()
+
+def deletar_obra(oid: int):
+    conn = conectar()
+    try:
+        cur = conn.cursor()
+        if USE_POSTGRES:
+            cur.execute("UPDATE obras SET ativo=0 WHERE id=%s", (oid,))
+        else:
+            cur.execute("UPDATE obras SET ativo=0 WHERE id=?", (oid,))
+        conn.commit()
+    finally:
+        conn.close()
+
+
+# ─── ENCARREGADOS ──────────────────────────────────────────────────────────────
+
+def listar_encarregados(obra_id=None) -> list:
+    conn = conectar()
+    try:
+        cur = conn.cursor()
+        if obra_id:
+            if USE_POSTGRES:
+                cur.execute("""SELECT e.id, e.nome, e.telefone, e.obra_id, o.nome as obra_nome
+                               FROM encarregados e LEFT JOIN obras o ON e.obra_id=o.id
+                               WHERE e.ativo=1 AND e.obra_id=%s ORDER BY e.nome""", (obra_id,))
+            else:
+                cur.execute("""SELECT e.id, e.nome, e.telefone, e.obra_id, o.nome as obra_nome
+                               FROM encarregados e LEFT JOIN obras o ON e.obra_id=o.id
+                               WHERE e.ativo=1 AND e.obra_id=? ORDER BY e.nome""", (obra_id,))
+        else:
+            cur.execute("""SELECT e.id, e.nome, e.telefone, e.obra_id, o.nome as obra_nome
+                           FROM encarregados e LEFT JOIN obras o ON e.obra_id=o.id
+                           WHERE e.ativo=1 ORDER BY e.nome""")
+        cols = [d[0] for d in cur.description]
+        return [dict(zip(cols, r)) for r in cur.fetchall()]
+    finally:
+        conn.close()
+
+def salvar_encarregado(eid, nome: str, telefone: str = '', obra_id=None) -> int:
+    conn = conectar()
+    try:
+        cur = conn.cursor()
+        if eid:
+            if USE_POSTGRES:
+                cur.execute("UPDATE encarregados SET nome=%s, telefone=%s, obra_id=%s WHERE id=%s",
+                            (nome, telefone, obra_id, eid))
+            else:
+                cur.execute("UPDATE encarregados SET nome=?, telefone=?, obra_id=? WHERE id=?",
+                            (nome, telefone, obra_id, eid))
+        else:
+            if USE_POSTGRES:
+                cur.execute("INSERT INTO encarregados (nome, telefone, obra_id) VALUES (%s,%s,%s) RETURNING id",
+                            (nome, telefone, obra_id))
+                eid = cur.fetchone()[0]
+            else:
+                cur.execute("INSERT INTO encarregados (nome, telefone, obra_id) VALUES (?,?,?)",
+                            (nome, telefone, obra_id))
+                eid = cur.lastrowid
+        conn.commit()
+        return eid
+    finally:
+        conn.close()
+
+def deletar_encarregado(eid: int):
+    conn = conectar()
+    try:
+        cur = conn.cursor()
+        if USE_POSTGRES:
+            cur.execute("UPDATE encarregados SET ativo=0 WHERE id=%s", (eid,))
+        else:
+            cur.execute("UPDATE encarregados SET ativo=0 WHERE id=?", (eid,))
+        conn.commit()
+    finally:
+        conn.close()
+
+
+# ─── DIÁRIO DE OBRA — REGISTROS ───────────────────────────────────────────────
+
+def listar_diario(obra_id=None, data_ini=None, data_fim=None) -> list:
+    conn = conectar()
+    try:
+        cur = conn.cursor()
+        conds = ["1=1"]
+        params = []
+        ph = "%s" if USE_POSTGRES else "?"
+        if obra_id:
+            conds.append(f"d.obra_id={ph}"); params.append(obra_id)
+        if data_ini:
+            conds.append(f"d.data_registro>={ph}"); params.append(data_ini)
+        if data_fim:
+            conds.append(f"d.data_registro<={ph}"); params.append(data_fim)
+        where = " AND ".join(conds)
+        cur.execute(f"""SELECT d.id, d.data_registro, d.descricao, d.criado_por, d.criado_em,
+                               d.obra_id, o.nome as obra_nome,
+                               d.encarregado_id, e.nome as encarregado_nome
+                        FROM diario_registros d
+                        LEFT JOIN obras o ON d.obra_id=o.id
+                        LEFT JOIN encarregados e ON d.encarregado_id=e.id
+                        WHERE {where} ORDER BY d.data_registro DESC, d.id DESC""", params)
+        cols = [d[0] for d in cur.description]
+        return [dict(zip(cols, r)) for r in cur.fetchall()]
+    finally:
+        conn.close()
+
+def salvar_diario(rid, data_registro: str, obra_id, encarregado_id, descricao: str, fotos_json: str, criado_por: str = '') -> int:
+    conn = conectar()
+    try:
+        cur = conn.cursor()
+        if rid:
+            if USE_POSTGRES:
+                cur.execute("UPDATE diario_registros SET data_registro=%s, obra_id=%s, encarregado_id=%s, descricao=%s, fotos_json=%s WHERE id=%s",
+                            (data_registro, obra_id, encarregado_id, descricao, fotos_json, rid))
+            else:
+                cur.execute("UPDATE diario_registros SET data_registro=?, obra_id=?, encarregado_id=?, descricao=?, fotos_json=? WHERE id=?",
+                            (data_registro, obra_id, encarregado_id, descricao, fotos_json, rid))
+        else:
+            if USE_POSTGRES:
+                cur.execute("INSERT INTO diario_registros (data_registro, obra_id, encarregado_id, descricao, fotos_json, criado_por) VALUES (%s,%s,%s,%s,%s,%s) RETURNING id",
+                            (data_registro, obra_id, encarregado_id, descricao, fotos_json, criado_por))
+                rid = cur.fetchone()[0]
+            else:
+                cur.execute("INSERT INTO diario_registros (data_registro, obra_id, encarregado_id, descricao, fotos_json, criado_por) VALUES (?,?,?,?,?,?)",
+                            (data_registro, obra_id, encarregado_id, descricao, fotos_json, criado_por))
+                rid = cur.lastrowid
+        conn.commit()
+        return rid
+    finally:
+        conn.close()
+
+def buscar_diario(rid: int):
+    conn = conectar()
+    try:
+        cur = conn.cursor()
+        ph = "%s" if USE_POSTGRES else "?"
+        cur.execute(f"""SELECT d.*, o.nome as obra_nome, e.nome as encarregado_nome
+                        FROM diario_registros d
+                        LEFT JOIN obras o ON d.obra_id=o.id
+                        LEFT JOIN encarregados e ON d.encarregado_id=e.id
+                        WHERE d.id={ph}""", (rid,))
+        row = cur.fetchone()
+        if not row:
+            return None
+        cols = [d[0] for d in cur.description]
+        return dict(zip(cols, row))
+    finally:
+        conn.close()
+
+def deletar_diario(rid: int):
+    conn = conectar()
+    try:
+        cur = conn.cursor()
+        if USE_POSTGRES:
+            cur.execute("DELETE FROM diario_registros WHERE id=%s", (rid,))
+        else:
+            cur.execute("DELETE FROM diario_registros WHERE id=?", (rid,))
         conn.commit()
     finally:
         conn.close()

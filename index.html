@@ -145,6 +145,7 @@ tr:hover td { background:#F9FAFB; }
 /* ── Spinner ── */
 .spinner { width:32px; height:32px; border:3px solid var(--borda); border-top-color:var(--verde); border-radius:50%; animation:spin .8s linear infinite; margin:0 auto 12px; }
 @keyframes spin { to { transform:rotate(360deg); } }
+@keyframes pulse { 0%,100% { opacity:1; } 50% { opacity:.3; } }
 
 /* ── Panels ── */
 .panel { display:none; }
@@ -1655,6 +1656,22 @@ tr:hover td { background:#F9FAFB; }
     </div>
   </div>
 
+  <!-- Alerta de registro pendente hoje -->
+  <div id="do-alerta-hoje" style="display:none;background:linear-gradient(135deg,#1f2937,#111827);border-radius:12px;padding:16px 20px;margin-bottom:16px;display:flex;align-items:center;justify-content:space-between;gap:12px;">
+    <div style="display:flex;align-items:center;gap:12px;">
+      <div style="width:40px;height:40px;border-radius:10px;background:rgba(249,115,22,.15);display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+        <i class="ti ti-bell-ringing" style="font-size:20px;color:#fb923c;"></i>
+      </div>
+      <div>
+        <div style="font-weight:700;color:#fff;font-size:14px;">Diário de hoje ainda não registrado</div>
+        <div style="font-size:12px;color:rgba(255,255,255,.6);margin-top:2px;" id="do-alerta-data"></div>
+      </div>
+    </div>
+    <button onclick="doAbrirModalRegistro()" style="padding:10px 18px;background:var(--verde);color:#fff;border:none;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;white-space:nowrap;display:flex;align-items:center;gap:6px;">
+      <i class="ti ti-plus"></i> Registrar Agora
+    </button>
+  </div>
+
   <!-- Filtros -->
   <div class="card" style="padding:14px;margin-bottom:16px;">
     <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;">
@@ -1739,8 +1756,18 @@ tr:hover td { background:#F9FAFB; }
       </select>
     </div>
     <div class="field">
-      <label>Atividades realizadas</label>
-      <textarea id="do-reg-descricao" rows="4" placeholder="Descreva as atividades do dia..." style="width:100%;padding:10px;border:1.5px solid var(--borda);border-radius:8px;font-size:13px;resize:vertical;font-family:inherit;"></textarea>
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;">
+        <label style="margin-bottom:0;">Atividades realizadas</label>
+        <button id="do-btn-voz" onclick="doToggleDitado()" title="Ditar por voz"
+          style="display:flex;align-items:center;gap:5px;padding:5px 12px;border-radius:20px;border:1.5px solid var(--verde);background:#fff;color:var(--verde);font-size:12px;font-weight:600;cursor:pointer;transition:all .2s;">
+          <i class="ti ti-microphone" style="font-size:14px;"></i> Ditar
+        </button>
+      </div>
+      <div id="do-voz-status" style="display:none;font-size:11px;color:var(--danger);margin-bottom:4px;display:flex;align-items:center;gap:5px;">
+        <span style="width:8px;height:8px;border-radius:50%;background:var(--danger);display:inline-block;animation:pulse 1s infinite;"></span>
+        Ouvindo... fale as atividades do dia
+      </div>
+      <textarea id="do-reg-descricao" rows="4" placeholder="Descreva as atividades do dia ou use o botão 'Ditar' para falar..." style="width:100%;padding:10px;border:1.5px solid var(--borda);border-radius:8px;font-size:13px;resize:vertical;font-family:inherit;"></textarea>
     </div>
     <div class="field">
       <label>Fotos do dia</label>
@@ -5565,6 +5592,31 @@ async function doInit() {
   await doCarregarObras();
   await doCarregarEncarregados();
   await doCarregarRegistros();
+  doVerificarAlertaHoje();
+}
+
+function doVerificarAlertaHoje() {
+  const hoje = new Date().toISOString().split('T')[0];
+  const alertEl = document.getElementById('do-alerta-hoje');
+  const alertData = document.getElementById('do-alerta-data');
+  if (!alertEl) return;
+  // Verifica se há registro com data de hoje na tabela já carregada
+  const rows = document.querySelectorAll('#do-tbody tr[id^="do-row-"]');
+  const temHoje = Array.from(rows).some(tr => {
+    const dataTd = tr.cells[0]?.textContent?.trim();
+    if (!dataTd) return false;
+    const [d, m, a] = dataTd.split('/');
+    return `${a}-${m}-${d}` === hoje;
+  });
+  const [ano, mes, dia] = hoje.split('-');
+  const meses = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
+  const dataFmt = `${dia} de ${meses[parseInt(mes)-1]} de ${ano}`;
+  if (!temHoje) {
+    alertEl.style.display = 'flex';
+    if (alertData) alertData.textContent = `Hoje: ${dataFmt}`;
+  } else {
+    alertEl.style.display = 'none';
+  }
 }
 
 // ── Obras ─────────────────────────────────────────────
@@ -5740,6 +5792,7 @@ async function doCarregarRegistros() {
   } catch(e) {
     tbody.innerHTML = `<tr><td colspan="6" style="text-align:center;padding:30px;color:var(--danger);">Erro ao carregar: ${e.message}</td></tr>`;
   }
+  doVerificarAlertaHoje();
 }
 
 function doLimparFiltros() {
@@ -5887,6 +5940,71 @@ function doAbrirCadastros() {
   }
 }
 
+// ── Ditado por Voz ─────────────────────────────────────
+let _doReconhecimento = null;
+let _doDitandoAtivo = false;
+
+function doToggleDitado() {
+  const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!SpeechRecognition) {
+    alert('Seu navegador não suporta ditado por voz. Use Chrome ou Edge.');
+    return;
+  }
+  if (_doDitandoAtivo) {
+    _doReconhecimento?.stop();
+    return;
+  }
+  _doReconhecimento = new SpeechRecognition();
+  _doReconhecimento.lang = 'pt-BR';
+  _doReconhecimento.continuous = true;
+  _doReconhecimento.interimResults = true;
+
+  const btn = document.getElementById('do-btn-voz');
+  const status = document.getElementById('do-voz-status');
+  const textarea = document.getElementById('do-reg-descricao');
+  const textoBase = textarea.value;
+
+  _doReconhecimento.onstart = () => {
+    _doDitandoAtivo = true;
+    btn.style.background = 'var(--danger)';
+    btn.style.color = '#fff';
+    btn.style.borderColor = 'var(--danger)';
+    btn.innerHTML = '<i class="ti ti-microphone-off" style="font-size:14px;"></i> Parar';
+    if (status) status.style.display = 'flex';
+  };
+
+  _doReconhecimento.onresult = (event) => {
+    let transcrito = '';
+    for (let i = event.resultIndex; i < event.results.length; i++) {
+      transcrito += event.results[i][0].transcript;
+    }
+    textarea.value = textoBase + (textoBase ? '\n' : '') + transcrito;
+  };
+
+  _doReconhecimento.onerror = (e) => {
+    console.warn('Voz erro:', e.error);
+    _doEncerrarDitado();
+  };
+
+  _doReconhecimento.onend = () => {
+    _doEncerrarDitado();
+  };
+
+  _doReconhecimento.start();
+}
+
+function _doEncerrarDitado() {
+  _doDitandoAtivo = false;
+  const btn = document.getElementById('do-btn-voz');
+  const status = document.getElementById('do-voz-status');
+  if (btn) {
+    btn.style.background = '#fff';
+    btn.style.color = 'var(--verde)';
+    btn.style.borderColor = 'var(--verde)';
+    btn.innerHTML = '<i class="ti ti-microphone" style="font-size:14px;"></i> Ditar';
+  }
+  if (status) status.style.display = 'none';
+}
 
 // ══════════════════════════════════════════════════════
 //  ALOJAMENTOS

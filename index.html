@@ -273,8 +273,8 @@ tr:hover td { background:#F9FAFB; }
   </div>
 
   <div class="card" style="padding:12px 16px;margin-bottom:12px;display:flex;gap:12px;align-items:center">
-    <input type="text" id="busca-func" placeholder="🔍 Buscar por nome, CPF ou cargo..." style="flex:1;border:none;font-size:13px;color:var(--texto);outline:none;background:none" oninput="carregarFuncionarios()">
-    <select id="filtro-empresa" onchange="carregarFuncionarios()" style="border:1px solid var(--borda);border-radius:8px;padding:4px 8px;font-size:12px;background:var(--card);color:var(--texto);cursor:pointer">
+    <input type="text" id="busca-func" placeholder="🔍 Buscar por nome, CPF ou cargo..." style="flex:1;border:none;font-size:13px;color:var(--texto);outline:none;background:none" oninput="_funcRenderTabela()">
+    <select id="filtro-empresa" onchange="_funcRenderTabela()" style="border:1px solid var(--borda);border-radius:8px;padding:4px 8px;font-size:12px;background:var(--card);color:var(--texto);cursor:pointer">
       <option value="">Todas as empresas</option>
       <option value="JS Construtora">JS Construtora</option>
       <option value="RECOPAV ASFALTOS LTDA">RECOPAV ASFALTOS LTDA</option>
@@ -2413,6 +2413,7 @@ tr:hover td { background:#F9FAFB; }
 // ══════════════════════════════════════════════════════
 let loteIds   = new Set();
 let todosFunc = [];
+let _funcCache = null;   // cache de todos os funcionários
 let todosDocs = [];
 let lotePreview = [];
 
@@ -2525,6 +2526,18 @@ function entrarNoSistema() {
   if (primeiro) irPara(primeiro.id);
   verificarAPI();
   carregarEmpresa();
+  // Preload de funcionários em background — deixa o cache pronto antes do usuário abrir o painel
+  _funcPreload();
+}
+
+async function _funcPreload() {
+  try {
+    const res = await apiFetch('/api/funcionarios');
+    if (res && res.ok) {
+      const data = await res.json();
+      _funcCache = Array.isArray(data) ? data : (data.funcionarios || []);
+    }
+  } catch(e) { /* silencioso */ }
 }
 
 // Tenta restaurar sessão ao carregar
@@ -2755,22 +2768,40 @@ function toggleSidebar() {
 // ══════════════════════════════════════════════════════
 //  FUNCIONÁRIOS
 // ══════════════════════════════════════════════════════
-async function carregarFuncionarios() {
-  const busca = document.getElementById('busca-func').value;
+async function carregarFuncionarios(forcarReload = false) {
+  // Se não tiver cache ou reload forçado (após salvar/importar/deletar), busca da API
+  if (!_funcCache || forcarReload) {
+    const tbody = document.getElementById('func-tbody');
+    if (!_funcCache) tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:24px;color:var(--texto2);">Carregando...</td></tr>';
+    const res = await apiFetch('/api/funcionarios');
+    if (!res || !res.ok) return;
+    const data = await res.json();
+    _funcCache = Array.isArray(data) ? data : (data.funcionarios || []);
+  }
+  _funcRenderTabela();
+}
+
+function _funcRenderTabela() {
+  const busca = (document.getElementById('busca-func')?.value || '').toLowerCase().trim();
   const filtroEmpresa = document.getElementById('filtro-empresa')?.value || '';
-  const res = await apiFetch(`/api/funcionarios?busca=${encodeURIComponent(busca)}`);
-  if (!res || !res.ok) return;
-  const data = await res.json();
-  let lista = Array.isArray(data) ? data : (data.funcionarios || []);
+  let lista = _funcCache || [];
   todosFunc = lista;
+  // Filtro client-side — sem API
+  if (busca) {
+    lista = lista.filter(f =>
+      (f.nome||'').toLowerCase().includes(busca) ||
+      (f.cpf||'').includes(busca) ||
+      (f.cargo||'').toLowerCase().includes(busca) ||
+      (f.matricula||'').includes(busca)
+    );
+  }
   if (filtroEmpresa) lista = lista.filter(f => (f.empresa || 'JS Construtora') === filtroEmpresa);
   document.getElementById('func-count-sub').textContent = `${lista.length} funcionário(s) cadastrado(s)`;
   const tbody = document.getElementById('func-tbody');
-  tbody.innerHTML = '';
-  lista.forEach(f => {
+  tbody.innerHTML = lista.map(f => {
     const ini = f.nome.split(' ').map(w=>w[0]).slice(0,2).join('').toUpperCase();
     const empresaBadge = (f.empresa && f.empresa !== 'JS Construtora') ? `<span class="badge-empresa">${f.empresa}</span>` : '';
-    tbody.innerHTML += `<tr>
+    return `<tr>
       <td><div style="display:flex;align-items:center;gap:8px">
         <div style="width:30px;height:30px;border-radius:50%;background:var(--verde-light);color:var(--verde-dark);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;flex-shrink:0">${ini}</div>
         <div><div class="fn">${f.nome}${empresaBadge}</div></div>
@@ -2780,9 +2811,9 @@ async function carregarFuncionarios() {
       <td style="font-size:12px;color:var(--texto2)">${f.lotacao||f.contrato||''}</td>
       <td style="font-size:12px">${f.admissao||''}</td>
       <td style="font-size:12px">${f.celular||''}</td>
-      <td><button class="btn btn-outline btn-sm" onclick='abrirModalFunc(${JSON.stringify(f)})'><i class="ti ti-edit"></i></button></td>
+      <td><button class="btn btn-outline btn-sm" onclick='abrirModalFunc(${JSON.stringify(f).replace(/'/g,"&#39;")})'><i class="ti ti-edit"></i></button></td>
     </tr>`;
-  });
+  }).join('');
 }
 
 function abrirModalFunc(f) {
@@ -2804,6 +2835,7 @@ async function salvarFunc() {
   if (!dados.nome || !dados.cpf || !dados.cargo) { alert('Nome, CPF e Cargo são obrigatórios.'); return; }
   await apiFetch('/api/funcionarios', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(dados) });
   fecharModal('modal-func');
+  _funcCache = null;
   carregarFuncionarios();
 }
 
@@ -2827,7 +2859,7 @@ async function uploadPlanilha(inp) {
           <div>${data.inseridos} novo(s) inserido(s) &nbsp;·&nbsp; ${data.atualizados} atualizado(s)</div>
           ${avisos}
         </div>`;
-      await carregarFuncionarios();  // atualiza lista e contador
+      _funcCache = null; await carregarFuncionarios();  // invalida cache após importação
     } else {
       resultEl.innerHTML = `<div class="alert al-error"><i class="ti ti-x"></i> ${data.erro||'Erro desconhecido'}</div>`;
     }

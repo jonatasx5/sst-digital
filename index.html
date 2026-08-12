@@ -2413,7 +2413,13 @@ tr:hover td { background:#F9FAFB; }
 // ══════════════════════════════════════════════════════
 let loteIds   = new Set();
 let todosFunc = [];
-let _funcCache = null;   // cache de todos os funcionários
+let _funcCache     = null;
+let _histCache     = null;
+let _tercCache     = null;
+let _empresasCache = null;
+let _modelosCache  = null;
+let _obraCache     = null;
+let _encCache      = null;
 let todosDocs = [];
 let lotePreview = [];
 
@@ -2526,18 +2532,30 @@ function entrarNoSistema() {
   if (primeiro) irPara(primeiro.id);
   verificarAPI();
   carregarEmpresa();
-  // Preload de funcionários em background — deixa o cache pronto antes do usuário abrir o painel
-  _funcPreload();
+  // Preload geral em background — deixa caches prontos antes do usuário navegar
+  _preloadGeral();
 }
 
-async function _funcPreload() {
-  try {
-    const res = await apiFetch('/api/funcionarios');
-    if (res && res.ok) {
-      const data = await res.json();
-      _funcCache = Array.isArray(data) ? data : (data.funcionarios || []);
-    }
-  } catch(e) { /* silencioso */ }
+async function _preloadGeral() {
+  const safe = async (fn) => { try { await fn(); } catch(e) {} };
+  await Promise.all([
+    safe(async () => {
+      const res = await apiFetch('/api/funcionarios');
+      if (res && res.ok) {
+        const d = await res.json();
+        _funcCache = Array.isArray(d) ? d : (d.funcionarios || []);
+      }
+    }),
+    safe(async () => {
+      const res = await apiFetch('/api/envios?limite=500');
+      if (res && res.ok) _histCache = await res.json();
+    }),
+    safe(async () => {
+      const [rT, rE] = await Promise.all([apiFetch('/api/terceiros'), apiFetch('/api/empresas')]);
+      if (rT && rT.ok) _tercCache    = await rT.json();
+      if (rE && rE.ok) _empresasCache = await rE.json();
+    }),
+  ]);
 }
 
 // Tenta restaurar sessão ao carregar
@@ -3445,9 +3463,14 @@ function trocarAbaEpi(aba) {
 }
 
 async function buscarFuncEpi() {
-  const q    = document.getElementById('busca-epi-func').value;
-  const res  = await apiFetch(`/api/funcionarios?busca=${encodeURIComponent(q)}`);
-  const list = await res.json();
+  const q    = document.getElementById('busca-epi-func').value.toLowerCase().trim();
+  if (!_funcCache) {
+    const res = await apiFetch('/api/funcionarios');
+    if (res && res.ok) { const d = await res.json(); _funcCache = Array.isArray(d) ? d : (d.funcionarios || []); }
+  }
+  const list = (_funcCache || []).filter(f =>
+    !q || (f.nome||'').toLowerCase().includes(q) || (f.cargo||'').toLowerCase().includes(q) || (f.cpf||'').includes(q)
+  );
   const div  = document.getElementById('lista-epi-func');
   div.innerHTML = '';
   list.forEach(f => {
@@ -3630,9 +3653,14 @@ async function enviarEpiIndividual() {
 
 // Envio em lote EPI
 async function filtrarEpiLote() {
-  const q    = document.getElementById('busca-epi-lote').value;
-  const res  = await apiFetch(`/api/funcionarios?busca=${encodeURIComponent(q)}`);
-  const list = await res.json();
+  const q = document.getElementById('busca-epi-lote').value.toLowerCase().trim();
+  if (!_funcCache) {
+    const res = await apiFetch('/api/funcionarios');
+    if (res && res.ok) { const d = await res.json(); _funcCache = Array.isArray(d) ? d : (d.funcionarios || []); }
+  }
+  const list = (_funcCache || []).filter(f =>
+    !q || (f.nome||'').toLowerCase().includes(q) || (f.cargo||'').toLowerCase().includes(q)
+  );
   const div  = document.getElementById('lista-epi-lote');
   div.innerHTML = '';
   list.forEach(f => {
@@ -3862,10 +3890,16 @@ async function carregarTabelaEpiOs() {
 //  LOTE
 // ══════════════════════════════════════════════════════
 async function filtrarLote() {
-  const q = document.getElementById('busca-lote').value.toLowerCase();
+  const q = document.getElementById('busca-lote').value.toLowerCase().trim();
   const lista = document.getElementById('lista-lote');
   lista.innerHTML = '';
-  const todos = await apiFetch(`/api/funcionarios?busca=${encodeURIComponent(q)}`).then(r=>r.json());
+  if (!_funcCache) {
+    const res = await apiFetch('/api/funcionarios');
+    if (res && res.ok) { const d = await res.json(); _funcCache = Array.isArray(d) ? d : (d.funcionarios || []); }
+  }
+  const todos = (_funcCache || []).filter(f =>
+    !q || (f.nome||'').toLowerCase().includes(q) || (f.cargo||'').toLowerCase().includes(q) || (f.lotacao||'').toLowerCase().includes(q)
+  );
   todos.forEach(f => {
     const sel = loteIds.has(f.id);
     const ini = f.nome.split(' ').map(w=>w[0]).slice(0,2).join('').toUpperCase();
@@ -4265,17 +4299,21 @@ async function elGerarPdfImpressao() {
 // ══════════════════════════════════════════════════════
 let _histDados = [];
 
-async function carregarHistorico() {
+async function carregarHistorico(forcarReload = false) {
   const tbody = document.getElementById('hist-tbody');
-  tbody.innerHTML = `<tr><td colspan="6" style="text-align:center;padding:40px;color:var(--texto2);">Carregando...</td></tr>`;
-  try {
-    const res  = await apiFetch('/api/envios?limite=500');
-    _histDados = await res.json();
-    histRenderDashboard(_histDados);
-    histFiltrar();
-  } catch(e) {
-    tbody.innerHTML = `<tr><td colspan="6" style="text-align:center;padding:40px;color:var(--danger);">Erro ao carregar: ${e.message}</td></tr>`;
+  if (!_histCache || forcarReload) {
+    tbody.innerHTML = `<tr><td colspan="6" style="text-align:center;padding:40px;color:var(--texto2);">Carregando...</td></tr>`;
+    try {
+      const res  = await apiFetch('/api/envios?limite=500');
+      _histCache = await res.json();
+    } catch(e) {
+      tbody.innerHTML = `<tr><td colspan="6" style="text-align:center;padding:40px;color:var(--danger);">Erro ao carregar: ${e.message}</td></tr>`;
+      return;
+    }
   }
+  _histDados = _histCache;
+  histRenderDashboard(_histDados);
+  histFiltrar();
   window.scrollTo(0, 0);
 }
 
@@ -4317,6 +4355,7 @@ async function histExcluirEnvio(id, funcionario, docNome, btn) {
     const row = document.getElementById(`hist-row-${id}`);
     if (row) row.remove();
     _histDados = _histDados.filter(e => e.id !== id);
+    _histCache = _histDados;
     histRenderDashboard(_histDados);
   } catch(e) {
     btn.disabled = false;
@@ -4511,6 +4550,7 @@ async function histAtualizarUm(envioId, btn) {
   try {
     const res = await apiFetch(`/api/envios/${envioId}/atualizar-status`, {method:'POST'});
     if (!res.ok) throw new Error((await res.json()).detail || 'Erro');
+    _histCache = null;
     await carregarHistorico();
   } catch(e) {
     alert('Erro: ' + e.message);
@@ -4528,6 +4568,7 @@ async function histAtualizarTodos() {
     const res  = await apiFetch('/api/envios/atualizar-todos', {method:'POST'});
     const data = await res.json();
     msg.innerHTML = `<div class="alert al-success" style="margin-bottom:12px;"><i class="ti ti-check"></i>${data.atualizados} atualizado(s). ${data.erros>0?data.erros+' erro(s).':''}</div>`;
+    _histCache = null;
     await carregarHistorico();
     setTimeout(() => { msg.innerHTML=''; }, 4000);
   } catch(e) {
@@ -5621,8 +5662,7 @@ let _doEncarregados = [];
 let _doFotosReg = [];   // fotos do modal de registro atual
 
 async function doInit() {
-  await doCarregarObras();
-  await doCarregarEncarregados();
+  await Promise.all([doCarregarObras(), doCarregarEncarregados()]);
   await doCarregarRegistros();
   doVerificarAlertaHoje();
 }
@@ -5652,10 +5692,13 @@ function doVerificarAlertaHoje() {
 }
 
 // ── Obras ─────────────────────────────────────────────
-async function doCarregarObras() {
-  const res = await apiFetch('/api/obras');
-  if (!res || !res.ok) return;
-  _doObras = await res.json();
+async function doCarregarObras(forcarReload = false) {
+  if (!_obraCache || forcarReload) {
+    const res = await apiFetch('/api/obras');
+    if (!res || !res.ok) return;
+    _obraCache = await res.json();
+  }
+  _doObras = _obraCache;
   _doRenderObras();
   _doPopularSelectObras();
 }
@@ -5708,20 +5751,25 @@ async function doSalvarObra() {
   const res = await apiFetch(url, { method, headers: {'Content-Type':'application/json'}, body: JSON.stringify({nome, empresa}) });
   if (!res || !res.ok) { alert('Erro ao salvar obra.'); return; }
   fecharModal('modal-do-obra');
+  _obraCache = null;
   await doCarregarObras();
 }
 
 async function doDeletarObra(id) {
   if (!confirm('Excluir esta obra?')) return;
   await apiFetch(`/api/obras/${id}`, { method: 'DELETE' });
+  _obraCache = null;
   await doCarregarObras();
 }
 
 // ── Encarregados ───────────────────────────────────────
-async function doCarregarEncarregados() {
-  const res = await apiFetch('/api/encarregados');
-  if (!res || !res.ok) return;
-  _doEncarregados = await res.json();
+async function doCarregarEncarregados(forcarReload = false) {
+  if (!_encCache || forcarReload) {
+    const res = await apiFetch('/api/encarregados');
+    if (!res || !res.ok) return;
+    _encCache = await res.json();
+  }
+  _doEncarregados = _encCache;
   _doRenderEncarregados();
 }
 
@@ -5768,12 +5816,14 @@ async function doSalvarEncarregado() {
   const res = await apiFetch(url, { method, headers: {'Content-Type':'application/json'}, body: JSON.stringify({nome, obra_id: parseInt(obra_id), telefone}) });
   if (!res || !res.ok) { alert('Erro ao salvar encarregado.'); return; }
   fecharModal('modal-do-encarregado');
+  _encCache = null;
   await doCarregarEncarregados();
 }
 
 async function doDeletarEncarregado(id) {
   if (!confirm('Excluir este encarregado?')) return;
   await apiFetch(`/api/encarregados/${id}`, { method: 'DELETE' });
+  _encCache = null;
   await doCarregarEncarregados();
 }
 
@@ -6962,13 +7012,21 @@ function acidNovaOcorrencia() {
 //  EMPRESAS
 // ══════════════════════════════════════════════════════════
 
-async function carregarEmpresas() {
+async function carregarEmpresas(forcarReload = false) {
   const lista = document.getElementById('empresas-lista');
-  lista.innerHTML = '<p style="color:#8BA5BF">Carregando...</p>';
+  if (!_empresasCache || forcarReload) {
+    lista.innerHTML = '<p style="color:#8BA5BF">Carregando...</p>';
+    try {
+      const res = await apiFetch('/api/empresas');
+      if (!res.ok) throw new Error('Erro ao carregar');
+      _empresasCache = await res.json();
+    } catch(err) {
+      lista.innerHTML = `<p style="color:#e74c3c">Erro: ${err.message}</p>`;
+      return;
+    }
+  }
   try {
-    const res = await apiFetch('/api/empresas');
-    if (!res.ok) throw new Error('Erro ao carregar');
-    const empresas = await res.json();
+    const empresas = _empresasCache;
     if (!empresas.length) {
       lista.innerHTML = '<p style="color:#8BA5BF">Nenhuma empresa cadastrada.</p>';
       return;
@@ -7062,6 +7120,7 @@ async function salvarEmpresa() {
     }
 
     fecharModalEmpresa();
+    _empresasCache = null; _tercCache = null;
     carregarEmpresas();
   } catch(err) {
     alert('Erro ao salvar: ' + err.message);
@@ -7076,6 +7135,7 @@ async function uploadLogo(id, input) {
   try {
     const res = await apiFetch(`/api/empresas/${id}/logo`, { method:'POST', body: fd });
     if (!res.ok) throw new Error(await res.text());
+    _empresasCache = null;
     carregarEmpresas();
   } catch(err) {
     alert('Erro ao enviar logo: ' + err.message);
@@ -7087,6 +7147,7 @@ async function deletarEmpresa(id, nome) {
   try {
     const res = await apiFetch(`/api/empresas/${id}`, { method:'DELETE' });
     if (!res.ok) throw new Error(await res.text());
+    _empresasCache = null; _tercCache = null;
     carregarEmpresas();
   } catch(err) {
     alert('Erro ao excluir: ' + err.message);
@@ -7099,14 +7160,18 @@ async function deletarEmpresa(id, nome) {
 
 let _tercDados = [];
 
-async function carregarTerceiros() {
+async function carregarTerceiros(forcarReload = false) {
   try {
-    const [resTerc, resEmp] = await Promise.all([
-      apiFetch('/api/terceiros'),
-      apiFetch('/api/empresas'),
-    ]);
-    _tercDados = resTerc.ok ? await resTerc.json() : [];
-    const empresas = resEmp.ok ? await resEmp.json() : [];
+    if (!_tercCache || !_empresasCache || forcarReload) {
+      const [resTerc, resEmp] = await Promise.all([
+        _tercCache && !forcarReload ? null : apiFetch('/api/terceiros'),
+        _empresasCache && !forcarReload ? null : apiFetch('/api/empresas'),
+      ]);
+      if (resTerc) _tercCache     = resTerc.ok ? await resTerc.json() : [];
+      if (resEmp)  _empresasCache = resEmp.ok  ? await resEmp.json()  : [];
+    }
+    _tercDados = _tercCache || [];
+    const empresas = _empresasCache || [];
 
     // Popular selects de empresa
     const selFiltro = document.getElementById('terc-filtro-empresa');
@@ -7257,6 +7322,7 @@ async function salvarTerceiro() {
     const res = await apiFetch(url, { method, headers:{'Content-Type':'application/json'}, body: JSON.stringify(body) });
     if (!res.ok) throw new Error(await res.text());
     fecharModalTerceiro();
+    _tercCache = null;
     carregarTerceiros();
   } catch(err) {
     alert('Erro ao salvar: ' + err.message);
@@ -7269,6 +7335,7 @@ async function deletarTerceiro(id, nome, btn) {
   try {
     const res = await apiFetch(`/api/terceiros/${id}`, { method:'DELETE' });
     if (!res.ok) throw new Error(await res.text());
+    _tercCache = null;
     carregarTerceiros();
   } catch(err) {
     alert('Erro ao excluir: ' + err.message);

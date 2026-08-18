@@ -2196,16 +2196,24 @@ def listar_empresas():
 
 
 def buscar_empresa_por_nome(nome: str):
+    if not nome:
+        return None
     conn = conectar()
     try:
+        cur = conn.cursor()
         if USE_POSTGRES:
-            cur = conn.cursor()
+            # Tenta match exato primeiro, depois LIKE parcial
             cur.execute("SELECT id, nome, cnpj, resp_sst, logo FROM empresas WHERE LOWER(nome)=LOWER(%s)", (nome,))
             row = cur.fetchone()
+            if not row:
+                cur.execute("SELECT id, nome, cnpj, resp_sst, logo FROM empresas WHERE LOWER(nome) LIKE LOWER(%s) ORDER BY LENGTH(nome) LIMIT 1", (f"%{nome}%",))
+                row = cur.fetchone()
         else:
-            cur = conn.cursor()
             cur.execute("SELECT id, nome, cnpj, resp_sst, logo FROM empresas WHERE LOWER(nome)=LOWER(?)", (nome,))
             row = cur.fetchone()
+            if not row:
+                cur.execute("SELECT id, nome, cnpj, resp_sst, logo FROM empresas WHERE LOWER(nome) LIKE LOWER(?) ORDER BY LENGTH(nome) LIMIT 1", (f"%{nome}%",))
+                row = cur.fetchone()
         if not row:
             return None
         cols = [d[0] for d in cur.description]

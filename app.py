@@ -2962,8 +2962,10 @@ async def gerar_pdf_vistoria(vid: int, _=Depends(verificar_acesso)):
         story = []
 
         # Cabeçalho
+        _emp1 = banco.buscar_empresa_por_nome(EMPRESA) or {}
+        _sub1 = f"{_emp1.get('nome', EMPRESA)}" + (f" — CNPJ: {_emp1['cnpj']}" if _emp1.get('cnpj') else "") + " | CNAE: 4211-1/01 | GR: 4"
         story.append(Paragraph("RELATÓRIO DE VISTORIA DE ALOJAMENTO", title_style))
-        story.append(Paragraph("JS Construtora e Locadora Ltda — CNPJ: 16.910.656/0001-81 | CNAE: 4211-1/01 | GR: 4", sub_style))
+        story.append(Paragraph(_sub1, sub_style))
 
         resultado_map = {'conforme': 'CONFORME', 'nao_conforme': 'NÃO CONFORME', 'conforme_ressalvas': 'CONFORME COM RESSALVAS'}
         res_label = resultado_map.get(v.get('resultado','conforme'), v.get('resultado',''))
@@ -3198,9 +3200,11 @@ async def enviar_vistoria_assinatura(vid: int, dados: dict = {}, _=Depends(verif
         body_style  = ParagraphStyle('body2',  fontSize=9,  fontName='Helvetica', spaceAfter=3)
         small_style = ParagraphStyle('small2', fontSize=8,  fontName='Helvetica', textColor=colors.grey)
 
+        _emp2 = banco.buscar_empresa_por_nome(EMPRESA) or {}
+        _sub2 = f"{_emp2.get('nome', EMPRESA)}" + (f" — CNPJ: {_emp2['cnpj']}" if _emp2.get('cnpj') else "") + " | CNAE: 4211-1/01 | GR: 4"
         story = []
         story.append(Paragraph("RELATÓRIO DE VISTORIA DE ALOJAMENTO", title_style))
-        story.append(Paragraph("JS Construtora e Locadora Ltda — CNPJ: 16.910.656/0001-81 | CNAE: 4211-1/01 | GR: 4", sub_style))
+        story.append(Paragraph(_sub2, sub_style))
 
         resultado_map = {'conforme': 'CONFORME', 'nao_conforme': 'NÃO CONFORME', 'conforme_ressalvas': 'CONFORME COM RESSALVAS'}
         res_label = resultado_map.get(v.get('resultado','conforme'), v.get('resultado',''))
@@ -3561,14 +3565,17 @@ def _gerar_pdf_acidente_bytes(r: dict) -> bytes:
     W = A4[0] - 3*cm
     story = []
 
+    _emp_acid_nome = r.get('empresa_terceiro') or EMPRESA
+    _emp_acid = banco.buscar_empresa_por_nome(_emp_acid_nome) or {}
+    _sub_acid = f"{_emp_acid.get('nome', _emp_acid_nome)}" + (f" — CNPJ: {_emp_acid['cnpj']}" if _emp_acid.get('cnpj') else "")
     story.append(Paragraph("RELATÓRIO DE ACIDENTE DE TRABALHO", title_s))
-    story.append(Paragraph("JS Construtora e Locadora Ltda — CNPJ: 16.910.656/0001-81", sub_s))
+    story.append(Paragraph(_sub_acid, sub_s))
 
     # Dados do Funcionário
     story.append(Paragraph("DADOS DO FUNCIONÁRIO", sec_s))
     fd = [
         ["Nome:", r.get('funcionario_nome',''), "Matrícula:", r.get('matricula','')],
-        ["Função:", r.get('funcao',''), "Empresa:", r.get('empresa_terceiro','') or 'JS Construtora e Locadora Ltda'],
+        ["Função:", r.get('funcao',''), "Empresa:", _emp_acid.get('nome', _emp_acid_nome)],
         ["Turno:", r.get('turno',''), "Sexo / Data Nasc.:", f"{r.get('sexo','')} / {r.get('data_nasc','')}"],
         ["Admissão:", r.get('data_admissao',''), "Telefone:", r.get('telefone','')],
         ["Posto de Trabalho:", r.get('posto_trabalho',''), "Chefia Imediata:", r.get('chefia_imediata','')],

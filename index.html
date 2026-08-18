@@ -3060,11 +3060,23 @@ async function abrirEditorDoc() {
   await editarDocumento(docId, nome);
 }
 
-function baixarDocEditor() {
+async function baixarDocEditor() {
   const sel = document.getElementById('editor-doc-select');
   const docId = sel.value;
   if (!docId) { alert('Selecione um documento'); return; }
-  window.location.href = `/api/documentos/${encodeURIComponent(docId)}/download`;
+  try {
+    const res = await apiFetch(`/api/documentos/${encodeURIComponent(docId)}/download`);
+    if (!res || !res.ok) { alert('Modelo não encontrado.'); return; }
+    const blob = await res.blob();
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = docId + '.docx';
+    document.body.appendChild(a);
+    a.click();
+    setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 1000);
+  } catch(e) {
+    alert('Erro ao baixar: ' + e.message);
+  }
 }
 
 function preencherNomeDocumento(input) {
@@ -3102,11 +3114,22 @@ function toggleEpiCargos(btn) {
 }
 
 async function downloadModelo(docId, cargo) {
-  // Usa endpoint de documentos para treinamentos, modelos para OS/EPI específicos de cargo
-  let url = cargo
+  const url = cargo
     ? `/api/modelos/${docId}/download?cargo=${encodeURIComponent(cargo)}`
     : `/api/documentos/${docId}/download`;
-  window.location.href = url;
+  try {
+    const res = await apiFetch(url);
+    if (!res || !res.ok) { alert('Modelo não encontrado ou erro ao baixar.'); return; }
+    const blob = await res.blob();
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = (cargo ? `${docId}_${cargo}` : docId) + '.docx';
+    document.body.appendChild(a);
+    a.click();
+    setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 1000);
+  } catch(e) {
+    alert('Erro ao baixar: ' + e.message);
+  }
 }
 
 let _kitCargosCache = [];

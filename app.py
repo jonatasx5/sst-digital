@@ -1038,6 +1038,23 @@ async def salvar_matriz(cargo: str, dados: dict, _=Depends(verificar_acesso)):
 async def listar_cargos(_=Depends(verificar_acesso)):
     return banco.buscar_cargos()
 
+@app.get("/api/cargos/extras")
+async def listar_cargos_extras(_=Depends(verificar_acesso)):
+    return banco.listar_cargos_extras()
+
+@app.post("/api/cargos/extras")
+async def criar_cargo_extra(dados: dict = Body(...), _=Depends(verificar_acesso)):
+    cargo = (dados.get("cargo") or "").strip()
+    if not cargo:
+        raise HTTPException(400, "Informe o nome da função")
+    banco.salvar_cargo_extra(cargo)
+    return {"ok": True}
+
+@app.delete("/api/cargos/extras/{cargo}")
+async def remover_cargo_extra(cargo: str, _=Depends(verificar_acesso)):
+    banco.deletar_cargo_extra(cargo)
+    return {"ok": True}
+
 @app.get("/api/cargos/configurados")
 async def listar_cargos_configurados(_=Depends(verificar_acesso)):
     """Cargos que têm EPIs ou OS configurados — para dropdowns de Kit e seleção."""

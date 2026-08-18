@@ -1486,7 +1486,22 @@ tr:hover td { background:#F9FAFB; }
     </div>
     <div class="grid2">
       <div class="field"><label>Matrícula</label><input type="text" id="mf-matricula"></div>
-      <div class="field"><label>Cargo *</label><input type="text" id="mf-cargo"></div>
+      <div class="field">
+        <label>Cargo / Função *</label>
+        <div style="display:flex;gap:6px;align-items:center">
+          <select id="mf-cargo-sel" onchange="mfCargoSelChange(this)"
+            style="flex:1;padding:8px 10px;border:1.5px solid var(--borda);border-radius:8px;font-size:13px;background:var(--card);color:var(--texto)">
+            <option value="">Carregando funções...</option>
+          </select>
+          <input type="text" id="mf-cargo" style="display:none;flex:1;padding:8px 10px;border:1.5px solid var(--borda);border-radius:8px;font-size:13px" placeholder="Nome da nova função">
+          <button type="button" id="mf-cargo-back" onclick="mfCargoVoltar()" style="display:none;padding:7px 10px;border:1.5px solid var(--borda);border-radius:8px;background:var(--card);cursor:pointer;font-size:13px" title="Voltar para lista">↩</button>
+        </div>
+        <div id="mf-nova-func-extra" style="display:none;margin-top:6px">
+          <input type="text" id="mf-nova-func-cbo" placeholder="CBO (opcional, ex: 7170-35)"
+            style="width:100%;padding:7px 10px;border:1.5px solid var(--borda);border-radius:8px;font-size:12px;box-sizing:border-box">
+          <div style="font-size:11px;color:var(--texto2);margin-top:3px">A nova função será salva e aparecerá nas configurações de treinamentos e EPIs.</div>
+        </div>
+      </div>
     </div>
     <div class="grid2">
       <div class="field"><label>Lotação / Contrato</label><input type="text" id="mf-lotacao"></div>
@@ -1496,7 +1511,6 @@ tr:hover td { background:#F9FAFB; }
       <div class="field"><label>Empresa</label>
         <select id="mf-empresa" style="width:100%;padding:8px 10px;border:1.5px solid var(--borda);border-radius:8px;font-size:13px;background:var(--card);color:var(--texto)">
           <option value="JS Construtora">JS Construtora</option>
-          <option value="RECOPAV ASFALTOS LTDA">RECOPAV ASFALTOS LTDA</option>
         </select>
       </div>
       <div class="field"><label>Celular / WhatsApp</label><input type="text" id="mf-celular"></div>
@@ -2834,23 +2848,107 @@ function _funcRenderTabela() {
   }).join('');
 }
 
+let _cargosListaCache = null;
+
+async function _carregarSelectCargos(cargoAtual) {
+  if (!_cargosListaCache) {
+    try {
+      const res = await apiFetch('/api/cargos');
+      _cargosListaCache = res && res.ok ? await res.json() : [];
+    } catch(e) { _cargosListaCache = []; }
+  }
+  const sel = document.getElementById('mf-cargo-sel');
+  const lista = _cargosListaCache;
+  sel.innerHTML =
+    '<option value="">Selecione a função...</option>' +
+    lista.map(c => `<option value="${c}" ${c === cargoAtual ? 'selected' : ''}>${c}</option>`).join('') +
+    '<option value="__nova__">+ Nova função...</option>';
+  // Se cargo atual não está na lista, mostra no input livre
+  if (cargoAtual && !lista.includes(cargoAtual)) {
+    _mfModoNovaFunc(cargoAtual);
+  }
+}
+
+function mfCargoSelChange(sel) {
+  if (sel.value === '__nova__') {
+    _mfModoNovaFunc('');
+  } else {
+    document.getElementById('mf-cargo').value = sel.value;
+  }
+}
+
+function _mfModoNovaFunc(valor) {
+  document.getElementById('mf-cargo-sel').style.display = 'none';
+  const inp = document.getElementById('mf-cargo');
+  inp.style.display = '';
+  inp.value = valor;
+  document.getElementById('mf-cargo-back').style.display = '';
+  document.getElementById('mf-nova-func-extra').style.display = '';
+}
+
+function mfCargoVoltar() {
+  document.getElementById('mf-cargo-sel').style.display = '';
+  document.getElementById('mf-cargo-sel').value = '';
+  document.getElementById('mf-cargo').value = '';
+  document.getElementById('mf-cargo').style.display = 'none';
+  document.getElementById('mf-cargo-back').style.display = 'none';
+  document.getElementById('mf-nova-func-extra').style.display = 'none';
+}
+
 function abrirModalFunc(f) {
   f = f || {};
   document.getElementById('modal-func-titulo').textContent = f.id ? 'Editar Funcionário' : 'Novo Funcionário';
-  ['id','nome','cpf','matricula','cargo','lotacao','admissao','celular','email'].forEach(k => {
+  ['id','nome','cpf','matricula','lotacao','admissao','celular','email'].forEach(k => {
     document.getElementById('mf-'+k).value = f[k] || '';
   });
-  document.getElementById('mf-empresa').value = f.empresa || 'JS Construtora';
+  // Cargo: reseta para modo select
+  mfCargoVoltar();
+  document.getElementById('mf-nova-func-cbo').value = '';
+  // Popular select de empresas
+  (async () => {
+    if (!_empresasCache) {
+      try { const r = await apiFetch('/api/empresas'); if (r&&r.ok) _empresasCache = await r.json(); } catch(e){}
+    }
+    const sel = document.getElementById('mf-empresa');
+    if (_empresasCache && _empresasCache.length) {
+      sel.innerHTML = _empresasCache.map(e => `<option value="${e.nome}">${e.nome}</option>`).join('');
+    }
+    sel.value = f.empresa || (_empresasCache&&_empresasCache[0]?.nome) || 'JS Construtora';
+  })();
   abrirModal('modal-func');
+  _carregarSelectCargos(f.cargo || '');
 }
 
 async function salvarFunc() {
   const dados = {};
-  ['id','nome','cpf','matricula','cargo','lotacao','admissao','celular','email'].forEach(k => {
+  ['id','nome','cpf','matricula','lotacao','admissao','celular','email'].forEach(k => {
     dados[k] = document.getElementById('mf-'+k).value;
   });
+  // Cargo vem do input (modo nova função) ou do select
+  const cargoInp = document.getElementById('mf-cargo');
+  const cargoSel = document.getElementById('mf-cargo-sel');
+  dados.cargo = (cargoInp.style.display !== 'none' ? cargoInp.value : cargoSel.value).trim();
   dados.empresa = document.getElementById('mf-empresa').value;
   if (!dados.nome || !dados.cpf || !dados.cargo) { alert('Nome, CPF e Cargo são obrigatórios.'); return; }
+
+  // Se é nova função, salva no cadastro de funções + CBO opcional
+  if (cargoInp.style.display !== 'none') {
+    await apiFetch('/api/cargos/extras', {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({ cargo: dados.cargo })
+    });
+    const cbo = document.getElementById('mf-nova-func-cbo').value.trim();
+    if (cbo) {
+      await apiFetch(`/api/os/config/${encodeURIComponent(dados.cargo)}`, {
+        method: 'POST',
+        headers: {'Content-Type':'application/json'},
+        body: JSON.stringify({ cbo_codigo: cbo, cbo_titulo: dados.cargo, cbo_descricao: '' })
+      });
+    }
+    _cargosListaCache = null; // invalida cache para próxima abertura
+  }
+
   await apiFetch('/api/funcionarios', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(dados) });
   fecharModal('modal-func');
   _funcCache = null;

@@ -307,6 +307,22 @@ def criar_banco():
                 atualizado_em TEXT DEFAULT (datetime('now','localtime')))""")
         conn.commit()
 
+        # Tabela de funções/cargos avulsos (sem vínculo com funcionários)
+        if USE_POSTGRES:
+            cur.execute("""
+                CREATE TABLE IF NOT EXISTS cargos_extras (
+                    id SERIAL PRIMARY KEY,
+                    cargo TEXT NOT NULL UNIQUE,
+                    criado_em TIMESTAMP DEFAULT NOW()
+                )
+            """)
+        else:
+            cur.execute("""CREATE TABLE IF NOT EXISTS cargos_extras (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                cargo TEXT NOT NULL UNIQUE,
+                criado_em TEXT DEFAULT (datetime('now','localtime')))""")
+        conn.commit()
+
         # Tabela PGR por cargo
         if USE_POSTGRES:
             cur.execute("""
@@ -1286,13 +1302,55 @@ def salvar_docs_cargo(cargo, doc_ids):
 
 
 def buscar_cargos():
-    """Cargos de funcionários cadastrados — usado na lista da OS."""
+    """Cargos de funcionários + funções avulsas cadastradas."""
     conn = conectar()
     try:
         cur = conn.cursor()
-        cur.execute("SELECT DISTINCT cargo FROM funcionarios WHERE cargo IS NOT NULL AND cargo != '' ORDER BY cargo")
+        ph = "%s" if USE_POSTGRES else "?"
+        cur.execute("""
+            SELECT DISTINCT cargo FROM (
+                SELECT cargo FROM funcionarios WHERE cargo IS NOT NULL AND cargo != ''
+                UNION
+                SELECT cargo FROM cargos_extras WHERE cargo IS NOT NULL AND cargo != ''
+            ) t ORDER BY cargo
+        """)
         rows = cur.fetchall()
         return [r[0] for r in rows]
+    finally:
+        conn.close()
+
+
+def listar_cargos_extras():
+    conn = conectar()
+    try:
+        cur = conn.cursor()
+        cur.execute("SELECT id, cargo FROM cargos_extras ORDER BY cargo")
+        rows = cur.fetchall()
+        return [{"id": r[0], "cargo": r[1]} for r in rows]
+    finally:
+        conn.close()
+
+
+def salvar_cargo_extra(cargo: str):
+    conn = conectar()
+    try:
+        cur = conn.cursor()
+        if USE_POSTGRES:
+            cur.execute("INSERT INTO cargos_extras (cargo) VALUES (%s) ON CONFLICT (cargo) DO NOTHING", (cargo,))
+        else:
+            cur.execute("INSERT OR IGNORE INTO cargos_extras (cargo) VALUES (?)", (cargo,))
+        conn.commit()
+    finally:
+        conn.close()
+
+
+def deletar_cargo_extra(cargo: str):
+    conn = conectar()
+    try:
+        cur = conn.cursor()
+        ph = "%s" if USE_POSTGRES else "?"
+        cur.execute(f"DELETE FROM cargos_extras WHERE cargo={ph}", (cargo,))
+        conn.commit()
     finally:
         conn.close()
 

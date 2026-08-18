@@ -3864,6 +3864,97 @@ async def gerar_treinamentos_lotacao(dados: dict = Body(...), _=Depends(verifica
         raise HTTPException(500, f"Erro ao gerar treinamentos: {e}")
 
 
+@app.post("/api/treinamentos/gerar-cargo")
+async def gerar_treinamentos_cargo(dados: dict = Body(...), _=Depends(verificar_acesso)):
+    import io as _io
+    import zipfile, tempfile
+    from docx import Document as _Doc
+    try:
+        cargo = (dados.get("cargo") or "").strip()
+        ids = dados.get("treinamento_ids") or []
+        if not cargo or not ids:
+            raise HTTPException(400, "cargo e treinamento_ids obrigatórios")
+
+        todos = banco.buscar_funcionarios(termo="", apenas_ativos=True)
+        funcionarios = [f for f in todos if (f.get("cargo") or "").strip().upper() == cargo.upper()]
+        if not funcionarios:
+            raise HTTPException(404, f"Nenhum funcionário com o cargo '{cargo}'")
+
+        docs_bytes = []
+        for tid in ids:
+            doc_bytes = banco.buscar_treinamento_doc(int(tid))
+            meta = banco.buscar_treinamento_doc_meta(int(tid))
+            if doc_bytes and meta:
+                docs_bytes.append((meta["nome"], doc_bytes))
+
+        if not docs_bytes:
+            raise HTTPException(404, "Nenhum documento de treinamento encontrado")
+
+        buf_zip = _io.BytesIO()
+        with zipfile.ZipFile(buf_zip, "w", zipfile.ZIP_DEFLATED) as zf:
+            for func in funcionarios:
+                nome_seguro = re.sub(r"[^\w\s-]", "", func.get("nome", "funcionario"))
+                nome_seguro = re.sub(r"\s+", "_", nome_seguro.strip())
+                nome_empresa = func.get("empresa") or EMPRESA
+                dados_emp = processador._buscar_dados_empresa(nome_empresa)
+                variaveis = {
+                    "NOME": func.get("nome", ""), "nome": func.get("nome", ""),
+                    "CPF": func.get("cpf", ""), "cpf": func.get("cpf", ""),
+                    "CARGO": func.get("cargo", ""), "cargo": func.get("cargo", ""),
+                    "funcao": func.get("cargo", ""),
+                    "LOTACAO": func.get("lotacao", ""), "lotacao": func.get("lotacao", ""),
+                    "MATRICULA": func.get("matricula") or func.get("cpf", ""),
+                    "matricula": func.get("matricula") or func.get("cpf", ""),
+                    "DATA_ADMISSAO": func.get("admissao", ""), "dt_adm": func.get("admissao", ""),
+                    "DATA_HOJE": datetime.now().strftime("%d/%m/%Y"),
+                    "data_hoje": datetime.now().strftime("%d/%m/%Y"),
+                    "EMPRESA": dados_emp["nome"], "empresa": dados_emp["nome"],
+                    "CNPJ": dados_emp["cnpj"], "RESP_SST": dados_emp["resp_sst"],
+                    "resp_tecnico": dados_emp["resp_sst"],
+                }
+                for doc_nome, doc_bytes in docs_bytes:
+                    with tempfile.TemporaryDirectory() as tmp:
+                        doc_nome_seg = re.sub(r"[^\w\s-]", "", doc_nome)
+                        doc_nome_seg = re.sub(r"\s+", "_", doc_nome_seg.strip())
+                        docx_path = os.path.join(tmp, f"{doc_nome_seg}__{nome_seguro}.docx")
+                        doc = _Doc(_io.BytesIO(doc_bytes))
+                        for para in doc.paragraphs:
+                            processador._processar_paragrafo(para, variaveis)
+                        for table in doc.tables:
+                            for row in table.rows:
+                                for cell in row.cells:
+                                    for para in cell.paragraphs:
+                                        processador._processar_paragrafo(para, variaveis)
+                        for section in doc.sections:
+                            for para in section.header.paragraphs:
+                                processador._processar_paragrafo(para, variaveis)
+                            for table in section.header.tables:
+                                for row in table.rows:
+                                    for cell in row.cells:
+                                        for para in cell.paragraphs:
+                                            processador._processar_paragrafo(para, variaveis)
+                        if dados_emp["logo_bytes"]:
+                            processador._substituir_logo_docx(doc, dados_emp["logo_bytes"])
+                        doc.save(docx_path)
+                        pdf_path = processador.converter_para_pdf(docx_path)
+                        if pdf_path and os.path.exists(pdf_path):
+                            zf.write(pdf_path, f"{nome_seguro}/{os.path.basename(pdf_path)}")
+                        else:
+                            zf.write(docx_path, f"{nome_seguro}/{os.path.basename(docx_path)}")
+
+        buf_zip.seek(0)
+        _cargo_seg = re.sub(r'[^\w]', '_', cargo)
+        nome_zip = f"Treinamentos_{_cargo_seg}.zip"
+        return StreamingResponse(buf_zip, media_type="application/zip",
+                                 headers={"Content-Disposition": f'attachment; filename="{nome_zip}"'})
+    except HTTPException:
+        raise
+    except Exception as e:
+        import traceback
+        print(f"[ERRO gerar-cargo] {e}\n{traceback.format_exc()}")
+        raise HTTPException(500, f"Erro ao gerar treinamentos: {e}")
+
+
 @app.post("/api/treinamentos/gerar-funcionario")
 async def gerar_treinamentos_funcionario(dados: dict = Body(...), _=Depends(verificar_acesso)):
     import io as _io, tempfile, zipfile

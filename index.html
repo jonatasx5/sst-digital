@@ -894,6 +894,7 @@ tr:hover td { background:#F9FAFB; }
       <!-- Seletor de modo -->
       <div style="display:flex;gap:0;border:1.5px solid var(--borda);border-radius:8px;overflow:hidden;margin-bottom:20px;width:fit-content">
         <button id="trein-modo-btn-lotacao"   onclick="treinModo('lotacao')"   style="padding:8px 18px;border:none;font-size:13px;font-weight:600;cursor:pointer;background:var(--verde);color:#fff">Por Lotação</button>
+        <button id="trein-modo-btn-cargo"     onclick="treinModo('cargo')"     style="padding:8px 18px;border:none;font-size:13px;font-weight:500;cursor:pointer;background:var(--card);color:var(--texto2);border-left:1px solid var(--borda)">Por Cargo</button>
         <button id="trein-modo-btn-func"      onclick="treinModo('func')"      style="padding:8px 18px;border:none;font-size:13px;font-weight:500;cursor:pointer;background:var(--card);color:var(--texto2);border-left:1px solid var(--borda)">Por Funcionário</button>
         <button id="trein-modo-btn-avulso"    onclick="treinModo('avulso')"    style="padding:8px 18px;border:none;font-size:13px;font-weight:500;cursor:pointer;background:var(--card);color:var(--texto2);border-left:1px solid var(--borda)">Pessoa Avulsa</button>
       </div>
@@ -926,6 +927,39 @@ tr:hover td { background:#F9FAFB; }
         </div>
         <div style="margin-top:16px">
           <button class="btn btn-primary" onclick="gerarTreinamentosLotacao()" id="trein-btn-gerar">
+            <i class="ti ti-file-zip"></i> Gerar PDFs (ZIP)
+          </button>
+        </div>
+      </div>
+
+      <!-- MODO: POR CARGO -->
+      <div id="trein-painel-cargo" style="display:none">
+        <p style="font-size:13px;color:var(--texto2);margin-bottom:14px">Selecione um cargo e gere os treinamentos para todos os funcionários desse cargo.</p>
+        <div style="display:flex;gap:16px;flex-wrap:wrap;align-items:flex-start">
+          <div class="field" style="min-width:280px;flex:1;margin:0">
+            <label>Cargo / Função</label>
+            <select id="trein-cargo-sel" style="width:100%;padding:9px 12px;border:1.5px solid var(--borda);border-radius:8px;font-size:13px;background:var(--card)" onchange="treinCargoChange()">
+              <option value="">-- Selecione o cargo --</option>
+            </select>
+            <div id="trein-cargo-preview" style="margin-top:8px;font-size:12px;color:var(--texto2)"></div>
+            <div id="trein-cargo-func-lista" style="margin-top:10px;display:none;border:1.5px solid var(--borda);border-radius:8px;overflow:hidden">
+              <div style="padding:8px 12px;background:var(--borda);font-size:12px;font-weight:600;color:var(--texto2)">FUNCIONÁRIOS DO CARGO</div>
+              <div id="trein-cargo-func-nomes" style="max-height:200px;overflow-y:auto;display:flex;flex-direction:column"></div>
+            </div>
+          </div>
+          <div class="field" style="min-width:280px;flex:2;margin:0">
+            <label>Treinamentos</label>
+            <div id="trein-docs-lista-cargo" style="display:flex;flex-direction:column;gap:6px;max-height:260px;overflow-y:auto;border:1.5px solid var(--borda);border-radius:8px;padding:10px;background:var(--card)">
+              <span style="color:var(--texto2);font-size:13px">Carregando...</span>
+            </div>
+            <div style="margin-top:8px;display:flex;gap:8px">
+              <button class="btn btn-outline btn-sm" onclick="treinSelecionarTodos('trein-docs-lista-cargo',true)">Selecionar todos</button>
+              <button class="btn btn-outline btn-sm" onclick="treinSelecionarTodos('trein-docs-lista-cargo',false)">Limpar</button>
+            </div>
+          </div>
+        </div>
+        <div style="margin-top:16px">
+          <button class="btn btn-primary" onclick="gerarTreinamentosCargo()" id="trein-btn-gerar-cargo">
             <i class="ti ti-file-zip"></i> Gerar PDFs (ZIP)
           </button>
         </div>
@@ -3101,10 +3135,12 @@ async function carregarModelos() {
     if (isEpi) {
       html += `<div id="epi-cargos" style="display:none;margin-top:6px;margin-left:12px;border-left:2px solid var(--borda);padding-left:10px">`;
       cargos.forEach(c => {
-        const cSeguro = c.replace(/'/g, "\\'");
+        const cNome   = (typeof c === 'string') ? c : c.cargo;
+        const cLabel  = (typeof c === 'string') ? c : (c.label || c.cargo);
+        const cSeguro = cNome.replace(/'/g, "\\'");
         html += `<div style="display:flex;align-items:center;justify-content:space-between;padding:4px 0;font-size:11px">
-          <span>${c}</span>
-          <button class="btn btn-outline btn-sm" title="Upload EPI para ${c}" onclick="abrirUploadModelo('${d.id}','${nomeSeguro} — ${cSeguro}','${cSeguro}')">
+          <span>${cLabel}</span>
+          <button class="btn btn-outline btn-sm" title="Upload EPI para ${cLabel}" onclick="abrirUploadModelo('${d.id}','${nomeSeguro} — ${cSeguro}','${cSeguro}')">
             <i class="ti ti-upload"></i>
           </button>
         </div>`;
@@ -5410,8 +5446,60 @@ let _treinDocsCache = [];
 
 async function carregarAbaTreinamento() {
   await treinCarregarLista();
-  await treinCarregarLotacoes();
+  await Promise.all([treinCarregarLotacoes(), treinCarregarCargos()]);
   treinModo('lotacao');
+}
+
+async function treinCarregarCargos() {
+  try {
+    const res = await apiFetch('/api/cargos');
+    const cargos = res && res.ok ? await res.json() : [];
+    const sel = document.getElementById('trein-cargo-sel');
+    sel.innerHTML = '<option value="">-- Selecione o cargo --</option>' +
+      cargos.map(c => `<option value="${c.replace(/"/g,'&quot;')}">${c}</option>`).join('');
+  } catch(e) {}
+}
+
+async function treinCargoChange() {
+  const cargo = document.getElementById('trein-cargo-sel').value;
+  const prev = document.getElementById('trein-cargo-preview');
+  const funcLista = document.getElementById('trein-cargo-func-lista');
+  const funcNomes = document.getElementById('trein-cargo-func-nomes');
+  if (!cargo) {
+    prev.textContent = '';
+    funcLista.style.display = 'none';
+    return;
+  }
+  try {
+    const todos = _funcCache || await apiFetch('/api/funcionarios').then(r => r.json());
+    const funcs = todos.filter(f => (f.cargo||'').trim().toUpperCase() === cargo.trim().toUpperCase());
+    prev.textContent = `${funcs.length} funcionário(s) com este cargo`;
+    if (funcs.length) {
+      funcNomes.innerHTML = funcs.map((f, i) => `
+        <div style="display:flex;align-items:center;gap:8px;padding:7px 12px;font-size:13px;${i % 2 === 0 ? 'background:var(--bg)' : ''}">
+          <span style="color:var(--verde);font-size:11px;font-weight:700;min-width:22px">${i+1}.</span>
+          <span style="flex:1">${f.nome}</span>
+          <span style="font-size:11px;color:var(--texto2)">${f.lotacao||''}</span>
+        </div>`).join('');
+      funcLista.style.display = '';
+    } else {
+      funcLista.style.display = 'none';
+    }
+  } catch(e) {}
+}
+
+async function gerarTreinamentosCargo() {
+  const cargo = document.getElementById('trein-cargo-sel').value;
+  if (!cargo) { alert('Selecione um cargo.'); return; }
+  const ids = _treinCheckboxes('trein-docs-lista-cargo');
+  if (!ids.length) { alert('Selecione ao menos um treinamento.'); return; }
+  await _treinExecutarGeracao(
+    '/api/treinamentos/gerar-cargo',
+    { cargo, treinamento_ids: ids },
+    'trein-btn-gerar-cargo',
+    '<i class="ti ti-file-zip"></i> Gerar PDFs (ZIP)',
+    `Treinamentos_cargo_${cargo.replace(/[^\w]/g,'_')}.zip`
+  );
 }
 
 async function treinCarregarLista() {
@@ -5556,15 +5644,18 @@ let _treinFuncSelecionado = null;
 let _treinTodosFuncs = [];
 
 function treinModo(modo) {
-  ['lotacao','func','avulso'].forEach(m => {
+  ['lotacao','cargo','func','avulso'].forEach(m => {
     const painel = document.getElementById('trein-painel-'+m);
     const btn    = document.getElementById('trein-modo-btn-'+m);
     const ativo  = m === modo;
-    painel.style.display = ativo ? '' : 'none';
-    btn.style.background = ativo ? 'var(--verde)' : 'var(--card)';
-    btn.style.color      = ativo ? '#fff' : 'var(--texto2)';
-    btn.style.fontWeight = ativo ? '600' : '500';
+    if (painel) painel.style.display = ativo ? '' : 'none';
+    if (btn) {
+      btn.style.background = ativo ? 'var(--verde)' : 'var(--card)';
+      btn.style.color      = ativo ? '#fff' : 'var(--texto2)';
+      btn.style.fontWeight = ativo ? '600' : '500';
+    }
   });
+  if (modo === 'cargo') _popularListaDocs('trein-docs-lista-cargo');
 }
 
 function treinSelecionarTodos(listaId, sel) {

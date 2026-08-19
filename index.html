@@ -272,12 +272,18 @@ tr:hover td { background:#F9FAFB; }
     </div>
   </div>
 
-  <div class="card" style="padding:12px 16px;margin-bottom:12px;display:flex;gap:12px;align-items:center">
-    <input type="text" id="busca-func" placeholder="🔍 Buscar por nome, CPF ou cargo..." style="flex:1;border:none;font-size:13px;color:var(--texto);outline:none;background:none" oninput="_funcRenderTabela()">
+  <div class="card" style="padding:12px 16px;margin-bottom:12px;display:flex;gap:12px;align-items:center;flex-wrap:wrap">
+    <input type="text" id="busca-func" placeholder="🔍 Buscar por nome, CPF ou cargo..." style="flex:1;min-width:200px;border:none;font-size:13px;color:var(--texto);outline:none;background:none" oninput="_funcRenderTabela()">
     <select id="filtro-empresa" onchange="_funcRenderTabela()" style="border:1px solid var(--borda);border-radius:8px;padding:4px 8px;font-size:12px;background:var(--card);color:var(--texto);cursor:pointer">
       <option value="">Todas as empresas</option>
       <option value="JS Construtora">JS Construtora</option>
       <option value="RECOPAV ASFALTOS LTDA">RECOPAV ASFALTOS LTDA</option>
+    </select>
+    <select id="ordenar-func" onchange="_funcRenderTabela()" style="border:1px solid var(--borda);border-radius:8px;padding:4px 8px;font-size:12px;background:var(--card);color:var(--texto);cursor:pointer">
+      <option value="nome_az">Nome A→Z</option>
+      <option value="nome_za">Nome Z→A</option>
+      <option value="adm_novo">Admissão: mais recente</option>
+      <option value="adm_antigo">Admissão: mais antigo</option>
     </select>
   </div>
 
@@ -2862,6 +2868,20 @@ function _funcRenderTabela() {
     );
   }
   if (filtroEmpresa) lista = lista.filter(f => (f.empresa || 'JS Construtora') === filtroEmpresa);
+
+  // Ordenação
+  const ordem = document.getElementById('ordenar-func')?.value || 'nome_az';
+  const _parseAdm = adm => {
+    if (!adm) return 0;
+    const p = adm.split('/');
+    if (p.length === 3) return new Date(`${p[2]}-${p[1]}-${p[0]}`).getTime() || 0;
+    return new Date(adm).getTime() || 0;
+  };
+  if (ordem === 'nome_az')     lista = [...lista].sort((a,b) => (a.nome||'').localeCompare(b.nome||'', 'pt-BR'));
+  else if (ordem === 'nome_za') lista = [...lista].sort((a,b) => (b.nome||'').localeCompare(a.nome||'', 'pt-BR'));
+  else if (ordem === 'adm_novo') lista = [...lista].sort((a,b) => _parseAdm(b.admissao) - _parseAdm(a.admissao));
+  else if (ordem === 'adm_antigo') lista = [...lista].sort((a,b) => _parseAdm(a.admissao) - _parseAdm(b.admissao));
+
   document.getElementById('func-count-sub').textContent = `${lista.length} funcionário(s) cadastrado(s)`;
   const tbody = document.getElementById('func-tbody');
   tbody.innerHTML = lista.map(f => {

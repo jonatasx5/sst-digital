@@ -2863,14 +2863,20 @@ function toggleSidebar() {
 //  FUNCIONÁRIOS
 // ══════════════════════════════════════════════════════
 async function carregarFuncionarios(forcarReload = false) {
-  // Se não tiver cache ou reload forçado (após salvar/importar/deletar), busca da API
   if (!_funcCache || forcarReload) {
     const tbody = document.getElementById('func-tbody');
-    if (!_funcCache) tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:24px;color:var(--texto2);">Carregando...</td></tr>';
+    if (!_funcCache) tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;padding:24px;color:var(--texto2);">Carregando...</td></tr>';
     const res = await apiFetch('/api/funcionarios');
     if (!res || !res.ok) return;
     const data = await res.json();
     _funcCache = Array.isArray(data) ? data : (data.funcionarios || []);
+  }
+  // Garante histórico atualizado (com funcionario_id) para cruzamento Kit SST
+  if (!_histCache || (_histCache.length && _histCache[0].funcionario_id === undefined)) {
+    try {
+      const rh = await apiFetch('/api/envios?limite=500');
+      if (rh && rh.ok) _histCache = await rh.json();
+    } catch(e) {}
   }
   _funcRenderTabela();
 }
@@ -2903,15 +2909,33 @@ function _funcRenderTabela() {
   else if (ordem === 'adm_antigo') lista = [...lista].sort((a,b) => _parseAdm(a.admissao) - _parseAdm(b.admissao));
 
   // Cruzamento com histórico: funcionários com Kit SST assinado
-  const _kitSignedIds  = new Set();
-  const _kitPendIds    = new Set();
+  // Indexa funcionários por id e por nome (normalizado) para fallback
+  const _funcById   = {};
+  const _funcByNome = {};
+  (_funcCache || []).forEach(f => {
+    _funcById[f.id] = f;
+    _funcByNome[(f.nome||'').trim().toUpperCase()] = f;
+  });
+
+  const _kitSignedIds = new Set();
+  const _kitPendIds   = new Set();
   if (_histCache && _histCache.length) {
     _histCache.forEach(e => {
       const isKit = (e.doc_nome||'').toLowerCase().includes('kit') || (e.doc_id||'').toLowerCase().includes('kit');
-      if (!isKit || !e.funcionario_id) return;
-      if (e.status === 'signed')  _kitSignedIds.add(e.funcionario_id);
-      else                        _kitPendIds.add(e.funcionario_id);
+      if (!isKit) return;
+      // Resolve o funcionário pelo id (novo) ou pelo nome (fallback para cache antigo)
+      let fid = e.funcionario_id;
+      if (!fid) {
+        const fNome = (e.funcionario||'').trim().toUpperCase();
+        const fMatch = _funcByNome[fNome];
+        if (fMatch) fid = fMatch.id;
+      }
+      if (!fid) return;
+      if (e.status === 'signed') _kitSignedIds.add(fid);
+      else                       _kitPendIds.add(fid);
     });
+    // signed tem prioridade sobre pendente
+    _kitSignedIds.forEach(id => _kitPendIds.delete(id));
   }
 
   // Banner de cobertura (usa lista total de funcionários, não a filtrada)

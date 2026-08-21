@@ -1584,12 +1584,16 @@ tr:hover td { background:#F9FAFB; }
       <div class="field"><label>E-mail</label><input type="text" id="mf-email"></div>
     </div>
 
-    <!-- Documentação assinada -->
+    <!-- Status da documentação -->
     <div style="border-top:1px solid var(--borda);margin:12px 0 10px;padding-top:12px">
-      <label style="display:flex;align-items:center;gap:10px;cursor:pointer;user-select:none">
-        <input type="checkbox" id="mf-assinou-doc" onchange="mfAssinouChange(this)" style="width:16px;height:16px;cursor:pointer;accent-color:var(--verde)">
-        <span style="font-size:13px;font-weight:600">Funcionário assinou a documentação</span>
-      </label>
+      <div class="field" style="margin:0">
+        <label>Status da documentação</label>
+        <select id="mf-status-doc" onchange="mfStatusDocChange(this)" style="width:100%;padding:8px 10px;border:1.5px solid var(--borda);border-radius:8px;font-size:13px;background:var(--card);color:var(--texto)">
+          <option value="">— Não definido —</option>
+          <option value="assinado">✅ Assinado</option>
+          <option value="desistente">🚫 Desistente</option>
+        </select>
+      </div>
       <div id="mf-link-doc-wrap" style="display:none;margin-top:10px">
         <div class="field" style="margin:0">
           <label>Link para acessar a documentação</label>
@@ -2988,11 +2992,15 @@ function _funcRenderTabela() {
     const empresaBadge = (f.empresa && f.empresa !== 'JS Construtora') ? `<span class="badge-empresa">${f.empresa}</span>` : '';
 
     let kitCell;
-    const assinouManual = !!(f.assinou_doc);
-    const linkDoc = f.link_doc || '';
-    if (_kitSignedIds.has(f.id) || assinouManual) {
+    const statusDoc  = f.status_doc || (f.assinou_doc ? 'assinado' : '');
+    const linkDoc    = f.link_doc || '';
+    const assinado   = statusDoc === 'assinado' || _kitSignedIds.has(f.id);
+    const desistente = statusDoc === 'desistente';
+    if (assinado) {
       const linkBtn = linkDoc ? ` <a href="${linkDoc}" target="_blank" title="Ver documento" style="color:#065f46;font-size:11px;text-decoration:underline">ver</a>` : '';
       kitCell = `<td style="text-align:center"><span title="Documentação assinada" style="display:inline-flex;align-items:center;gap:4px;background:#d1fae5;color:#065f46;border-radius:20px;padding:3px 10px;font-size:11px;font-weight:700"><i class="ti ti-circle-check" style="font-size:13px"></i> Assinado</span>${linkBtn}</td>`;
+    } else if (desistente) {
+      kitCell = `<td style="text-align:center"><span title="Desistente" style="display:inline-flex;align-items:center;gap:4px;background:#fee2e2;color:#991b1b;border-radius:20px;padding:3px 10px;font-size:11px;font-weight:700"><i class="ti ti-user-x" style="font-size:13px"></i> Desistente</span></td>`;
     } else if (_kitPendIds.has(f.id)) {
       kitCell = `<td style="text-align:center"><span title="Aguardando assinatura" style="display:inline-flex;align-items:center;gap:4px;background:#fef3c7;color:#b45309;border-radius:20px;padding:3px 10px;font-size:11px;font-weight:600"><i class="ti ti-clock" style="font-size:12px"></i> Pendente</span></td>`;
     } else {
@@ -3053,9 +3061,10 @@ function _mfModoNovaFunc(valor) {
   document.getElementById('mf-nova-func-extra').style.display = '';
 }
 
-function mfAssinouChange(chk) {
-  document.getElementById('mf-link-doc-wrap').style.display = chk.checked ? '' : 'none';
-  if (!chk.checked) document.getElementById('mf-link-doc').value = '';
+function mfStatusDocChange(sel) {
+  const mostrarLink = sel.value === 'assinado';
+  document.getElementById('mf-link-doc-wrap').style.display = mostrarLink ? '' : 'none';
+  if (!mostrarLink) document.getElementById('mf-link-doc').value = '';
 }
 
 function mfCargoVoltar() {
@@ -3073,10 +3082,10 @@ function abrirModalFunc(f) {
   ['id','nome','cpf','matricula','lotacao','admissao','celular','email'].forEach(k => {
     document.getElementById('mf-'+k).value = f[k] || '';
   });
-  const chkAssinou = document.getElementById('mf-assinou-doc');
-  chkAssinou.checked = !!(f.assinou_doc);
+  const statusDoc = f.status_doc || (f.assinou_doc ? 'assinado' : '');
+  document.getElementById('mf-status-doc').value = statusDoc;
   document.getElementById('mf-link-doc').value = f.link_doc || '';
-  document.getElementById('mf-link-doc-wrap').style.display = chkAssinou.checked ? '' : 'none';
+  document.getElementById('mf-link-doc-wrap').style.display = statusDoc === 'assinado' ? '' : 'none';
   // Cargo: reseta para modo select
   mfCargoVoltar();
   document.getElementById('mf-nova-func-cbo').value = '';
@@ -3105,7 +3114,8 @@ async function salvarFunc() {
   const cargoSel = document.getElementById('mf-cargo-sel');
   dados.cargo = (cargoInp.style.display !== 'none' ? cargoInp.value : cargoSel.value).trim();
   dados.empresa    = document.getElementById('mf-empresa').value;
-  dados.assinou_doc = document.getElementById('mf-assinou-doc').checked;
+  dados.status_doc  = document.getElementById('mf-status-doc').value;
+  dados.assinou_doc = dados.status_doc === 'assinado';
   dados.link_doc    = document.getElementById('mf-link-doc').value.trim();
   if (!dados.nome || !dados.cpf || !dados.cargo) { alert('Nome, CPF e Cargo são obrigatórios.'); return; }
 

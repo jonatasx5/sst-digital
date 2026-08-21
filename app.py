@@ -201,13 +201,13 @@ async def startup_event():
     except Exception as e:
         print(f"[WARN] migração empresa: {e}")
 
-    # Migração: colunas assinou_doc e link_doc em funcionarios
+    # Migração: colunas assinou_doc, link_doc e status_doc em funcionarios
     try:
         conn = banco.conectar()
         cur = conn.cursor()
         if banco.USE_POSTGRES:
             conn.autocommit = True
-            for col, ddl in [("assinou_doc", "BOOLEAN DEFAULT FALSE"), ("link_doc", "TEXT DEFAULT ''")]:
+            for col, ddl in [("assinou_doc", "BOOLEAN DEFAULT FALSE"), ("link_doc", "TEXT DEFAULT ''"), ("status_doc", "TEXT DEFAULT ''")]:
                 try:
                     cur.execute(f"ALTER TABLE funcionarios ADD COLUMN {col} {ddl}")
                     print(f"[STARTUP] coluna {col} adicionada em funcionarios")
@@ -220,10 +220,12 @@ async def startup_event():
                 cur.execute("ALTER TABLE funcionarios ADD COLUMN assinou_doc INTEGER DEFAULT 0")
             if "link_doc" not in cols:
                 cur.execute("ALTER TABLE funcionarios ADD COLUMN link_doc TEXT DEFAULT ''")
+            if "status_doc" not in cols:
+                cur.execute("ALTER TABLE funcionarios ADD COLUMN status_doc TEXT DEFAULT ''")
             conn.commit()
         conn.close()
     except Exception as e:
-        print(f"[WARN] migração assinou_doc/link_doc: {e}")
+        print(f"[WARN] migração assinou_doc/link_doc/status_doc: {e}")
 
     # Migração: tabela empresas
     try:

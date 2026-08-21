@@ -1229,33 +1229,39 @@ def salvar_funcionario(dados):
                     raise ValueError(f"CPF {dados['cpf']} já está cadastrado para outro funcionário.")
 
         fid = dados.get("id")
+        assinou = bool(dados.get("assinou_doc", False))
+        link_doc = dados.get("link_doc", "") or ""
         if fid:
             if USE_POSTGRES:
                 cur.execute("""UPDATE funcionarios SET nome=%s,cpf=%s,matricula=%s,cargo=%s,
-                    lotacao=%s,admissao=%s,celular=%s,email=%s,empresa=%s WHERE id=%s""",
+                    lotacao=%s,admissao=%s,celular=%s,email=%s,empresa=%s,
+                    assinou_doc=%s,link_doc=%s WHERE id=%s""",
                     (dados["nome"],dados["cpf"],dados.get("matricula",""),dados["cargo"],
                      dados.get("lotacao",""),dados.get("admissao",""),dados.get("celular",""),
-                     dados.get("email",""),dados.get("empresa","JS Construtora"),fid))
+                     dados.get("email",""),dados.get("empresa","JS Construtora"),
+                     assinou, link_doc, fid))
             else:
                 cur.execute("""UPDATE funcionarios SET nome=?,cpf=?,matricula=?,cargo=?,
-                    lotacao=?,admissao=?,celular=?,email=?,empresa=? WHERE id=?""",
+                    lotacao=?,admissao=?,celular=?,email=?,empresa=?,
+                    assinou_doc=?,link_doc=? WHERE id=?""",
                     (dados["nome"],dados["cpf"],dados.get("matricula",""),dados["cargo"],
                      dados.get("lotacao",""),dados.get("admissao",""),dados.get("celular",""),
-                     dados.get("email",""),dados.get("empresa","JS Construtora"),fid))
+                     dados.get("email",""),dados.get("empresa","JS Construtora"),
+                     1 if assinou else 0, link_doc, fid))
         else:
             if USE_POSTGRES:
-                cur.execute("""INSERT INTO funcionarios (nome,cpf,matricula,cargo,lotacao,admissao,celular,email,empresa)
-                    VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s) RETURNING id""",
+                cur.execute("""INSERT INTO funcionarios (nome,cpf,matricula,cargo,lotacao,admissao,celular,email,empresa,assinou_doc,link_doc)
+                    VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s) RETURNING id""",
                     (dados["nome"],dados["cpf"],dados.get("matricula",""),dados["cargo"],
                      dados.get("lotacao",""),dados.get("admissao",""),dados.get("celular",""),dados.get("email",""),
-                     dados.get("empresa","JS Construtora")))
+                     dados.get("empresa","JS Construtora"), assinou, link_doc))
                 fid = cur.fetchone()["id"]
             else:
-                cur.execute("""INSERT INTO funcionarios (nome,cpf,matricula,cargo,lotacao,admissao,celular,email,empresa)
-                    VALUES (?,?,?,?,?,?,?,?,?)""",
+                cur.execute("""INSERT INTO funcionarios (nome,cpf,matricula,cargo,lotacao,admissao,celular,email,empresa,assinou_doc,link_doc)
+                    VALUES (?,?,?,?,?,?,?,?,?,?,?)""",
                     (dados["nome"],dados["cpf"],dados.get("matricula",""),dados["cargo"],
                      dados.get("lotacao",""),dados.get("admissao",""),dados.get("celular",""),dados.get("email",""),
-                     dados.get("empresa","JS Construtora")))
+                     dados.get("empresa","JS Construtora"), 1 if assinou else 0, link_doc))
                 fid = cur.lastrowid
 
         conn.commit()

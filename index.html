@@ -1583,6 +1583,21 @@ tr:hover td { background:#F9FAFB; }
     <div class="grid2">
       <div class="field"><label>E-mail</label><input type="text" id="mf-email"></div>
     </div>
+
+    <!-- Documentação assinada -->
+    <div style="border-top:1px solid var(--borda);margin:12px 0 10px;padding-top:12px">
+      <label style="display:flex;align-items:center;gap:10px;cursor:pointer;user-select:none">
+        <input type="checkbox" id="mf-assinou-doc" onchange="mfAssinouChange(this)" style="width:16px;height:16px;cursor:pointer;accent-color:var(--verde)">
+        <span style="font-size:13px;font-weight:600">Funcionário assinou a documentação</span>
+      </label>
+      <div id="mf-link-doc-wrap" style="display:none;margin-top:10px">
+        <div class="field" style="margin:0">
+          <label>Link para acessar a documentação</label>
+          <input type="url" id="mf-link-doc" placeholder="https://..." style="width:100%;padding:8px 10px;border:1.5px solid var(--verde);border-radius:8px;font-size:13px;background:var(--card);color:var(--texto)">
+        </div>
+      </div>
+    </div>
+
     <button class="btn btn-primary" style="width:100%;justify-content:center" onclick="salvarFunc()">
       <i class="ti ti-device-floppy"></i>Salvar
     </button>
@@ -2973,8 +2988,11 @@ function _funcRenderTabela() {
     const empresaBadge = (f.empresa && f.empresa !== 'JS Construtora') ? `<span class="badge-empresa">${f.empresa}</span>` : '';
 
     let kitCell;
-    if (_kitSignedIds.has(f.id)) {
-      kitCell = `<td style="text-align:center"><span title="Kit SST assinado" style="display:inline-flex;align-items:center;gap:4px;background:#d1fae5;color:#065f46;border-radius:20px;padding:3px 10px;font-size:11px;font-weight:700"><i class="ti ti-circle-check" style="font-size:13px"></i> Assinado</span></td>`;
+    const assinouManual = !!(f.assinou_doc);
+    const linkDoc = f.link_doc || '';
+    if (_kitSignedIds.has(f.id) || assinouManual) {
+      const linkBtn = linkDoc ? ` <a href="${linkDoc}" target="_blank" title="Ver documento" style="color:#065f46;font-size:11px;text-decoration:underline">ver</a>` : '';
+      kitCell = `<td style="text-align:center"><span title="Documentação assinada" style="display:inline-flex;align-items:center;gap:4px;background:#d1fae5;color:#065f46;border-radius:20px;padding:3px 10px;font-size:11px;font-weight:700"><i class="ti ti-circle-check" style="font-size:13px"></i> Assinado</span>${linkBtn}</td>`;
     } else if (_kitPendIds.has(f.id)) {
       kitCell = `<td style="text-align:center"><span title="Aguardando assinatura" style="display:inline-flex;align-items:center;gap:4px;background:#fef3c7;color:#b45309;border-radius:20px;padding:3px 10px;font-size:11px;font-weight:600"><i class="ti ti-clock" style="font-size:12px"></i> Pendente</span></td>`;
     } else {
@@ -3035,6 +3053,11 @@ function _mfModoNovaFunc(valor) {
   document.getElementById('mf-nova-func-extra').style.display = '';
 }
 
+function mfAssinouChange(chk) {
+  document.getElementById('mf-link-doc-wrap').style.display = chk.checked ? '' : 'none';
+  if (!chk.checked) document.getElementById('mf-link-doc').value = '';
+}
+
 function mfCargoVoltar() {
   document.getElementById('mf-cargo-sel').style.display = '';
   document.getElementById('mf-cargo-sel').value = '';
@@ -3050,6 +3073,10 @@ function abrirModalFunc(f) {
   ['id','nome','cpf','matricula','lotacao','admissao','celular','email'].forEach(k => {
     document.getElementById('mf-'+k).value = f[k] || '';
   });
+  const chkAssinou = document.getElementById('mf-assinou-doc');
+  chkAssinou.checked = !!(f.assinou_doc);
+  document.getElementById('mf-link-doc').value = f.link_doc || '';
+  document.getElementById('mf-link-doc-wrap').style.display = chkAssinou.checked ? '' : 'none';
   // Cargo: reseta para modo select
   mfCargoVoltar();
   document.getElementById('mf-nova-func-cbo').value = '';
@@ -3077,7 +3104,9 @@ async function salvarFunc() {
   const cargoInp = document.getElementById('mf-cargo');
   const cargoSel = document.getElementById('mf-cargo-sel');
   dados.cargo = (cargoInp.style.display !== 'none' ? cargoInp.value : cargoSel.value).trim();
-  dados.empresa = document.getElementById('mf-empresa').value;
+  dados.empresa    = document.getElementById('mf-empresa').value;
+  dados.assinou_doc = document.getElementById('mf-assinou-doc').checked;
+  dados.link_doc    = document.getElementById('mf-link-doc').value.trim();
   if (!dados.nome || !dados.cpf || !dados.cargo) { alert('Nome, CPF e Cargo são obrigatórios.'); return; }
 
   // Se é nova função, salva no cadastro de funções + CBO opcional

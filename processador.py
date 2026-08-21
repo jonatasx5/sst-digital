@@ -175,20 +175,21 @@ def _substituir_logo_docx(doc: Document, logo_bytes: bytes) -> bool:
 
 
 def _buscar_dados_empresa(nome_empresa: str) -> dict:
-    """Retorna dict com cnpj, resp_sst e logo_bytes da empresa."""
+    """Retorna dict com nome, cnpj, resp_sst e logo_bytes da empresa."""
     try:
         import banco as _banco
         emp = _banco.buscar_empresa_por_nome(nome_empresa)
         if emp:
             logo = _banco.buscar_logo_empresa(nome_empresa)
             return {
+                "nome": emp.get("nome") or nome_empresa,
                 "cnpj": emp.get("cnpj") or CNPJ,
                 "resp_sst": emp.get("resp_sst") or RESP_SST,
                 "logo_bytes": logo,
             }
     except Exception as _e:
         print(f"  ⚠️  buscar_dados_empresa({nome_empresa}): {_e}")
-    return {"cnpj": CNPJ, "resp_sst": RESP_SST, "logo_bytes": None}
+    return {"nome": nome_empresa or EMPRESA, "cnpj": CNPJ, "resp_sst": RESP_SST, "logo_bytes": None}
 
 
 def _substituir_texto(texto: str, variaveis: dict) -> str:
@@ -523,6 +524,9 @@ def preencher_ficha_epi_dinamica(funcionario: dict, epis: list, modelo_bytes: by
 
     doc = Document(io.BytesIO(modelo_bytes))
 
+    # Busca dados da empresa do funcionário (logo, CNPJ, resp_sst)
+    dados_emp = _buscar_dados_empresa(funcionario.get("empresa") or EMPRESA)
+
     variaveis = {
         "NOME":          funcionario.get("nome", ""),
         "CPF":           funcionario.get("cpf", ""),
@@ -533,9 +537,9 @@ def preencher_ficha_epi_dinamica(funcionario: dict, epis: list, modelo_bytes: by
         "DATA_HOJE":     date.today().strftime("%d/%m/%Y"),
         "CELULAR":       funcionario.get("celular", ""),
         "EMAIL":         funcionario.get("email", ""),
-        "EMPRESA":       funcionario.get("empresa") or EMPRESA,
-        "RESP_SST":      RESP_SST,
-        "CNPJ":          CNPJ,
+        "EMPRESA":       dados_emp["nome"],
+        "RESP_SST":      dados_emp["resp_sst"],
+        "CNPJ":          dados_emp["cnpj"],
         "CTPS":          funcionario.get("ctps", ""),
         "RG":            funcionario.get("rg", ""),
         "TITULO_FICHA":  "FICHA DE ENTREGA DE EPI/EPC/UNIFORMES",
@@ -566,6 +570,10 @@ def preencher_ficha_epi_dinamica(funcionario: dict, epis: list, modelo_bytes: by
                 for cell in row.cells:
                     for para in cell.paragraphs:
                         _processar_paragrafo(para, variaveis)
+
+    # Substitui logo da empresa no cabeçalho
+    if dados_emp["logo_bytes"]:
+        _substituir_logo_docx(doc, dados_emp["logo_bytes"])
 
     # Encontra a tabela principal e preenche as linhas de EPI
     import copy
@@ -977,6 +985,7 @@ def preencher_docx_bytes(conteudo_bytes: bytes, nome_arquivo: str,
     """
     import io
     os.makedirs(pasta_saida, exist_ok=True)
+    dados_emp = _buscar_dados_empresa(funcionario.get("empresa") or EMPRESA)
     variaveis = {
         "NOME":          funcionario.get("nome", ""),
         "CPF":           funcionario.get("cpf", ""),
@@ -987,17 +996,17 @@ def preencher_docx_bytes(conteudo_bytes: bytes, nome_arquivo: str,
         "DATA_HOJE":     date.today().strftime("%d/%m/%Y"),
         "CELULAR":       funcionario.get("celular", ""),
         "EMAIL":         funcionario.get("email", ""),
-        "EMPRESA":       funcionario.get("empresa") or EMPRESA,
-        "RESP_SST":      RESP_SST,
-        "CNPJ":          CNPJ,
+        "EMPRESA":       dados_emp["nome"],
+        "RESP_SST":      dados_emp["resp_sst"],
+        "CNPJ":          dados_emp["cnpj"],
         "funcao":        funcionario.get("cargo", ""),
         "dt_adm":        funcionario.get("admissao", ""),
-        "resp_tecnico":  RESP_SST,
+        "resp_tecnico":  dados_emp["resp_sst"],
         "lotacao":       funcionario.get("lotacao", ""),
         "matricula":     funcionario.get("matricula", funcionario.get("cpf", "")),
         "cpf":           funcionario.get("cpf", ""),
         "nome":          funcionario.get("nome", ""),
-        "empresa":       funcionario.get("empresa") or EMPRESA,
+        "empresa":       dados_emp["nome"],
         "cargo":         funcionario.get("cargo", ""),
         "data_hoje":     date.today().strftime("%d/%m/%Y"),
     }
@@ -1025,6 +1034,8 @@ def preencher_docx_bytes(conteudo_bytes: bytes, nome_arquivo: str,
                     for cell in row.cells:
                         for para in cell.paragraphs:
                             _processar_paragrafo(para, variaveis)
+        if dados_emp["logo_bytes"]:
+            _substituir_logo_docx(doc, dados_emp["logo_bytes"])
         caminho_docx = os.path.join(pasta_saida, nome_arquivo)
         doc.save(caminho_docx)
         return caminho_docx

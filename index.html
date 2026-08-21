@@ -301,6 +301,9 @@ tr:hover td { background:#F9FAFB; }
       <option value="JS Construtora">JS Construtora</option>
       <option value="RECOPAV ASFALTOS LTDA">RECOPAV ASFALTOS LTDA</option>
     </select>
+    <select id="filtro-lotacao" onchange="_funcRenderTabela()" style="border:1px solid var(--borda);border-radius:8px;padding:4px 8px;font-size:12px;background:var(--card);color:var(--texto);cursor:pointer">
+      <option value="">Todas as lotações</option>
+    </select>
     <select id="ordenar-func" onchange="_funcRenderTabela()" style="border:1px solid var(--borda);border-radius:8px;padding:4px 8px;font-size:12px;background:var(--card);color:var(--texto);cursor:pointer">
       <option value="nome_az">Nome A→Z</option>
       <option value="nome_za">Nome Z→A</option>
@@ -2895,6 +2898,16 @@ function _funcRenderTabela() {
     );
   }
   if (filtroEmpresa) lista = lista.filter(f => (f.empresa || 'JS Construtora') === filtroEmpresa);
+
+  // Popula o select de lotações com os valores únicos do cache completo
+  const selLot = document.getElementById('filtro-lotacao');
+  if (selLot) {
+    const lotAtual = selLot.value;
+    const lotacoes = [...new Set((_funcCache||[]).map(f => (f.lotacao||f.contrato||'').trim()).filter(Boolean))].sort((a,b) => a.localeCompare(b,'pt-BR'));
+    selLot.innerHTML = '<option value="">Todas as lotações</option>' + lotacoes.map(l => `<option value="${l.replace(/"/g,'&quot;')}"${l===lotAtual?' selected':''}>${l}</option>`).join('');
+  }
+  const filtroLotacao = selLot?.value || '';
+  if (filtroLotacao) lista = lista.filter(f => (f.lotacao||f.contrato||'').trim() === filtroLotacao);
 
   const ordem = document.getElementById('ordenar-func')?.value || 'nome_az';
   const _parseAdm = adm => {

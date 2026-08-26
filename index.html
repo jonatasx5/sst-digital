@@ -4687,7 +4687,10 @@ function histFiltrar() {
     (e.doc_nome||'').toLowerCase().includes(busca) ||
     (e.cargo||'').toLowerCase().includes(busca));
 
-  if (status) dados = dados.filter(e => e.status === status);
+  if (status) {
+    if (status === 'enviado') dados = dados.filter(e => e.status === 'enviado' || e.status === 'pendente' || !e.status);
+    else                      dados = dados.filter(e => e.status === status);
+  }
 
   if (tipo === 'kit')  dados = dados.filter(e => (e.doc_nome||'').toLowerCase().includes('kit'));
   if (tipo === 'epi')  dados = dados.filter(e => (e.doc_nome||'').toLowerCase().includes('epi') || (e.doc_id||'').includes('10_'));
@@ -4894,6 +4897,7 @@ function _badgeStatus(status) {
   const map = {
     enviado:  ['var(--warning)','#fffbeb','Aguardando'],
     pending:  ['var(--warning)','#fffbeb','Aguardando'],
+    pendente: ['var(--warning)','#fffbeb','Aguardando'],
     signed:   ['#16a34a','#f0fdf4','Assinado'],
     refused:  ['var(--danger)','#fef2f2','Recusado'],
     canceled: ['var(--texto2)','var(--fundo)','Cancelado'],

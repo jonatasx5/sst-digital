@@ -4633,8 +4633,8 @@ function histRenderDashboard(dados) {
   if (!dash) return;
   const total    = dados.length;
   const assinados = dados.filter(e => e.status === 'signed').length;
-  const pendentes = dados.filter(e => e.status !== 'signed' && e.status !== 'rejected').length;
-  const recusados = dados.filter(e => e.status === 'rejected').length;
+  const pendentes = dados.filter(e => e.status !== 'signed' && e.status !== 'rejected' && e.status !== 'refused').length;
+  const recusados = dados.filter(e => e.status === 'rejected' || e.status === 'refused').length;
   const taxa = total > 0 ? Math.round(assinados / total * 100) : 0;
 
   const card = (icon, valor, label, cor, bg) => `
@@ -4688,7 +4688,7 @@ function histFiltrar() {
     (e.cargo||'').toLowerCase().includes(busca));
 
   if (status) {
-    if (status === 'enviado') dados = dados.filter(e => e.status === 'enviado' || e.status === 'pendente' || !e.status);
+    if (status === 'enviado') dados = dados.filter(e => e.status === 'enviado' || e.status === 'pendente' || e.status === 'pending' || !e.status);
     else                      dados = dados.filter(e => e.status === status);
   }
 

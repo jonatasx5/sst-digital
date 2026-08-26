@@ -1457,14 +1457,14 @@ tr:hover td { background:#F9FAFB; }
                oninput="histFiltrar()"
                style="width:100%;padding:9px 9px 9px 34px;border:1.5px solid var(--borda);border-radius:8px;font-size:13px;">
       </div>
-      <select id="hist-filtro-status" onchange="histFiltrar()"
+      <select id="hist-filtro-status" onchange="histFiltrar()" oninput="histFiltrar()"
               style="padding:9px 12px;border:1.5px solid var(--borda);border-radius:8px;font-size:13px;background:var(--card);">
         <option value="">Todos os status</option>
         <option value="enviado">Aguardando</option>
         <option value="signed">Assinado</option>
         <option value="refused">Recusado</option>
       </select>
-      <select id="hist-filtro-tipo" onchange="histFiltrar()"
+      <select id="hist-filtro-tipo" onchange="histFiltrar()" oninput="histFiltrar()"
               style="padding:9px 12px;border:1.5px solid var(--borda);border-radius:8px;font-size:13px;background:var(--card);">
         <option value="">Todos os tipos</option>
         <option value="kit">Kit SST</option>

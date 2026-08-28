@@ -1602,6 +1602,28 @@ tr:hover td { background:#F9FAFB; }
       </div>
     </div>
 
+    <!-- Documentos do funcionário -->
+    <div id="mf-docs-section" style="display:none;border-top:1px solid var(--borda);margin:12px 0 10px;padding-top:12px">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+        <label style="font-weight:600;font-size:13px;color:var(--texto)"><i class="ti ti-files" style="margin-right:5px;color:var(--primary)"></i>Documentos Assinados</label>
+        <button type="button" onclick="mfAddDocManual()" style="display:inline-flex;align-items:center;gap:4px;padding:4px 10px;border:1.5px solid var(--primary);border-radius:8px;background:var(--card);color:var(--primary);font-size:12px;font-weight:600;cursor:pointer">
+          <i class="ti ti-plus" style="font-size:13px"></i>Adicionar
+        </button>
+      </div>
+      <div id="mf-docs-list" style="display:flex;flex-direction:column;gap:6px;max-height:220px;overflow-y:auto"></div>
+      <!-- Formulário para adicionar doc manual -->
+      <div id="mf-add-doc-form" style="display:none;margin-top:8px;background:var(--fundo);border:1.5px solid var(--borda);border-radius:10px;padding:10px;display:none">
+        <div style="display:flex;gap:6px;flex-wrap:wrap">
+          <input type="text" id="mf-add-doc-nome" placeholder="Nome do documento" style="flex:1;min-width:140px;padding:7px 10px;border:1.5px solid var(--borda);border-radius:8px;font-size:13px;background:var(--card);color:var(--texto)">
+          <input type="url"  id="mf-add-doc-link" placeholder="Link (https://...)" style="flex:2;min-width:180px;padding:7px 10px;border:1.5px solid var(--borda);border-radius:8px;font-size:13px;background:var(--card);color:var(--texto)">
+        </div>
+        <div style="display:flex;gap:6px;margin-top:6px;justify-content:flex-end">
+          <button type="button" onclick="mfCancelarAddDoc()" style="padding:5px 12px;border:1.5px solid var(--borda);border-radius:8px;background:var(--card);color:var(--texto2);font-size:12px;cursor:pointer">Cancelar</button>
+          <button type="button" onclick="mfConfirmarAddDoc()" style="padding:5px 12px;border:none;border-radius:8px;background:var(--primary);color:#fff;font-size:12px;font-weight:600;cursor:pointer">Salvar documento</button>
+        </div>
+      </div>
+    </div>
+
     <button class="btn btn-primary" style="width:100%;justify-content:center" onclick="salvarFunc()">
       <i class="ti ti-device-floppy"></i>Salvar
     </button>
@@ -3061,6 +3083,76 @@ function _mfModoNovaFunc(valor) {
   document.getElementById('mf-nova-func-extra').style.display = '';
 }
 
+// ── Documentos do funcionário ──────────────────────────
+let _mfDocsExtras = [];
+
+function mfRenderDocs(funcId) {
+  const list = document.getElementById('mf-docs-list');
+  // Docs da plataforma (signed)
+  const plataforma = (_histCache || []).filter(e => {
+    if (e.status !== 'signed') return false;
+    if (e.funcionario_id) return e.funcionario_id == funcId;
+    return false;
+  });
+  const linhas = [];
+  plataforma.forEach(e => {
+    const data = e.assinado_em ? (' · ' + _fmtDt(e.assinado_em)) : '';
+    const link = e.link_assinatura
+      ? `<a href="${e.link_assinatura}" target="_blank" style="color:var(--primary);font-size:11px;white-space:nowrap">Ver doc</a>`
+      : '<span style="color:var(--texto2);font-size:11px">sem link</span>';
+    linhas.push(`<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;padding:7px 10px;background:var(--fundo);border-radius:8px;border:1px solid var(--borda)">
+      <div style="display:flex;align-items:center;gap:7px;overflow:hidden">
+        <i class="ti ti-file-check" style="color:#16a34a;font-size:15px;flex-shrink:0"></i>
+        <span style="font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${(e.doc_nome||'').replace(/"/g,'')}">${e.doc_nome||e.doc_id||'—'}</span>
+        <span style="color:var(--texto2);font-size:11px;flex-shrink:0">${data}</span>
+      </div>
+      ${link}
+    </div>`);
+  });
+  // Docs extras (manuais)
+  _mfDocsExtras.forEach((d, i) => {
+    const link = d.link
+      ? `<a href="${d.link}" target="_blank" style="color:var(--primary);font-size:11px;white-space:nowrap">Ver doc</a>`
+      : '<span style="color:var(--texto2);font-size:11px">sem link</span>';
+    linhas.push(`<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;padding:7px 10px;background:var(--fundo);border-radius:8px;border:1px solid var(--borda)">
+      <div style="display:flex;align-items:center;gap:7px;overflow:hidden">
+        <i class="ti ti-file-text" style="color:var(--texto2);font-size:15px;flex-shrink:0"></i>
+        <span style="font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${(d.nome||'').replace(/"/g,'')}">${d.nome||'—'}</span>
+      </div>
+      <div style="display:flex;align-items:center;gap:6px">${link}<button type="button" onclick="mfRemoverDoc(${i})" style="background:none;border:none;color:var(--danger);cursor:pointer;font-size:15px;padding:0;line-height:1" title="Remover">×</button></div>
+    </div>`);
+  });
+  list.innerHTML = linhas.length
+    ? linhas.join('')
+    : '<div style="color:var(--texto2);font-size:13px;text-align:center;padding:14px 0">Nenhum documento registrado.</div>';
+}
+
+function mfAddDocManual() {
+  const f = document.getElementById('mf-add-doc-form');
+  f.style.display = '';
+  document.getElementById('mf-add-doc-nome').value = '';
+  document.getElementById('mf-add-doc-link').value = '';
+  document.getElementById('mf-add-doc-nome').focus();
+}
+function mfCancelarAddDoc() {
+  document.getElementById('mf-add-doc-form').style.display = 'none';
+}
+function mfConfirmarAddDoc() {
+  const nome = document.getElementById('mf-add-doc-nome').value.trim();
+  const link = document.getElementById('mf-add-doc-link').value.trim();
+  if (!nome) { document.getElementById('mf-add-doc-nome').focus(); return; }
+  _mfDocsExtras.push({ nome, link });
+  document.getElementById('mf-add-doc-form').style.display = 'none';
+  const fid = document.getElementById('mf-id').value;
+  mfRenderDocs(fid);
+}
+function mfRemoverDoc(i) {
+  _mfDocsExtras.splice(i, 1);
+  const fid = document.getElementById('mf-id').value;
+  mfRenderDocs(fid);
+}
+// ────────────────────────────────────────────────────────
+
 function mfStatusDocChange(sel) {
   const mostrarLink = sel.value === 'assinado';
   document.getElementById('mf-link-doc-wrap').style.display = mostrarLink ? '' : 'none';
@@ -3102,6 +3194,14 @@ function abrirModalFunc(f) {
   })();
   abrirModal('modal-func');
   _carregarSelectCargos(f.cargo || '');
+  // Documentos do funcionário
+  _mfDocsExtras = JSON.parse(f.docs_extras || '[]');
+  if (f.id) {
+    document.getElementById('mf-docs-section').style.display = '';
+    mfRenderDocs(f.id);
+  } else {
+    document.getElementById('mf-docs-section').style.display = 'none';
+  }
 }
 
 async function salvarFunc() {
@@ -3117,6 +3217,7 @@ async function salvarFunc() {
   dados.status_doc  = document.getElementById('mf-status-doc').value;
   dados.assinou_doc = dados.status_doc === 'assinado';
   dados.link_doc    = document.getElementById('mf-link-doc').value.trim();
+  dados.docs_extras = JSON.stringify(_mfDocsExtras || []);
   if (!dados.nome || !dados.cpf || !dados.cargo) { alert('Nome, CPF e Cargo são obrigatórios.'); return; }
 
   // Se é nova função, salva no cadastro de funções + CBO opcional

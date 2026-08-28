@@ -1228,41 +1228,42 @@ def salvar_funcionario(dados):
                 if cur.fetchone():
                     raise ValueError(f"CPF {dados['cpf']} já está cadastrado para outro funcionário.")
 
-        fid      = dados.get("id")
-        status_doc = dados.get("status_doc", "") or ""
-        assinou    = status_doc == "assinado" or bool(dados.get("assinou_doc", False))
-        link_doc   = dados.get("link_doc", "") or ""
+        fid         = dados.get("id")
+        status_doc  = dados.get("status_doc", "") or ""
+        assinou     = status_doc == "assinado" or bool(dados.get("assinou_doc", False))
+        link_doc    = dados.get("link_doc", "") or ""
+        docs_extras = dados.get("docs_extras", "[]") or "[]"
         if fid:
             if USE_POSTGRES:
                 cur.execute("""UPDATE funcionarios SET nome=%s,cpf=%s,matricula=%s,cargo=%s,
                     lotacao=%s,admissao=%s,celular=%s,email=%s,empresa=%s,
-                    assinou_doc=%s,link_doc=%s,status_doc=%s WHERE id=%s""",
+                    assinou_doc=%s,link_doc=%s,status_doc=%s,docs_extras=%s WHERE id=%s""",
                     (dados["nome"],dados["cpf"],dados.get("matricula",""),dados["cargo"],
                      dados.get("lotacao",""),dados.get("admissao",""),dados.get("celular",""),
                      dados.get("email",""),dados.get("empresa","JS Construtora"),
-                     assinou, link_doc, status_doc, fid))
+                     assinou, link_doc, status_doc, docs_extras, fid))
             else:
                 cur.execute("""UPDATE funcionarios SET nome=?,cpf=?,matricula=?,cargo=?,
                     lotacao=?,admissao=?,celular=?,email=?,empresa=?,
-                    assinou_doc=?,link_doc=?,status_doc=? WHERE id=?""",
+                    assinou_doc=?,link_doc=?,status_doc=?,docs_extras=? WHERE id=?""",
                     (dados["nome"],dados["cpf"],dados.get("matricula",""),dados["cargo"],
                      dados.get("lotacao",""),dados.get("admissao",""),dados.get("celular",""),
                      dados.get("email",""),dados.get("empresa","JS Construtora"),
-                     1 if assinou else 0, link_doc, status_doc, fid))
+                     1 if assinou else 0, link_doc, status_doc, docs_extras, fid))
         else:
             if USE_POSTGRES:
-                cur.execute("""INSERT INTO funcionarios (nome,cpf,matricula,cargo,lotacao,admissao,celular,email,empresa,assinou_doc,link_doc,status_doc)
-                    VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s) RETURNING id""",
+                cur.execute("""INSERT INTO funcionarios (nome,cpf,matricula,cargo,lotacao,admissao,celular,email,empresa,assinou_doc,link_doc,status_doc,docs_extras)
+                    VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s) RETURNING id""",
                     (dados["nome"],dados["cpf"],dados.get("matricula",""),dados["cargo"],
                      dados.get("lotacao",""),dados.get("admissao",""),dados.get("celular",""),dados.get("email",""),
-                     dados.get("empresa","JS Construtora"), assinou, link_doc, status_doc))
+                     dados.get("empresa","JS Construtora"), assinou, link_doc, status_doc, docs_extras))
                 fid = cur.fetchone()["id"]
             else:
-                cur.execute("""INSERT INTO funcionarios (nome,cpf,matricula,cargo,lotacao,admissao,celular,email,empresa,assinou_doc,link_doc,status_doc)
-                    VALUES (?,?,?,?,?,?,?,?,?,?,?,?)""",
+                cur.execute("""INSERT INTO funcionarios (nome,cpf,matricula,cargo,lotacao,admissao,celular,email,empresa,assinou_doc,link_doc,status_doc,docs_extras)
+                    VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)""",
                     (dados["nome"],dados["cpf"],dados.get("matricula",""),dados["cargo"],
                      dados.get("lotacao",""),dados.get("admissao",""),dados.get("celular",""),dados.get("email",""),
-                     dados.get("empresa","JS Construtora"), 1 if assinou else 0, link_doc, status_doc))
+                     dados.get("empresa","JS Construtora"), 1 if assinou else 0, link_doc, status_doc, docs_extras))
                 fid = cur.lastrowid
 
         conn.commit()

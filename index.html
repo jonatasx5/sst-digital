@@ -267,6 +267,7 @@ tr:hover td { background:#F9FAFB; }
   <div class="page-header">
     <div><div class="page-title">Funcionários</div><div class="page-sub" id="func-count-sub">carregando...</div></div>
     <div style="display:flex;gap:8px">
+      <button class="btn btn-outline btn-sm" onclick="toggleVisaoLotacao()" id="btn-visao-lotacao"><i class="ti ti-building-community"></i>Ver por Lotação</button>
       <button class="btn btn-outline btn-sm" onclick="abrirImport()"><i class="ti ti-table-import"></i>Importar Excel</button>
       <button class="btn btn-primary btn-sm" onclick="abrirModalFunc(null)"><i class="ti ti-plus"></i>Novo</button>
     </div>
@@ -312,6 +313,56 @@ tr:hover td { background:#F9FAFB; }
     </select>
   </div>
 
+  <!-- ── PAINEL VISÃO POR LOTAÇÃO ── -->
+  <div id="painel-lotacoes" style="display:none">
+    <!-- Stat cards -->
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:12px;margin-bottom:16px" id="lot-stat-cards">
+      <div class="card" style="padding:14px 16px;text-align:center">
+        <div style="font-size:11px;font-weight:600;color:var(--texto2);text-transform:uppercase;letter-spacing:.05em;margin-bottom:4px">Total Funcionários</div>
+        <div id="lot-stat-total" style="font-size:26px;font-weight:700;color:var(--texto)">—</div>
+      </div>
+      <div class="card" style="padding:14px 16px;text-align:center">
+        <div style="font-size:11px;font-weight:600;color:var(--texto2);text-transform:uppercase;letter-spacing:.05em;margin-bottom:4px">Média EPI</div>
+        <div id="lot-stat-epi" style="font-size:26px;font-weight:700;color:var(--verde)">—</div>
+      </div>
+      <div class="card" style="padding:14px 16px;text-align:center">
+        <div style="font-size:11px;font-weight:600;color:var(--texto2);text-transform:uppercase;letter-spacing:.05em;margin-bottom:4px">Média Kit SST</div>
+        <div id="lot-stat-kit" style="font-size:26px;font-weight:700;color:var(--verde)">—</div>
+      </div>
+      <div class="card" style="padding:14px 16px;text-align:center">
+        <div style="font-size:11px;font-weight:600;color:var(--texto2);text-transform:uppercase;letter-spacing:.05em;margin-bottom:4px">Lotações Críticas</div>
+        <div id="lot-stat-criticas" style="font-size:26px;font-weight:700;color:var(--danger)">—</div>
+      </div>
+    </div>
+    <!-- Ordenação -->
+    <div style="display:flex;justify-content:flex-end;margin-bottom:10px;gap:8px;align-items:center">
+      <label style="font-size:12px;color:var(--texto2)">Ordenar por:</label>
+      <select id="lot-ordenar" onchange="renderPainelLotacoes()" style="border:1px solid var(--borda);border-radius:8px;padding:4px 8px;font-size:12px;background:var(--card);color:var(--texto)">
+        <option value="critico">Mais crítico primeiro</option>
+        <option value="nome">Nome A→Z</option>
+        <option value="epi">EPI % crescente</option>
+        <option value="kit">Kit SST % crescente</option>
+        <option value="qtd">Maior equipe</option>
+      </select>
+    </div>
+    <!-- Tabela -->
+    <div class="card" style="padding:0;overflow:hidden">
+      <div class="table-wrap">
+        <table>
+          <thead><tr>
+            <th style="width:6px;padding:0"></th>
+            <th>Lotação</th>
+            <th style="text-align:center;white-space:nowrap">Funcionários</th>
+            <th style="min-width:160px">Ficha EPI</th>
+            <th style="min-width:160px">Kit SST</th>
+          </tr></thead>
+          <tbody id="lot-tbody"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <div id="painel-func-tabela">
   <div class="card" style="padding:0">
     <div class="table-wrap">
       <table>
@@ -321,6 +372,7 @@ tr:hover td { background:#F9FAFB; }
         <tbody id="func-tbody"></tbody>
       </table>
     </div>
+  </div>
   </div>
 </div>
 
@@ -2923,6 +2975,112 @@ async function carregarFuncionarios(forcarReload = false) {
     } catch(e) {}
   }
   _funcRenderTabela();
+}
+
+let _visaoLotacaoAtiva = false;
+function toggleVisaoLotacao() {
+  _visaoLotacaoAtiva = !_visaoLotacaoAtiva;
+  const btn = document.getElementById('btn-visao-lotacao');
+  const painelLot = document.getElementById('painel-lotacoes');
+  const painelTab = document.getElementById('painel-func-tabela');
+  if (_visaoLotacaoAtiva) {
+    painelLot.style.display = '';
+    painelTab.style.display = 'none';
+    btn.style.background = 'var(--primary)';
+    btn.style.color = '#fff';
+    renderPainelLotacoes();
+  } else {
+    painelLot.style.display = 'none';
+    painelTab.style.display = '';
+    btn.style.background = '';
+    btn.style.color = '';
+  }
+}
+
+function renderPainelLotacoes() {
+  const funcs = _funcCache || [];
+  const hist  = _histCache || [];
+  const ordenar = (document.getElementById('lot-ordenar') || {}).value || 'critico';
+
+  // Índice: funcionario_id → envios signed
+  const epiSigned = new Set();
+  hist.forEach(e => {
+    if (e.status === 'signed') {
+      const nome = (e.doc_nome || '').toLowerCase();
+      const id   = (e.doc_id   || '').toLowerCase();
+      if (nome.includes('epi') || id.includes('10_') || id.includes('epi')) {
+        epiSigned.add(String(e.funcionario_id));
+      }
+    }
+  });
+
+  // Agrupar por lotação
+  const grupos = {};
+  funcs.forEach(f => {
+    const lot = (f.lotacao || f.contrato || 'Sem Lotação').trim();
+    if (!grupos[lot]) grupos[lot] = { nome: lot, funcs: [] };
+    grupos[lot].funcs.push(f);
+  });
+
+  const rows = Object.values(grupos).map(g => {
+    const total  = g.funcs.length;
+    const epiOk  = g.funcs.filter(f => epiSigned.has(String(f.id))).length;
+    const kitOk  = g.funcs.filter(f => f.assinou_doc || f.status_doc === 'assinado').length;
+    const epiPct = total ? Math.round(epiOk / total * 100) : 0;
+    const kitPct = total ? Math.round(kitOk / total * 100) : 0;
+    const score  = epiPct + kitPct; // baixo = crítico
+    return { nome: g.nome, total, epiOk, kitOk, epiPct, kitPct, score };
+  });
+
+  // Ordenar
+  rows.sort((a, b) => {
+    if (ordenar === 'critico') return a.score - b.score;
+    if (ordenar === 'nome')    return a.nome.localeCompare(b.nome);
+    if (ordenar === 'epi')     return a.epiPct - b.epiPct;
+    if (ordenar === 'kit')     return a.kitPct - b.kitPct;
+    if (ordenar === 'qtd')     return b.total - a.total;
+    return 0;
+  });
+
+  // Stat cards
+  const totalFuncs  = funcs.length;
+  const mediaEpi    = rows.length ? Math.round(rows.reduce((s,r)=>s+r.epiPct,0)/rows.length) : 0;
+  const mediaKit    = rows.length ? Math.round(rows.reduce((s,r)=>s+r.kitPct,0)/rows.length) : 0;
+  const criticas    = rows.filter(r => r.epiPct < 50 || r.kitPct < 50).length;
+
+  function statColor(v) { return v >= 80 ? '#10b981' : v >= 50 ? '#f59e0b' : '#ef4444'; }
+  document.getElementById('lot-stat-total').textContent    = totalFuncs;
+  document.getElementById('lot-stat-epi').textContent      = mediaEpi + '%';
+  document.getElementById('lot-stat-epi').style.color      = statColor(mediaEpi);
+  document.getElementById('lot-stat-kit').textContent      = mediaKit + '%';
+  document.getElementById('lot-stat-kit').style.color      = statColor(mediaKit);
+  document.getElementById('lot-stat-criticas').textContent = criticas;
+
+  // Tabela
+  function barHtml(pct) {
+    const c = pct >= 80 ? '#10b981' : pct >= 50 ? '#f59e0b' : '#ef4444';
+    return `<div style="display:flex;align-items:center;gap:8px">
+      <div style="flex:1;background:var(--borda);border-radius:99px;height:8px;overflow:hidden">
+        <div style="width:${pct}%;height:100%;background:${c};border-radius:99px;transition:width .4s"></div>
+      </div>
+      <span style="font-size:12px;font-weight:600;color:${c};min-width:32px;text-align:right;font-variant-numeric:tabular-nums">${pct}%</span>
+    </div>`;
+  }
+  function stripeColor(r) {
+    const m = Math.min(r.epiPct, r.kitPct);
+    return m < 50 ? '#ef4444' : m < 80 ? '#f59e0b' : '#10b981';
+  }
+
+  const tbody = document.getElementById('lot-tbody');
+  if (!rows.length) { tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;padding:32px;color:var(--texto2)">Nenhuma lotação encontrada</td></tr>'; return; }
+
+  tbody.innerHTML = rows.map(r => `<tr style="cursor:default">
+    <td style="padding:0;width:4px;background:${stripeColor(r)};min-height:100%"></td>
+    <td style="font-weight:600;font-size:13px;padding:12px 14px">${r.nome}</td>
+    <td style="text-align:center;font-size:13px;font-variant-numeric:tabular-nums;font-weight:500">${r.total}</td>
+    <td style="padding:10px 14px">${barHtml(r.epiPct)}<div style="font-size:10px;color:var(--texto2);margin-top:3px">${r.epiOk} de ${r.total}</div></td>
+    <td style="padding:10px 14px">${barHtml(r.kitPct)}<div style="font-size:10px;color:var(--texto2);margin-top:3px">${r.kitOk} de ${r.total}</div></td>
+  </tr>`).join('');
 }
 
 function _funcRenderTabela() {

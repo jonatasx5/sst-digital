@@ -4005,10 +4005,10 @@ async function carregarEpisDoCargo() {
   if (!cargo) { div.innerHTML = ''; return; }
 
   const [resCat, resCargo] = await Promise.all([
-    apiFetch('/api/epis/catalogo').then(r=>r.json()),
-    fetch(`/api/epis/cargo/${encodeURIComponent(cargo)}`).then(r=>r.json())
+    apiFetch('/api/epis/catalogo').then(r=>r.json()).catch(()=>[]),
+    apiFetch(`/api/epis/cargo/${encodeURIComponent(cargo)}`).then(r=>r.json()).catch(()=>[])
   ]);
-  const idsNosCargo = new Set(resCargo.map(e => e.epi_id));
+  const idsNosCargo = new Set((resCargo||[]).map(e => e.epi_id));
   div.innerHTML = '<div style="font-size:11px;color:var(--texto2);margin-bottom:8px">Marque os EPIs deste cargo:</div>';
   resCat.forEach(e => {
     const chk = idsNosCargo.has(e.id) ? 'checked' : '';

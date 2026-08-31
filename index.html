@@ -302,6 +302,11 @@ tr:hover td { background:#F9FAFB; }
       <option value="JS Construtora">JS Construtora</option>
       <option value="RECOPAV ASFALTOS LTDA">RECOPAV ASFALTOS LTDA</option>
     </select>
+    <select id="filtro-situacao" onchange="_funcRenderTabela()" style="border:1px solid var(--borda);border-radius:8px;padding:4px 8px;font-size:12px;background:var(--card);color:var(--texto);cursor:pointer">
+      <option value="ativo">Ativos</option>
+      <option value="desligado">Desligados</option>
+      <option value="">Todos</option>
+    </select>
     <select id="filtro-lotacao" onchange="_funcRenderTabela()" style="border:1px solid var(--borda);border-radius:8px;padding:4px 8px;font-size:12px;background:var(--card);color:var(--texto);cursor:pointer">
       <option value="">Todas as lotações</option>
     </select>
@@ -2998,7 +3003,7 @@ function toggleVisaoLotacao() {
 }
 
 function renderPainelLotacoes() {
-  const funcs = _funcCache || [];
+  const funcs = (_funcCache || []).filter(f => (f.situacao || 'ativo') === 'ativo');
   const hist  = _histCache || [];
   const ordenar = (document.getElementById('lot-ordenar') || {}).value || 'critico';
 
@@ -3098,6 +3103,9 @@ function _funcRenderTabela() {
   }
   if (filtroEmpresa) lista = lista.filter(f => (f.empresa || 'JS Construtora') === filtroEmpresa);
 
+  const filtroSituacao = document.getElementById('filtro-situacao')?.value ?? 'ativo';
+  if (filtroSituacao) lista = lista.filter(f => (f.situacao || 'ativo') === filtroSituacao);
+
   // Popula o select de lotações com os valores únicos do cache completo
   const selLot = document.getElementById('filtro-lotacao');
   if (selLot) {
@@ -3150,9 +3158,10 @@ function _funcRenderTabela() {
     _kitSignedIds.forEach(id => _kitPendIds.delete(id));
   }
 
-  // Banner de cobertura (usa lista total de funcionários, não a filtrada)
-  const totalFuncs  = (_funcCache || []).length;
-  const totalSigned = (_funcCache || []).filter(f => _kitSignedIds.has(f.id)).length;
+  // Banner de cobertura (usa apenas funcionários ativos)
+  const _funcAtivos  = (_funcCache || []).filter(f => (f.situacao || 'ativo') === 'ativo');
+  const totalFuncs  = _funcAtivos.length;
+  const totalSigned = _funcAtivos.filter(f => _kitSignedIds.has(f.id)).length;
   const faltam      = totalFuncs - totalSigned;
   const pct         = totalFuncs > 0 ? Math.round(totalSigned / totalFuncs * 100) : 0;
   const banner = document.getElementById('kit-sst-banner');
@@ -3190,7 +3199,10 @@ function _funcRenderTabela() {
     return `<tr>
       <td><div style="display:flex;align-items:center;gap:8px">
         <div style="width:30px;height:30px;border-radius:50%;background:var(--verde-light);color:var(--verde-dark);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;flex-shrink:0">${ini}</div>
-        <div><div class="fn">${f.nome}${empresaBadge}</div></div>
+        <div>
+          <div class="fn">${f.nome}${empresaBadge}</div>
+          ${(f.situacao||'ativo')==='desligado' ? '<div style="font-size:10px;font-weight:700;color:#ef4444;letter-spacing:.04em;margin-top:1px">DESLIGADO</div>' : ''}
+        </div>
       </div></td>
       <td>${f.cpf}</td>
       <td><div class="fn" style="font-size:12px">${f.cargo}</div>${f.cbo?`<div style="font-size:10px;color:var(--texto2)">CBO: ${f.cbo}</div>`:''}</td>

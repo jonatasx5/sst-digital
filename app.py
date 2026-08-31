@@ -207,7 +207,7 @@ async def startup_event():
         cur = conn.cursor()
         if banco.USE_POSTGRES:
             conn.autocommit = True
-            for col, ddl in [("assinou_doc", "BOOLEAN DEFAULT FALSE"), ("link_doc", "TEXT DEFAULT ''"), ("status_doc", "TEXT DEFAULT ''"), ("docs_extras", "TEXT DEFAULT '[]'")]:
+            for col, ddl in [("assinou_doc", "BOOLEAN DEFAULT FALSE"), ("link_doc", "TEXT DEFAULT ''"), ("status_doc", "TEXT DEFAULT ''"), ("docs_extras", "TEXT DEFAULT '[]'"), ("situacao", "TEXT DEFAULT 'ativo'")]:
                 try:
                     cur.execute(f"ALTER TABLE funcionarios ADD COLUMN {col} {ddl}")
                     print(f"[STARTUP] coluna {col} adicionada em funcionarios")
@@ -224,6 +224,8 @@ async def startup_event():
                 cur.execute("ALTER TABLE funcionarios ADD COLUMN status_doc TEXT DEFAULT ''")
             if "docs_extras" not in cols:
                 cur.execute("ALTER TABLE funcionarios ADD COLUMN docs_extras TEXT DEFAULT '[]'")
+            if "situacao" not in cols:
+                cur.execute("ALTER TABLE funcionarios ADD COLUMN situacao TEXT DEFAULT 'ativo'")
             conn.commit()
         conn.close()
     except Exception as e:
@@ -895,7 +897,12 @@ async def importar_planilha(file: UploadFile = File(...), _=Depends(verificar_ac
         if cbos_salvos:
             avisos.append(f"ℹ️ {cbos_salvos} cargo(s) com CBO preenchido automaticamente da planilha.")
 
-        return {"ok": True, "inseridos": ins, "atualizados": atu, "avisos": avisos}
+        cpfs_importados = [f.get("cpf","").strip() for f in lista if f.get("cpf","").strip()]
+        desligados = banco.marcar_desligados(cpfs_importados)
+        if desligados:
+            avisos.append(f"⚠️ {desligados} funcionário(s) não encontrado(s) na planilha foram marcados como DESLIGADOS.")
+
+        return {"ok": True, "inseridos": ins, "atualizados": atu, "desligados": desligados, "avisos": avisos}
     finally:
         os.unlink(tmp_path)
 

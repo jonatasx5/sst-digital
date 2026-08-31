@@ -1177,13 +1177,13 @@ def importar_funcionarios(lista):
             if existe:
                 if USE_POSTGRES:
                     cur.execute("""UPDATE funcionarios SET nome=%s,cargo=%s,lotacao=%s,
-                        admissao=%s,celular=%s,email=%s,empresa=%s,ativo=1 WHERE cpf=%s""",
+                        admissao=%s,celular=%s,email=%s,empresa=%s,ativo=1,situacao='ativo' WHERE cpf=%s""",
                         (f.get("nome",""),f.get("cargo",""),f.get("lotacao",""),
                          f.get("admissao",""),f.get("celular",""),f.get("email",""),
                          f.get("empresa","JS Construtora"),cpf))
                 else:
                     cur.execute("""UPDATE funcionarios SET nome=?,cargo=?,lotacao=?,
-                        admissao=?,celular=?,email=?,empresa=?,ativo=1 WHERE cpf=?""",
+                        admissao=?,celular=?,email=?,empresa=?,ativo=1,situacao='ativo' WHERE cpf=?""",
                         (f.get("nome",""),f.get("cargo",""),f.get("lotacao",""),
                          f.get("admissao",""),f.get("celular",""),f.get("email",""),
                          f.get("empresa","JS Construtora"),cpf))
@@ -1207,6 +1207,28 @@ def importar_funcionarios(lista):
     finally:
         conn.close()
     return inseridos, atualizados
+
+
+def marcar_desligados(cpfs_ativos: list) -> int:
+    """Marca como desligado todo funcionário cujo CPF não está em cpfs_ativos."""
+    if not cpfs_ativos:
+        return 0
+    conn = conectar()
+    try:
+        if USE_POSTGRES:
+            cur = conn.cursor(cursor_factory=_psycopg2_extras.RealDictCursor)
+            placeholders = ",".join(["%s"] * len(cpfs_ativos))
+            cur.execute(f"UPDATE funcionarios SET situacao='desligado' WHERE cpf NOT IN ({placeholders})", tuple(cpfs_ativos))
+            count = cur.rowcount
+        else:
+            cur = conn.cursor()
+            placeholders = ",".join(["?"] * len(cpfs_ativos))
+            cur.execute(f"UPDATE funcionarios SET situacao='desligado' WHERE cpf NOT IN ({placeholders})", tuple(cpfs_ativos))
+            count = cur.rowcount
+        conn.commit()
+        return count
+    finally:
+        conn.close()
 
 
 def salvar_funcionario(dados):

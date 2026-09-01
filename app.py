@@ -702,7 +702,9 @@ async def listar_pedidos(_=Depends(verificar_acesso)):
 
 @app.post("/api/pedidos")
 async def criar_pedido(dados: dict, _=Depends(verificar_acesso)):
-    pid = banco.criar_pedido(dados.get('mes_ref'), dados.get('solicitante'), dados.get('obra',''), dados.get('itens',[]))
+    pid = banco.criar_pedido(
+        dados.get('mes_ref'), dados.get('solicitante'), dados.get('obra',''), dados.get('itens',[]),
+        dados.get('num_oc',''), dados.get('data_oc',''), dados.get('fornecedor',''), dados.get('departamento',''))
     return {"ok": True, "id": pid}
 
 @app.get("/api/pedidos/{pedido_id}")

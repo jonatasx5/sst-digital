@@ -1043,19 +1043,30 @@ def _criar_tabelas_pedidos(conn, use_pg):
     if use_pg:
         cur.execute("""CREATE TABLE IF NOT EXISTS pedidos (
             id SERIAL PRIMARY KEY, mes_ref TEXT NOT NULL, solicitante TEXT NOT NULL,
-            obra TEXT DEFAULT '', created_at TIMESTAMP DEFAULT NOW())""")
+            obra TEXT DEFAULT '', num_oc TEXT DEFAULT '', data_oc TEXT DEFAULT '',
+            fornecedor TEXT DEFAULT '', departamento TEXT DEFAULT '',
+            created_at TIMESTAMP DEFAULT NOW())""")
         cur.execute("""CREATE TABLE IF NOT EXISTS pedido_itens (
             id SERIAL PRIMARY KEY, pedido_id INTEGER REFERENCES pedidos(id) ON DELETE CASCADE,
-            descricao TEXT NOT NULL, quantidade REAL DEFAULT 1, valor_unit REAL DEFAULT 0,
-            status TEXT DEFAULT 'pendente', observacao TEXT DEFAULT '')""")
+            descricao TEXT NOT NULL, unidade TEXT DEFAULT 'UN', quantidade REAL DEFAULT 1,
+            valor_unit REAL DEFAULT 0, status TEXT DEFAULT 'pendente', observacao TEXT DEFAULT '')""")
+        # Adiciona colunas novas se tabelas já existiam
+        for col, ddl in [("num_oc","TEXT DEFAULT ''"),("data_oc","TEXT DEFAULT ''"),
+                         ("fornecedor","TEXT DEFAULT ''"),("departamento","TEXT DEFAULT ''")]:
+            try: cur.execute(f"ALTER TABLE pedidos ADD COLUMN {col} {ddl}")
+            except: pass
+        try: cur.execute("ALTER TABLE pedido_itens ADD COLUMN unidade TEXT DEFAULT 'UN'")
+        except: pass
     else:
         cur.execute("""CREATE TABLE IF NOT EXISTS pedidos (
             id INTEGER PRIMARY KEY AUTOINCREMENT, mes_ref TEXT NOT NULL, solicitante TEXT NOT NULL,
-            obra TEXT DEFAULT '', created_at TEXT DEFAULT (datetime('now')))""")
+            obra TEXT DEFAULT '', num_oc TEXT DEFAULT '', data_oc TEXT DEFAULT '',
+            fornecedor TEXT DEFAULT '', departamento TEXT DEFAULT '',
+            created_at TEXT DEFAULT (datetime('now')))""")
         cur.execute("""CREATE TABLE IF NOT EXISTS pedido_itens (
             id INTEGER PRIMARY KEY AUTOINCREMENT, pedido_id INTEGER REFERENCES pedidos(id),
-            descricao TEXT NOT NULL, quantidade REAL DEFAULT 1, valor_unit REAL DEFAULT 0,
-            status TEXT DEFAULT 'pendente', observacao TEXT DEFAULT '')""")
+            descricao TEXT NOT NULL, unidade TEXT DEFAULT 'UN', quantidade REAL DEFAULT 1,
+            valor_unit REAL DEFAULT 0, status TEXT DEFAULT 'pendente', observacao TEXT DEFAULT '')""")
     conn.commit()
 
 def listar_pedidos():
@@ -1110,25 +1121,26 @@ def buscar_pedido(pedido_id: int):
     finally:
         conn.close()
 
-def criar_pedido(mes_ref, solicitante, obra, itens):
+def criar_pedido(mes_ref, solicitante, obra, itens, num_oc='', data_oc='', fornecedor='', departamento=''):
     conn = conectar()
     try:
         _criar_tabelas_pedidos(conn, USE_POSTGRES)
         if USE_POSTGRES:
             cur = conn.cursor(cursor_factory=_psycopg2_extras.RealDictCursor)
-            cur.execute("INSERT INTO pedidos (mes_ref,solicitante,obra) VALUES (%s,%s,%s) RETURNING id",
-                        (mes_ref, solicitante, obra))
+            cur.execute("INSERT INTO pedidos (mes_ref,solicitante,obra,num_oc,data_oc,fornecedor,departamento) VALUES (%s,%s,%s,%s,%s,%s,%s) RETURNING id",
+                        (mes_ref, solicitante, obra, num_oc, data_oc, fornecedor, departamento))
             pid = cur.fetchone()['id']
             for it in itens:
-                cur.execute("INSERT INTO pedido_itens (pedido_id,descricao,quantidade,valor_unit,status,observacao) VALUES (%s,%s,%s,%s,%s,%s)",
-                            (pid, it.get('descricao',''), it.get('quantidade',1), it.get('valor_unit',0), it.get('status','pendente'), it.get('observacao','')))
+                cur.execute("INSERT INTO pedido_itens (pedido_id,descricao,unidade,quantidade,valor_unit,status,observacao) VALUES (%s,%s,%s,%s,%s,%s,%s)",
+                            (pid, it.get('descricao',''), it.get('unidade','UN'), it.get('quantidade',1), it.get('valor_unit',0), it.get('status','pendente'), it.get('observacao','')))
         else:
             cur = conn.cursor()
-            cur.execute("INSERT INTO pedidos (mes_ref,solicitante,obra) VALUES (?,?,?)", (mes_ref, solicitante, obra))
+            cur.execute("INSERT INTO pedidos (mes_ref,solicitante,obra,num_oc,data_oc,fornecedor,departamento) VALUES (?,?,?,?,?,?,?)",
+                        (mes_ref, solicitante, obra, num_oc, data_oc, fornecedor, departamento))
             pid = cur.lastrowid
             for it in itens:
-                cur.execute("INSERT INTO pedido_itens (pedido_id,descricao,quantidade,valor_unit,status,observacao) VALUES (?,?,?,?,?,?)",
-                            (pid, it.get('descricao',''), it.get('quantidade',1), it.get('valor_unit',0), it.get('status','pendente'), it.get('observacao','')))
+                cur.execute("INSERT INTO pedido_itens (pedido_id,descricao,unidade,quantidade,valor_unit,status,observacao) VALUES (?,?,?,?,?,?,?)",
+                            (pid, it.get('descricao',''), it.get('unidade','UN'), it.get('quantidade',1), it.get('valor_unit',0), it.get('status','pendente'), it.get('observacao','')))
         conn.commit()
         return pid
     finally:
@@ -1141,20 +1153,22 @@ def atualizar_pedido(pedido_id: int, dados: dict):
         itens = dados.get('itens', [])
         if USE_POSTGRES:
             cur = conn.cursor(cursor_factory=_psycopg2_extras.RealDictCursor)
-            cur.execute("UPDATE pedidos SET mes_ref=%s,solicitante=%s,obra=%s WHERE id=%s",
-                        (dados.get('mes_ref'), dados.get('solicitante'), dados.get('obra',''), pedido_id))
+            cur.execute("UPDATE pedidos SET mes_ref=%s,solicitante=%s,obra=%s,num_oc=%s,data_oc=%s,fornecedor=%s,departamento=%s WHERE id=%s",
+                        (dados.get('mes_ref'), dados.get('solicitante'), dados.get('obra',''),
+                         dados.get('num_oc',''), dados.get('data_oc',''), dados.get('fornecedor',''), dados.get('departamento',''), pedido_id))
             cur.execute("DELETE FROM pedido_itens WHERE pedido_id=%s", (pedido_id,))
             for it in itens:
-                cur.execute("INSERT INTO pedido_itens (pedido_id,descricao,quantidade,valor_unit,status,observacao) VALUES (%s,%s,%s,%s,%s,%s)",
-                            (pedido_id, it.get('descricao',''), it.get('quantidade',1), it.get('valor_unit',0), it.get('status','pendente'), it.get('observacao','')))
+                cur.execute("INSERT INTO pedido_itens (pedido_id,descricao,unidade,quantidade,valor_unit,status,observacao) VALUES (%s,%s,%s,%s,%s,%s,%s)",
+                            (pedido_id, it.get('descricao',''), it.get('unidade','UN'), it.get('quantidade',1), it.get('valor_unit',0), it.get('status','pendente'), it.get('observacao','')))
         else:
             cur = conn.cursor()
-            cur.execute("UPDATE pedidos SET mes_ref=?,solicitante=?,obra=? WHERE id=?",
-                        (dados.get('mes_ref'), dados.get('solicitante'), dados.get('obra',''), pedido_id))
+            cur.execute("UPDATE pedidos SET mes_ref=?,solicitante=?,obra=?,num_oc=?,data_oc=?,fornecedor=?,departamento=? WHERE id=?",
+                        (dados.get('mes_ref'), dados.get('solicitante'), dados.get('obra',''),
+                         dados.get('num_oc',''), dados.get('data_oc',''), dados.get('fornecedor',''), dados.get('departamento',''), pedido_id))
             cur.execute("DELETE FROM pedido_itens WHERE pedido_id=?", (pedido_id,))
             for it in itens:
-                cur.execute("INSERT INTO pedido_itens (pedido_id,descricao,quantidade,valor_unit,status,observacao) VALUES (?,?,?,?,?,?)",
-                            (pedido_id, it.get('descricao',''), it.get('quantidade',1), it.get('valor_unit',0), it.get('status','pendente'), it.get('observacao','')))
+                cur.execute("INSERT INTO pedido_itens (pedido_id,descricao,unidade,quantidade,valor_unit,status,observacao) VALUES (?,?,?,?,?,?,?)",
+                            (pedido_id, it.get('descricao',''), it.get('unidade','UN'), it.get('quantidade',1), it.get('valor_unit',0), it.get('status','pendente'), it.get('observacao','')))
         conn.commit()
     finally:
         conn.close()

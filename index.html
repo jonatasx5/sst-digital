@@ -1949,7 +1949,7 @@ tr:hover td { background:#F9FAFB; }
     <div class="table-wrap">
       <table>
         <thead><tr>
-          <th>Mês</th><th>Solicitante</th><th>Obra/Local</th><th style="text-align:right">Itens</th><th style="text-align:right">Total Solicit.</th><th style="text-align:right">Total Aprov.</th><th style="text-align:center">Status</th><th></th>
+          <th>Mês</th><th>Solicitante</th><th>Obra/Local</th><th style="text-align:right">Itens</th><th style="text-align:right">Total Solicit.</th><th style="text-align:right">Total Aprov.</th><th style="text-align:right">Diferença</th><th style="text-align:center">Status</th><th></th>
         </tr></thead>
         <tbody id="ped-tbody"></tbody>
       </table>
@@ -8337,21 +8337,26 @@ function renderPedidosTabela() {
   };
 
   const tbody = document.getElementById('ped-tbody');
-  if (!lista.length) { tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;padding:32px;color:var(--texto2)">Nenhum pedido encontrado</td></tr>'; return; }
+  if (!lista.length) { tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;padding:32px;color:var(--texto2)">Nenhum pedido encontrado</td></tr>'; return; }
 
-  tbody.innerHTML = lista.map(p=>`<tr>
+  tbody.innerHTML = lista.map(p=>{
+    const diff = p.total_aprovado - p.total_solicitado;
+    const diffColor = diff < 0 ? '#ef4444' : diff > 0 ? '#10b981' : 'var(--texto2)';
+    const diffStr = diff === 0 ? '—' : (diff > 0 ? '+' : '') + _fmtBrl(diff);
+    return `<tr>
     <td style="font-size:12px;white-space:nowrap">${_fmtMes(p.mes_ref)}</td>
     <td style="font-weight:600;font-size:13px">${p.solicitante}</td>
     <td style="font-size:12px;color:var(--texto2)">${p.obra||'—'}</td>
     <td style="text-align:right;font-size:12px">${p.total_itens}</td>
     <td style="text-align:right;font-size:12px;font-variant-numeric:tabular-nums">${_fmtBrl(p.total_solicitado)}</td>
     <td style="text-align:right;font-size:13px;font-weight:600;color:#10b981;font-variant-numeric:tabular-nums">${_fmtBrl(p.total_aprovado)}</td>
+    <td style="text-align:right;font-size:12px;font-weight:600;color:${diffColor};font-variant-numeric:tabular-nums">${diffStr}</td>
     <td style="text-align:center">${statusBadge(p)}</td>
     <td style="text-align:right">
       <button class="btn btn-outline btn-sm" onclick="abrirEditarPedido(${p.id})" title="Editar"><i class="ti ti-edit"></i></button>
       <button class="btn btn-danger btn-sm" onclick="excluirPedido(${p.id})" title="Excluir"><i class="ti ti-trash"></i></button>
     </td>
-  </tr>`).join('');
+  </tr>`;}).join('');
 }
 
 // ── Novo Pedido ──

@@ -3924,6 +3924,7 @@ async def deletar_treinamento_doc(tid: int, _=Depends(verificar_acesso)):
 @app.post("/api/treinamentos/gerar-lotacao")
 async def gerar_treinamentos_lotacao(dados: dict = Body(...), _=Depends(verificar_acesso)):
     import io as _io
+    import re
     import zipfile, tempfile
     from docx import Document as _Doc
     try:
@@ -4016,6 +4017,7 @@ async def gerar_treinamentos_lotacao(dados: dict = Body(...), _=Depends(verifica
 @app.post("/api/treinamentos/gerar-cargo")
 async def gerar_treinamentos_cargo(dados: dict = Body(...), _=Depends(verificar_acesso)):
     import io as _io
+    import re
     import zipfile, tempfile
     from docx import Document as _Doc
     try:
@@ -4106,7 +4108,7 @@ async def gerar_treinamentos_cargo(dados: dict = Body(...), _=Depends(verificar_
 
 @app.post("/api/treinamentos/gerar-funcionario")
 async def gerar_treinamentos_funcionario(dados: dict = Body(...), _=Depends(verificar_acesso)):
-    import io as _io, tempfile, zipfile
+    import io as _io, re, tempfile, zipfile
     from docx import Document as _Doc
     try:
         func_id = dados.get("funcionario_id")
@@ -4195,7 +4197,7 @@ async def gerar_treinamentos_funcionario(dados: dict = Body(...), _=Depends(veri
 
 @app.post("/api/treinamentos/gerar-avulso")
 async def gerar_treinamentos_avulso(dados: dict = Body(...), _=Depends(verificar_acesso)):
-    import io as _io, tempfile, zipfile
+    import io as _io, re, tempfile, zipfile
     from docx import Document as _Doc
     from config import CNPJ as _CNPJ, RESP_SST as _RESP_SST
     try:

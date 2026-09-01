@@ -399,6 +399,86 @@ async def startup_event():
             print(f"[STARTUP] CBO propagado para {len(propagados)} cargos: {propagados}")
     except Exception as e:
         print(f"[WARN] propagar_cbo_variantes: {e}")
+    try:
+        _seed_pedidos_junho()
+    except Exception as e:
+        print(f"[WARN] seed pedidos: {e}")
+
+
+def _seed_pedidos_junho():
+    """Insere as 5 OCs de junho/2026 se a tabela estiver vazia."""
+    try:
+        pedidos = banco.listar_pedidos()
+        if pedidos:
+            return  # já tem dados, não faz nada
+    except Exception:
+        pass  # tabela pode não existir ainda
+
+    FORN = "NEOBETEL EPI, EQUIPAMENTOS DE PROTECAO INDIVIDUAL LTDA"
+    ocs = [
+        {"mes_ref":"2026-06","num_oc":"00260","data_oc":"2026-06-25","solicitante":"CLEITON MACIEL",
+         "departamento":"Obra","obra":"GOINFRA LOTE 11 - INHUMAS - GO","fornecedor":FORN,"itens":[
+            {"descricao":"LUVA MALHA PIGMENTADA 4 FIOS BRANCO OMEGA K1000 PIG TAM UNICO NCM: 6116.10.00 CA: 37931","unidade":"PAR","quantidade":40,"valor_unit":2.24},
+            {"descricao":"LUVA MISTA VAQUETA / RASPA PETROLEIRA PLASTCOR 700.30239 TAM UNICO NCM: 4203.29.00 CA: 36250","unidade":"PAR","quantidade":60,"valor_unit":11.96},
+            {"descricao":"BOTINA ELASTICO PRETO BICO PLAST USAFE 4098USES4600US N 40 NCM: 6403.91.90 CA: 48413","unidade":"PAR","quantidade":7,"valor_unit":59.84},
+            {"descricao":"BOTINA ELASTICO PRETO BICO PLAST USAFE 4098USES4600US N 41 NCM: 6403.91.90 CA: 48413","unidade":"PAR","quantidade":7,"valor_unit":59.84},
+            {"descricao":"BOTINA ELASTICO PRETO BICO PLAST USAFE 4098USES4600US N 42 NCM: 6403.91.90 CA: 48413","unidade":"PAR","quantidade":7,"valor_unit":59.84},
+            {"descricao":"BOTINA ELASTICO PRETO BICO PLAST USAFE 4098USES4600US N 43 NCM: 6403.91.90 CA: 48413","unidade":"PAR","quantidade":7,"valor_unit":59.84},
+            {"descricao":"PROTETOR SOLAR FPS 30 UVA C/ REPELENTE BOMBONA 1 LT NUTRIEX 61051 NCM: 3304.99.90","unidade":"PC","quantidade":5,"valor_unit":99.54},
+        ]},
+        {"mes_ref":"2026-06","num_oc":"00259","data_oc":"2026-06-25","solicitante":"YASMIN",
+         "departamento":"Obra","obra":"GMM - INHUMAS - GO","fornecedor":FORN,"itens":[
+            {"descricao":"BOTINA ELASTICO PRETO BICO PLAST USAFE N 39 CA: 48413","unidade":"PR","quantidade":3,"valor_unit":59.84},
+            {"descricao":"BOTINA ELASTICO PRETO BICO PLAST USAFE N 40 CA: 48413","unidade":"PR","quantidade":9,"valor_unit":59.84},
+            {"descricao":"BOTINA ELASTICO PRETO BICO PLAST USAFE N 41 CA: 48413","unidade":"PR","quantidade":6,"valor_unit":59.84},
+            {"descricao":"BOTINA ELASTICO PRETO BICO PLAST USAFE N 42 CA: 48413","unidade":"PR","quantidade":13,"valor_unit":59.84},
+            {"descricao":"BOTINA ELASTICO PRETO BICO PLAST USAFE N 43 CA: 48413","unidade":"PR","quantidade":5,"valor_unit":59.84},
+            {"descricao":"BOTINA ELASTICO PRETO BICO PLAST USAFE N 44 CA: 48413","unidade":"PR","quantidade":2,"valor_unit":59.84},
+            {"descricao":"LUVA VAQUETA 100% PETROLEIRA PUNHO 7CM COUROPRO MEDIX TAM G (9) CA: 48923","unidade":"PR","quantidade":12,"valor_unit":10.48},
+            {"descricao":"LUVA MALHA PIGMENTADA 4 FIOS BRANCO OMEGA K1000 PIG TAM UNICO CA: 37931","unidade":"PR","quantidade":20,"valor_unit":2.24},
+            {"descricao":"OCULOS INCOLOR JAGUAR RJ KALIPSO 01.01.1.3 CA: 10346","unidade":"PC","quantidade":23,"valor_unit":3.80},
+            {"descricao":"OCULOS CINZA AR ARGON RJ LIBUS 900494 CA: 35765","unidade":"PC","quantidade":17,"valor_unit":5.08},
+            {"descricao":"MACACÃO SEGURANCA BRANCO STEELGEN TIPO 6 VICSA VIC85111 TAM XG CA: 20662","unidade":"PC","quantidade":5,"valor_unit":11.28},
+            {"descricao":"PROTETOR SOLAR FPS 30 UVA C/ REPELENTE BOMBONA 1 LT NUTRIEX CA: 61051","unidade":"PC","quantidade":2,"valor_unit":100.65},
+            {"descricao":"ABAFADOR TIPO CONCHA 15 DB K30 KALIPSO 06.01.2.1 CA: 14472","unidade":"PC","quantidade":20,"valor_unit":13.41},
+        ]},
+        {"mes_ref":"2026-06","num_oc":"00254","data_oc":"2026-06-25","solicitante":"DAVID RAMOS",
+         "departamento":"Obra","obra":"ASFALTO - 428/2025 - ANAPOLIS - GO","fornecedor":FORN,"itens":[
+            {"descricao":"OCULOS CINZA LEOPARD - KALIPSO 01.04.1.2 CA: 11268","unidade":"UN","quantidade":20,"valor_unit":3.58},
+            {"descricao":"LUVA MULTITADO PRETA FLEXTACTIL PRETO DANNY DA12100 PT TAM G (9) CA: 29014","unidade":"PAR","quantidade":100,"valor_unit":2.45},
+            {"descricao":"CINTA HERGONOMICA TAM P - PROTETOR LOMBAR PRETO MAZOLA RETA TAM P","unidade":"UN","quantidade":4,"valor_unit":36.27},
+            {"descricao":"BOTINA SEG. Nº 37 USAFE 4098USES4600US CA: 48413","unidade":"PAR","quantidade":10,"valor_unit":59.84},
+            {"descricao":"BOTINA SEG. Nº 40 USAFE 4098USES4600US CA: 48413","unidade":"PAR","quantidade":10,"valor_unit":59.84},
+            {"descricao":"BOTINA SEG. Nº 41 USAFE 4098USES4600US CA: 48413","unidade":"PAR","quantidade":10,"valor_unit":59.84},
+            {"descricao":"BOTINA SEG. Nº 42 USAFE 4098USES4600US CA: 48413","unidade":"PAR","quantidade":10,"valor_unit":59.84},
+            {"descricao":"BOTINA SEG. Nº 43 USAFE 4098USES4600US CA: 48413","unidade":"PAR","quantidade":10,"valor_unit":59.84},
+            {"descricao":"BOTINA SEG. Nº 44 USAFE 4098USES4600US CA: 48413","unidade":"PAR","quantidade":5,"valor_unit":59.84},
+            {"descricao":"BOTINA SEG. Nº 45 USAFE 4098USES4600US CA: 48413","unidade":"PAR","quantidade":5,"valor_unit":59.84},
+            {"descricao":"LUVA MALHA EMBORRACHADA C/ BANHO LATEX RUBBERGRIP VERDE MEDIX TAM XG CA: 48737","unidade":"UND","quantidade":10,"valor_unit":6.43},
+            {"descricao":"LUVA MALHA PIGMENTADA 4 FIOS BRANCO OMEGA K1000 PIG TAM UNICO CA: 37931","unidade":"UND","quantidade":10,"valor_unit":2.24},
+        ]},
+        {"mes_ref":"2026-06","num_oc":"00250","data_oc":"2026-06-25","solicitante":"CLAUDIO",
+         "departamento":"Obra","obra":"SANEAGO REC. ASFALTICA LT.I - LUZIANIA - GO","fornecedor":FORN,"itens":[
+            {"descricao":"LUVA MISTA VAQUETA / RASPA PETROLEIRA PLASTCOR 700.30239 TAM UNICO CA: 36250","unidade":"PR","quantidade":50,"valor_unit":11.96},
+            {"descricao":"LUVA PVC C/ FORRO PALMA ASP 35CM VERDE KALIPSO 02.10.1.2 TAM 9,5 CA: 21420","unidade":"PR","quantidade":10,"valor_unit":14.80},
+            {"descricao":"BOTINA ELASTICO PRETO BICO PLAST USAFE N 41 CA: 48413","unidade":"PR","quantidade":10,"valor_unit":59.84},
+            {"descricao":"BOTINA ELASTICO PRETO BICO PLAST USAFE N 42 CA: 48413","unidade":"PR","quantidade":10,"valor_unit":59.84},
+        ]},
+        {"mes_ref":"2026-06","num_oc":"00248","data_oc":"2026-06-25","solicitante":"WELLINGTON",
+         "departamento":"Almoxarifado","obra":"SANEAGO LOCAÇÃO GOIÂNIA","fornecedor":FORN,"itens":[
+            {"descricao":"BOTINA ELASTICO PRETO BICO PLAST USAFE N 38 CA: 48413","unidade":"PAR","quantidade":8,"valor_unit":59.84},
+            {"descricao":"BOTINA ELASTICO PRETO BICO PLAST USAFE N 39 CA: 48413","unidade":"PAR","quantidade":5,"valor_unit":59.84},
+            {"descricao":"BOTINA ELASTICO PRETO BICO PLAST USAFE N 41 CA: 48413","unidade":"PAR","quantidade":10,"valor_unit":59.84},
+            {"descricao":"BOTINA ELASTICO PRETO BICO PLAST USAFE N 44 CA: 48413","unidade":"PAR","quantidade":8,"valor_unit":59.84},
+            {"descricao":"LUVA MISTA VAQUETA / RASPA PETROLEIRA PLASTCOR 700.30239 TAM ÚNICO CA: 36250","unidade":"PAR","quantidade":100,"valor_unit":11.96},
+            {"descricao":"RESPIRADOR PFF2 C/ VALV DOBRAVEL AZUL AIRPROT CA: 45364","unidade":"UN","quantidade":50,"valor_unit":1.39},
+            {"descricao":"LUVA MALHA EMBORRACHADA C/ BANHO LATEX PALMA SUPER SAFETY 1012-RUBBER TAM 10 CA: 34370","unidade":"PAR","quantidade":50,"valor_unit":8.06},
+        ]},
+    ]
+    for oc in ocs:
+        banco.criar_pedido(oc['mes_ref'],oc['solicitante'],oc['obra'],oc['itens'],
+                           oc['num_oc'],oc['data_oc'],oc['fornecedor'],oc['departamento'])
+    print("[STARTUP] 5 pedidos de junho/2026 inseridos.")
 
 
 def _hash_senha(senha: str) -> str:

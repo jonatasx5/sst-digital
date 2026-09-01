@@ -236,6 +236,7 @@ tr:hover td { background:#F9FAFB; }
     <button class="nav-item" data-modulo="alojamentos" onclick="irPara('alojamentos')"><i class="ti ti-home-2"></i>Alojamentos</button>
     <button class="nav-item" data-modulo="acidentes" onclick="irPara('acidentes')"><i class="ti ti-alert-triangle"></i>Acidentes</button>
     <button class="nav-item" data-modulo="historico" onclick="irPara('historico')"><i class="ti ti-clock"></i>Histórico</button>
+    <button class="nav-item" data-modulo="pedidos" onclick="irPara('pedidos')"><i class="ti ti-shopping-cart"></i>Pedidos de Obra</button>
     <button class="nav-item" data-modulo="diario-obra" onclick="irPara('diario-obra')"><i class="ti ti-camera"></i>Diário de Obra</button>
     <button class="nav-item" data-modulo="empresas" onclick="irPara('empresas')"><i class="ti ti-building"></i>Empresas</button>
     <button class="nav-item" data-modulo="terceiros" onclick="irPara('terceiros')"><i class="ti ti-users"></i>Terceiros</button>
@@ -1906,6 +1907,124 @@ tr:hover td { background:#F9FAFB; }
   </div>
 </div><!-- fecha panel-diario-obra -->
 
+<!-- ── PEDIDOS DE OBRA ── -->
+<div class="panel" id="panel-pedidos">
+  <div class="page-header">
+    <div><div class="page-title">Pedidos de Obra</div><div class="page-sub">Gerencie e aprove pedidos de materiais por mês</div></div>
+    <div style="display:flex;gap:8px">
+      <button class="btn btn-outline btn-sm" onclick="abrirModalNovoPedido()"><i class="ti ti-plus"></i>Novo Pedido</button>
+    </div>
+  </div>
+
+  <!-- Filtros -->
+  <div class="card" style="padding:12px 16px;margin-bottom:12px;display:flex;gap:12px;align-items:center;flex-wrap:wrap">
+    <select id="ped-filtro-mes" onchange="carregarPedidos()" style="border:1px solid var(--borda);border-radius:8px;padding:4px 8px;font-size:12px;background:var(--card);color:var(--texto)">
+      <option value="">Todos os meses</option>
+    </select>
+    <input type="text" id="ped-busca" placeholder="🔍 Buscar solicitante..." oninput="renderPedidosTabela()" style="flex:1;min-width:180px;border:none;font-size:13px;color:var(--texto);outline:none;background:none">
+  </div>
+
+  <!-- Resumo -->
+  <div id="ped-resumo" style="display:none;margin-bottom:12px;display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px">
+    <div class="card" style="padding:12px 16px;text-align:center">
+      <div style="font-size:11px;font-weight:600;color:var(--texto2);text-transform:uppercase;letter-spacing:.05em;margin-bottom:4px">Total Solicitado</div>
+      <div id="ped-stat-total" style="font-size:20px;font-weight:700;color:var(--texto)">R$ 0,00</div>
+    </div>
+    <div class="card" style="padding:12px 16px;text-align:center">
+      <div style="font-size:11px;font-weight:600;color:var(--texto2);text-transform:uppercase;letter-spacing:.05em;margin-bottom:4px">Total Aprovado</div>
+      <div id="ped-stat-aprovado" style="font-size:20px;font-weight:700;color:#10b981">R$ 0,00</div>
+    </div>
+    <div class="card" style="padding:12px 16px;text-align:center">
+      <div style="font-size:11px;font-weight:600;color:var(--texto2);text-transform:uppercase;letter-spacing:.05em;margin-bottom:4px">Pedidos</div>
+      <div id="ped-stat-qtd" style="font-size:20px;font-weight:700;color:var(--texto)">0</div>
+    </div>
+    <div class="card" style="padding:12px 16px;text-align:center">
+      <div style="font-size:11px;font-weight:600;color:var(--texto2);text-transform:uppercase;letter-spacing:.05em;margin-bottom:4px">Pendentes</div>
+      <div id="ped-stat-pend" style="font-size:20px;font-weight:700;color:#f59e0b">0</div>
+    </div>
+  </div>
+
+  <!-- Tabela de pedidos -->
+  <div class="card" style="padding:0">
+    <div class="table-wrap">
+      <table>
+        <thead><tr>
+          <th>Mês</th><th>Solicitante</th><th>Obra/Local</th><th style="text-align:right">Itens</th><th style="text-align:right">Total Solicit.</th><th style="text-align:right">Total Aprov.</th><th style="text-align:center">Status</th><th></th>
+        </tr></thead>
+        <tbody id="ped-tbody"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- Modal Novo Pedido -->
+<div class="modal-overlay" id="modal-novo-pedido" style="display:none" onclick="if(event.target===this)fecharModal('modal-novo-pedido')">
+  <div class="modal" style="max-width:600px;width:95%">
+    <div class="modal-header"><span class="modal-title">Novo Pedido</span><button class="modal-close" onclick="fecharModal('modal-novo-pedido')">✕</button></div>
+    <div class="modal-body">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px">
+        <div class="field"><label>Mês de Referência</label><input type="month" id="np-mes" style="padding:8px 10px;border:1px solid var(--borda);border-radius:8px;width:100%;background:var(--card);color:var(--texto)"></div>
+        <div class="field"><label>Solicitante</label><input type="text" id="np-solicitante" placeholder="Nome do solicitante" style="padding:8px 10px;border:1px solid var(--borda);border-radius:8px;width:100%;background:var(--card);color:var(--texto)"></div>
+      </div>
+      <div class="field" style="margin-bottom:12px"><label>Obra / Local</label><input type="text" id="np-obra" placeholder="Ex: Lote 11 - Luziânia" style="padding:8px 10px;border:1px solid var(--borda);border-radius:8px;width:100%;background:var(--card);color:var(--texto)"></div>
+      <div style="font-size:12px;font-weight:600;color:var(--texto2);margin-bottom:8px;text-transform:uppercase;letter-spacing:.04em">Itens do pedido</div>
+      <div id="np-itens-lista"></div>
+      <button onclick="npAddItem()" class="btn btn-outline btn-sm" style="margin-top:8px"><i class="ti ti-plus"></i>Adicionar item</button>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="fecharModal('modal-novo-pedido')">Cancelar</button>
+      <button class="btn btn-primary" onclick="salvarNovoPedido()"><i class="ti ti-device-floppy"></i>Salvar pedido</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal Editar Pedido -->
+<div class="modal-overlay" id="modal-editar-pedido" style="display:none" onclick="if(event.target===this)fecharModal('modal-editar-pedido')">
+  <div class="modal" style="max-width:800px;width:97%">
+    <div class="modal-header">
+      <span class="modal-title" id="ep-titulo">Editar Pedido</span>
+      <div style="display:flex;gap:8px;align-items:center">
+        <button class="btn btn-outline btn-sm" onclick="gerarPdfPedido()"><i class="ti ti-printer"></i>Gerar PDF</button>
+        <button class="modal-close" onclick="fecharModal('modal-editar-pedido')">✕</button>
+      </div>
+    </div>
+    <div class="modal-body">
+      <div id="ep-info" style="font-size:12px;color:var(--texto2);margin-bottom:14px"></div>
+      <div class="table-wrap">
+        <table id="ep-tabela">
+          <thead><tr>
+            <th style="min-width:200px">Descrição</th>
+            <th style="text-align:center;width:70px">Qtd</th>
+            <th style="text-align:right;width:110px">Valor Unit.</th>
+            <th style="text-align:right;width:110px">Total</th>
+            <th style="text-align:center;width:120px">Status</th>
+            <th style="min-width:140px">Observação</th>
+            <th style="width:40px"></th>
+          </tr></thead>
+          <tbody id="ep-tbody"></tbody>
+          <tfoot>
+            <tr style="font-weight:700;border-top:2px solid var(--borda)">
+              <td colspan="3" style="padding:10px 8px;text-align:right;font-size:13px">Total Solicitado:</td>
+              <td id="ep-total-sol" style="padding:10px 8px;text-align:right;font-size:13px;font-variant-numeric:tabular-nums"></td>
+              <td colspan="3"></td>
+            </tr>
+            <tr style="font-weight:700">
+              <td colspan="3" style="padding:4px 8px;text-align:right;font-size:13px">Total Aprovado:</td>
+              <td id="ep-total-apr" style="padding:4px 8px;text-align:right;font-size:14px;color:#10b981;font-variant-numeric:tabular-nums"></td>
+              <td colspan="3"></td>
+            </tr>
+          </tfoot>
+        </table>
+      </div>
+      <button onclick="epAddItem()" class="btn btn-outline btn-sm" style="margin-top:10px"><i class="ti ti-plus"></i>Adicionar item</button>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="fecharModal('modal-editar-pedido')">Fechar</button>
+      <button class="btn btn-primary" onclick="salvarEdicaoPedido()"><i class="ti ti-device-floppy"></i>Salvar alterações</button>
+    </div>
+  </div>
+</div>
+
 <!-- Modal Novo Registro Diário -->
 <div class="modal-bg" id="modal-do-registro">
   <div class="modal" style="max-width:600px;">
@@ -2611,6 +2730,7 @@ const MODULOS = [
   { id:'envio-lote',    label:'Kit SST Envio' },
   { id:'ordem-servico', label:'Treinamentos' },
   { id:'historico',     label:'Histórico' },
+  { id:'pedidos',       label:'Pedidos de Obra' },
   { id:'diario-obra',   label:'Diário de Obra' },
   { id:'alojamentos',   label:'Alojamentos' },
   { id:'acidentes',     label:'Acidentes' },
@@ -2947,6 +3067,7 @@ async function irPara(aba) {
   if (aba==='ordem-servico') carregarOSCargos();
   if (aba==='historico')     carregarHistorico();
   if (aba==='diario-obra')   doInit();
+  if (aba==='pedidos')       carregarPedidos();
   if (aba==='alojamentos')   alojaInit();
   if (aba==='acidentes')     acidInit();
   if (aba==='admin')         { carregarAdmin(); carregarIntegracaoConfig(); _adminCarregarLogoPreview(); }
@@ -8149,6 +8270,253 @@ async function salvarDocsTerceiro() {
     alert('Erro ao salvar: ' + err.message);
     if (btn) { btn.disabled = false; btn.innerHTML = '<i class="ti ti-device-floppy"></i> Salvar checklist'; }
   }
+}
+
+// ══════════════════════════════════════════════════════
+//  PEDIDOS DE OBRA
+// ══════════════════════════════════════════════════════
+let _pedidosCache = [];
+let _pedidoEditando = null;
+
+const _mesesPt = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+function _fmtMes(mes) {
+  if (!mes) return '';
+  const [y, m] = mes.split('-');
+  return `${_mesesPt[parseInt(m)-1]} ${y}`;
+}
+function _fmtBrl(v) {
+  return 'R$ ' + (parseFloat(v)||0).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});
+}
+
+async function carregarPedidos() {
+  const res = await apiFetch('/api/pedidos').catch(()=>null);
+  _pedidosCache = res && res.ok ? await res.json() : [];
+
+  // Popula select de meses
+  const meses = [...new Set(_pedidosCache.map(p=>p.mes_ref))].sort().reverse();
+  const sel = document.getElementById('ped-filtro-mes');
+  const atual = sel.value;
+  sel.innerHTML = '<option value="">Todos os meses</option>' + meses.map(m=>`<option value="${m}"${m===atual?' selected':''}>${_fmtMes(m)}</option>`).join('');
+
+  renderPedidosTabela();
+}
+
+function renderPedidosTabela() {
+  const busca = (document.getElementById('ped-busca')?.value||'').toLowerCase().trim();
+  const mes   = document.getElementById('ped-filtro-mes')?.value||'';
+  let lista = _pedidosCache;
+  if (mes)   lista = lista.filter(p=>p.mes_ref===mes);
+  if (busca) lista = lista.filter(p=>(p.solicitante||'').toLowerCase().includes(busca)||(p.obra||'').toLowerCase().includes(busca));
+
+  // Stats
+  const totalSol  = lista.reduce((s,p)=>s+p.total_solicitado,0);
+  const totalApr  = lista.reduce((s,p)=>s+p.total_aprovado,0);
+  const pendentes = lista.reduce((s,p)=>s+(p.itens_pendentes||0),0);
+  const resumo    = document.getElementById('ped-resumo');
+  if (resumo) {
+    resumo.style.display = lista.length ? 'grid' : 'none';
+    document.getElementById('ped-stat-total').textContent    = _fmtBrl(totalSol);
+    document.getElementById('ped-stat-aprovado').textContent = _fmtBrl(totalApr);
+    document.getElementById('ped-stat-qtd').textContent      = lista.length;
+    document.getElementById('ped-stat-pend').textContent     = pendentes;
+  }
+
+  const statusBadge = p => {
+    if (!p.itens_pendentes) return '<span style="background:#d1fae5;color:#065f46;border-radius:20px;padding:2px 10px;font-size:11px;font-weight:700">Finalizado</span>';
+    return `<span style="background:#fef3c7;color:#b45309;border-radius:20px;padding:2px 10px;font-size:11px;font-weight:700">${p.itens_pendentes} pendente(s)</span>`;
+  };
+
+  const tbody = document.getElementById('ped-tbody');
+  if (!lista.length) { tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;padding:32px;color:var(--texto2)">Nenhum pedido encontrado</td></tr>'; return; }
+
+  tbody.innerHTML = lista.map(p=>`<tr>
+    <td style="font-size:12px;white-space:nowrap">${_fmtMes(p.mes_ref)}</td>
+    <td style="font-weight:600;font-size:13px">${p.solicitante}</td>
+    <td style="font-size:12px;color:var(--texto2)">${p.obra||'—'}</td>
+    <td style="text-align:right;font-size:12px">${p.total_itens}</td>
+    <td style="text-align:right;font-size:12px;font-variant-numeric:tabular-nums">${_fmtBrl(p.total_solicitado)}</td>
+    <td style="text-align:right;font-size:13px;font-weight:600;color:#10b981;font-variant-numeric:tabular-nums">${_fmtBrl(p.total_aprovado)}</td>
+    <td style="text-align:center">${statusBadge(p)}</td>
+    <td style="text-align:right">
+      <button class="btn btn-outline btn-sm" onclick="abrirEditarPedido(${p.id})" title="Editar"><i class="ti ti-edit"></i></button>
+      <button class="btn btn-danger btn-sm" onclick="excluirPedido(${p.id})" title="Excluir"><i class="ti ti-trash"></i></button>
+    </td>
+  </tr>`).join('');
+}
+
+// ── Novo Pedido ──
+let _npItens = [];
+
+function abrirModalNovoPedido() {
+  _npItens = [];
+  const hoje = new Date();
+  document.getElementById('np-mes').value = hoje.toISOString().slice(0,7);
+  document.getElementById('np-solicitante').value = '';
+  document.getElementById('np-obra').value = '';
+  npRenderItens();
+  abrirModal('modal-novo-pedido');
+}
+
+function npRenderItens() {
+  const div = document.getElementById('np-itens-lista');
+  if (!_npItens.length) { div.innerHTML = '<div style="font-size:12px;color:var(--texto2);padding:8px 0">Nenhum item adicionado.</div>'; return; }
+  div.innerHTML = _npItens.map((it,i)=>`
+    <div style="display:grid;grid-template-columns:1fr 60px 100px 28px;gap:6px;margin-bottom:6px;align-items:center">
+      <input type="text" value="${it.descricao}" oninput="_npItens[${i}].descricao=this.value" placeholder="Descrição do item" style="padding:6px 8px;border:1px solid var(--borda);border-radius:6px;font-size:12px;background:var(--card);color:var(--texto)">
+      <input type="number" value="${it.quantidade}" oninput="_npItens[${i}].quantidade=parseFloat(this.value)||1" min="0.01" step="0.01" placeholder="Qtd" style="padding:6px 8px;border:1px solid var(--borda);border-radius:6px;font-size:12px;background:var(--card);color:var(--texto);text-align:center">
+      <input type="number" value="${it.valor_unit}" oninput="_npItens[${i}].valor_unit=parseFloat(this.value)||0" min="0" step="0.01" placeholder="R$ 0,00" style="padding:6px 8px;border:1px solid var(--borda);border-radius:6px;font-size:12px;background:var(--card);color:var(--texto);text-align:right">
+      <button onclick="_npItens.splice(${i},1);npRenderItens()" style="border:none;background:none;color:#ef4444;cursor:pointer;font-size:16px;padding:0">×</button>
+    </div>`).join('');
+}
+
+function npAddItem() {
+  _npItens.push({descricao:'',quantidade:1,valor_unit:0});
+  npRenderItens();
+}
+
+async function salvarNovoPedido() {
+  const mes = document.getElementById('np-mes').value;
+  const sol = document.getElementById('np-solicitante').value.trim();
+  const obra= document.getElementById('np-obra').value.trim();
+  if (!mes||!sol) { alert('Preencha mês e solicitante.'); return; }
+  const itens = _npItens.filter(it=>it.descricao.trim());
+  if (!itens.length) { alert('Adicione pelo menos um item.'); return; }
+  const res = await apiFetch('/api/pedidos',{method:'POST',body:JSON.stringify({mes_ref:mes,solicitante:sol,obra,itens})});
+  if (res && res.ok) { fecharModal('modal-novo-pedido'); await carregarPedidos(); }
+  else alert('Erro ao salvar pedido.');
+}
+
+// ── Editar Pedido ──
+async function abrirEditarPedido(id) {
+  const res = await apiFetch(`/api/pedidos/${id}`).catch(()=>null);
+  if (!res || !res.ok) { alert('Erro ao carregar pedido.'); return; }
+  _pedidoEditando = await res.json();
+  document.getElementById('ep-titulo').textContent = `${_pedidoEditando.solicitante} — ${_fmtMes(_pedidoEditando.mes_ref)}`;
+  document.getElementById('ep-info').textContent = _pedidoEditando.obra ? `Obra: ${_pedidoEditando.obra}` : '';
+  epRenderItens();
+  abrirModal('modal-editar-pedido');
+}
+
+const _statusOpts = [
+  {v:'pendente',  l:'Pendente',  c:'#b45309',  bg:'#fef3c7'},
+  {v:'aprovado',  l:'Aprovado',  c:'#065f46',  bg:'#d1fae5'},
+  {v:'ajustado',  l:'Ajustado',  c:'#1e40af',  bg:'#dbeafe'},
+  {v:'recusado',  l:'Recusado',  c:'#991b1b',  bg:'#fee2e2'},
+];
+
+function epRenderItens() {
+  if (!_pedidoEditando) return;
+  const itens = _pedidoEditando.itens || [];
+  const tbody = document.getElementById('ep-tbody');
+
+  tbody.innerHTML = itens.map((it,i)=>{
+    const opts = _statusOpts.map(s=>`<option value="${s.v}"${it.status===s.v?' selected':''}>${s.l}</option>`).join('');
+    const st = _statusOpts.find(s=>s.v===(it.status||'pendente'))||_statusOpts[0];
+    return `<tr id="ep-row-${i}">
+      <td style="padding:6px 8px"><input type="text" value="${(it.descricao||'').replace(/"/g,'&quot;')}" oninput="_pedidoEditando.itens[${i}].descricao=this.value" style="width:100%;padding:4px 6px;border:1px solid var(--borda);border-radius:6px;font-size:12px;background:var(--card);color:var(--texto)"></td>
+      <td style="padding:6px 4px"><input type="number" value="${it.quantidade}" oninput="_pedidoEditando.itens[${i}].quantidade=parseFloat(this.value)||1;epAtualizarTotais()" min="0.01" step="0.01" style="width:60px;padding:4px 6px;border:1px solid var(--borda);border-radius:6px;font-size:12px;background:var(--card);color:var(--texto);text-align:center"></td>
+      <td style="padding:6px 4px"><input type="number" value="${it.valor_unit}" oninput="_pedidoEditando.itens[${i}].valor_unit=parseFloat(this.value)||0;epAtualizarTotais()" min="0" step="0.01" style="width:100px;padding:4px 6px;border:1px solid var(--borda);border-radius:6px;font-size:12px;background:var(--card);color:var(--texto);text-align:right"></td>
+      <td id="ep-tot-${i}" style="padding:6px 8px;text-align:right;font-size:12px;font-variant-numeric:tabular-nums;white-space:nowrap">${_fmtBrl((it.quantidade||1)*(it.valor_unit||0))}</td>
+      <td style="padding:6px 4px"><select onchange="_pedidoEditando.itens[${i}].status=this.value;epAtualizarTotais()" style="padding:4px 6px;border:1px solid var(--borda);border-radius:6px;font-size:11px;font-weight:600;background:${st.bg};color:${st.c};cursor:pointer">${opts}</select></td>
+      <td style="padding:6px 8px"><input type="text" value="${(it.observacao||'').replace(/"/g,'&quot;')}" oninput="_pedidoEditando.itens[${i}].observacao=this.value" placeholder="obs..." style="width:100%;padding:4px 6px;border:1px solid var(--borda);border-radius:6px;font-size:11px;background:var(--card);color:var(--texto)"></td>
+      <td style="padding:6px 4px;text-align:center"><button onclick="_pedidoEditando.itens.splice(${i},1);epRenderItens()" style="border:none;background:none;color:#ef4444;cursor:pointer;font-size:16px;padding:0">×</button></td>
+    </tr>`;
+  }).join('');
+  epAtualizarTotais();
+}
+
+function epAtualizarTotais() {
+  const itens = _pedidoEditando?.itens || [];
+  let sol=0, apr=0;
+  itens.forEach((it,i)=>{
+    const tot = (parseFloat(it.quantidade)||1)*(parseFloat(it.valor_unit)||0);
+    const cell = document.getElementById(`ep-tot-${i}`);
+    if (cell) cell.textContent = _fmtBrl(tot);
+    sol += tot;
+    const st = it.status||'pendente';
+    if (st==='aprovado'||st==='ajustado') apr += tot;
+  });
+  const ts = document.getElementById('ep-total-sol');
+  const ta = document.getElementById('ep-total-apr');
+  if (ts) ts.textContent = _fmtBrl(sol);
+  if (ta) ta.textContent = _fmtBrl(apr);
+}
+
+function epAddItem() {
+  if (!_pedidoEditando) return;
+  _pedidoEditando.itens.push({descricao:'',quantidade:1,valor_unit:0,status:'pendente',observacao:''});
+  epRenderItens();
+}
+
+async function salvarEdicaoPedido() {
+  if (!_pedidoEditando) return;
+  const res = await apiFetch(`/api/pedidos/${_pedidoEditando.id}`,{method:'PUT',body:JSON.stringify(_pedidoEditando)}).catch(()=>null);
+  if (res && res.ok) { fecharModal('modal-editar-pedido'); await carregarPedidos(); }
+  else alert('Erro ao salvar alterações.');
+}
+
+async function excluirPedido(id) {
+  if (!confirm('Excluir este pedido?')) return;
+  await apiFetch(`/api/pedidos/${id}`,{method:'DELETE'});
+  await carregarPedidos();
+}
+
+function gerarPdfPedido() {
+  if (!_pedidoEditando) return;
+  const p = _pedidoEditando;
+  const itens = p.itens || [];
+  let sol=0, apr=0;
+  const rows = itens.map(it=>{
+    const tot = (parseFloat(it.quantidade)||1)*(parseFloat(it.valor_unit)||0);
+    sol += tot;
+    const st = it.status||'pendente';
+    if (st==='aprovado'||st==='ajustado') apr += tot;
+    const stObj = _statusOpts.find(s=>s.v===st)||_statusOpts[0];
+    const obs = it.observacao ? `<br><span style="font-size:10px;color:#666">${it.observacao}</span>` : '';
+    return `<tr>
+      <td style="padding:6px 8px;border-bottom:1px solid #e5e7eb">${it.descricao}${obs}</td>
+      <td style="padding:6px 8px;border-bottom:1px solid #e5e7eb;text-align:center">${it.quantidade}</td>
+      <td style="padding:6px 8px;border-bottom:1px solid #e5e7eb;text-align:right">${_fmtBrl(it.valor_unit)}</td>
+      <td style="padding:6px 8px;border-bottom:1px solid #e5e7eb;text-align:right">${_fmtBrl(tot)}</td>
+      <td style="padding:6px 8px;border-bottom:1px solid #e5e7eb;text-align:center"><span style="background:${stObj.bg};color:${stObj.c};border-radius:12px;padding:2px 8px;font-size:11px;font-weight:700">${stObj.l}</span></td>
+    </tr>`;
+  }).join('');
+
+  const html = `<!DOCTYPE html><html><head><meta charset="utf-8"><title>Pedido — ${p.solicitante}</title>
+  <style>
+    body{font-family:Arial,sans-serif;font-size:13px;color:#111;margin:0;padding:24px}
+    h1{font-size:18px;margin:0 0 4px}
+    .sub{color:#555;font-size:12px;margin-bottom:16px}
+    table{width:100%;border-collapse:collapse;margin-bottom:16px}
+    th{background:#1e3a5f;color:#fff;padding:8px;font-size:12px;text-align:left}
+    th:nth-child(2),th:nth-child(3),th:nth-child(4){text-align:right}
+    th:nth-child(2){text-align:center}
+    th:last-child{text-align:center}
+    .totais{text-align:right;font-size:13px}
+    .totais td{padding:4px 8px}
+    .aprovado{font-size:15px;font-weight:700;color:#065f46}
+    @media print{body{padding:0}}
+  </style></head><body>
+  <h1>Pedido de Materiais</h1>
+  <div class="sub">
+    <strong>Solicitante:</strong> ${p.solicitante} &nbsp;|&nbsp;
+    <strong>Mês:</strong> ${_fmtMes(p.mes_ref)}
+    ${p.obra ? ` &nbsp;|&nbsp; <strong>Obra:</strong> ${p.obra}` : ''}
+  </div>
+  <table>
+    <thead><tr><th>Descrição</th><th style="text-align:center">Qtd</th><th style="text-align:right">Valor Unit.</th><th style="text-align:right">Total</th><th style="text-align:center">Status</th></tr></thead>
+    <tbody>${rows}</tbody>
+  </table>
+  <table class="totais" style="width:auto;margin-left:auto">
+    <tr><td>Total Solicitado:</td><td><strong>${_fmtBrl(sol)}</strong></td></tr>
+    <tr><td>Total Aprovado:</td><td class="aprovado">${_fmtBrl(apr)}</td></tr>
+  </table>
+  <script>window.onload=()=>window.print()<\/script>
+  </body></html>`;
+
+  const w = window.open('','_blank');
+  w.document.write(html);
+  w.document.close();
 }
 </script>
 </body>

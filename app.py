@@ -693,6 +693,38 @@ async def deletar_diario(rid: int, _=Depends(verificar_acesso)):
 
 
 # ══════════════════════════════════════════════════════════
+#  PEDIDOS DE OBRA
+# ══════════════════════════════════════════════════════════
+
+@app.get("/api/pedidos")
+async def listar_pedidos(_=Depends(verificar_acesso)):
+    return banco.listar_pedidos()
+
+@app.post("/api/pedidos")
+async def criar_pedido(dados: dict, _=Depends(verificar_acesso)):
+    pid = banco.criar_pedido(dados.get('mes_ref'), dados.get('solicitante'), dados.get('obra',''), dados.get('itens',[]))
+    return {"ok": True, "id": pid}
+
+@app.get("/api/pedidos/{pedido_id}")
+async def buscar_pedido(pedido_id: int, _=Depends(verificar_acesso)):
+    p = banco.buscar_pedido(pedido_id)
+    if not p:
+        from fastapi import HTTPException
+        raise HTTPException(404, "Pedido não encontrado")
+    return p
+
+@app.put("/api/pedidos/{pedido_id}")
+async def atualizar_pedido(pedido_id: int, dados: dict, _=Depends(verificar_acesso)):
+    banco.atualizar_pedido(pedido_id, dados)
+    return {"ok": True}
+
+@app.delete("/api/pedidos/{pedido_id}")
+async def excluir_pedido(pedido_id: int, _=Depends(verificar_acesso)):
+    banco.excluir_pedido(pedido_id)
+    return {"ok": True}
+
+
+# ══════════════════════════════════════════════════════════
 #  ROTA PRINCIPAL — serve o HTML
 # ══════════════════════════════════════════════════════════
 

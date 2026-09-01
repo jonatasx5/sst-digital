@@ -1038,6 +1038,143 @@ def listar_epis_do_cargo(cargo: str) -> list:
         conn.close()
 
 
+def _criar_tabelas_pedidos(conn, use_pg):
+    cur = conn.cursor()
+    if use_pg:
+        cur.execute("""CREATE TABLE IF NOT EXISTS pedidos (
+            id SERIAL PRIMARY KEY, mes_ref TEXT NOT NULL, solicitante TEXT NOT NULL,
+            obra TEXT DEFAULT '', created_at TIMESTAMP DEFAULT NOW())""")
+        cur.execute("""CREATE TABLE IF NOT EXISTS pedido_itens (
+            id SERIAL PRIMARY KEY, pedido_id INTEGER REFERENCES pedidos(id) ON DELETE CASCADE,
+            descricao TEXT NOT NULL, quantidade REAL DEFAULT 1, valor_unit REAL DEFAULT 0,
+            status TEXT DEFAULT 'pendente', observacao TEXT DEFAULT '')""")
+    else:
+        cur.execute("""CREATE TABLE IF NOT EXISTS pedidos (
+            id INTEGER PRIMARY KEY AUTOINCREMENT, mes_ref TEXT NOT NULL, solicitante TEXT NOT NULL,
+            obra TEXT DEFAULT '', created_at TEXT DEFAULT (datetime('now')))""")
+        cur.execute("""CREATE TABLE IF NOT EXISTS pedido_itens (
+            id INTEGER PRIMARY KEY AUTOINCREMENT, pedido_id INTEGER REFERENCES pedidos(id),
+            descricao TEXT NOT NULL, quantidade REAL DEFAULT 1, valor_unit REAL DEFAULT 0,
+            status TEXT DEFAULT 'pendente', observacao TEXT DEFAULT '')""")
+    conn.commit()
+
+def listar_pedidos():
+    conn = conectar()
+    try:
+        _criar_tabelas_pedidos(conn, USE_POSTGRES)
+        if USE_POSTGRES:
+            cur = conn.cursor(cursor_factory=_psycopg2_extras.RealDictCursor)
+            cur.execute("""SELECT p.id, p.mes_ref, p.solicitante, p.obra,
+                COUNT(pi.id) AS total_itens,
+                COALESCE(SUM(pi.quantidade*pi.valor_unit),0) AS total_solicitado,
+                COALESCE(SUM(CASE WHEN pi.status IN ('aprovado','ajustado') THEN pi.quantidade*pi.valor_unit ELSE 0 END),0) AS total_aprovado,
+                COUNT(CASE WHEN pi.status='pendente' THEN 1 END) AS itens_pendentes
+                FROM pedidos p LEFT JOIN pedido_itens pi ON pi.pedido_id=p.id
+                GROUP BY p.id ORDER BY p.mes_ref DESC, p.solicitante""")
+        else:
+            cur = conn.cursor()
+            cur.execute("""SELECT p.id, p.mes_ref, p.solicitante, p.obra,
+                COUNT(pi.id) AS total_itens,
+                COALESCE(SUM(pi.quantidade*pi.valor_unit),0) AS total_solicitado,
+                COALESCE(SUM(CASE WHEN pi.status IN ('aprovado','ajustado') THEN pi.quantidade*pi.valor_unit ELSE 0 END),0) AS total_aprovado,
+                COUNT(CASE WHEN pi.status='pendente' THEN 1 END) AS itens_pendentes
+                FROM pedidos p LEFT JOIN pedido_itens pi ON pi.pedido_id=p.id
+                GROUP BY p.id ORDER BY p.mes_ref DESC, p.solicitante""")
+        return [dict(r) for r in cur.fetchall()]
+    finally:
+        conn.close()
+
+def buscar_pedido(pedido_id: int):
+    conn = conectar()
+    try:
+        _criar_tabelas_pedidos(conn, USE_POSTGRES)
+        if USE_POSTGRES:
+            cur = conn.cursor(cursor_factory=_psycopg2_extras.RealDictCursor)
+            cur.execute("SELECT * FROM pedidos WHERE id=%s", (pedido_id,))
+            p = cur.fetchone()
+            if not p: return None
+            p = dict(p)
+            cur.execute("SELECT * FROM pedido_itens WHERE pedido_id=%s ORDER BY id", (pedido_id,))
+        else:
+            cur = conn.cursor()
+            cur.execute("SELECT * FROM pedidos WHERE id=?", (pedido_id,))
+            row = cur.fetchone()
+            if not row: return None
+            cols = [d[0] for d in cur.description]
+            p = dict(zip(cols, row))
+            cur.execute("SELECT * FROM pedido_itens WHERE pedido_id=? ORDER BY id", (pedido_id,))
+            cols2 = [d[0] for d in cur.description]
+        rows = cur.fetchall()
+        p['itens'] = [dict(r) if USE_POSTGRES else dict(zip(cols2, r)) for r in rows]
+        return p
+    finally:
+        conn.close()
+
+def criar_pedido(mes_ref, solicitante, obra, itens):
+    conn = conectar()
+    try:
+        _criar_tabelas_pedidos(conn, USE_POSTGRES)
+        if USE_POSTGRES:
+            cur = conn.cursor(cursor_factory=_psycopg2_extras.RealDictCursor)
+            cur.execute("INSERT INTO pedidos (mes_ref,solicitante,obra) VALUES (%s,%s,%s) RETURNING id",
+                        (mes_ref, solicitante, obra))
+            pid = cur.fetchone()['id']
+            for it in itens:
+                cur.execute("INSERT INTO pedido_itens (pedido_id,descricao,quantidade,valor_unit,status,observacao) VALUES (%s,%s,%s,%s,%s,%s)",
+                            (pid, it.get('descricao',''), it.get('quantidade',1), it.get('valor_unit',0), it.get('status','pendente'), it.get('observacao','')))
+        else:
+            cur = conn.cursor()
+            cur.execute("INSERT INTO pedidos (mes_ref,solicitante,obra) VALUES (?,?,?)", (mes_ref, solicitante, obra))
+            pid = cur.lastrowid
+            for it in itens:
+                cur.execute("INSERT INTO pedido_itens (pedido_id,descricao,quantidade,valor_unit,status,observacao) VALUES (?,?,?,?,?,?)",
+                            (pid, it.get('descricao',''), it.get('quantidade',1), it.get('valor_unit',0), it.get('status','pendente'), it.get('observacao','')))
+        conn.commit()
+        return pid
+    finally:
+        conn.close()
+
+def atualizar_pedido(pedido_id: int, dados: dict):
+    conn = conectar()
+    try:
+        _criar_tabelas_pedidos(conn, USE_POSTGRES)
+        itens = dados.get('itens', [])
+        if USE_POSTGRES:
+            cur = conn.cursor(cursor_factory=_psycopg2_extras.RealDictCursor)
+            cur.execute("UPDATE pedidos SET mes_ref=%s,solicitante=%s,obra=%s WHERE id=%s",
+                        (dados.get('mes_ref'), dados.get('solicitante'), dados.get('obra',''), pedido_id))
+            cur.execute("DELETE FROM pedido_itens WHERE pedido_id=%s", (pedido_id,))
+            for it in itens:
+                cur.execute("INSERT INTO pedido_itens (pedido_id,descricao,quantidade,valor_unit,status,observacao) VALUES (%s,%s,%s,%s,%s,%s)",
+                            (pedido_id, it.get('descricao',''), it.get('quantidade',1), it.get('valor_unit',0), it.get('status','pendente'), it.get('observacao','')))
+        else:
+            cur = conn.cursor()
+            cur.execute("UPDATE pedidos SET mes_ref=?,solicitante=?,obra=? WHERE id=?",
+                        (dados.get('mes_ref'), dados.get('solicitante'), dados.get('obra',''), pedido_id))
+            cur.execute("DELETE FROM pedido_itens WHERE pedido_id=?", (pedido_id,))
+            for it in itens:
+                cur.execute("INSERT INTO pedido_itens (pedido_id,descricao,quantidade,valor_unit,status,observacao) VALUES (?,?,?,?,?,?)",
+                            (pedido_id, it.get('descricao',''), it.get('quantidade',1), it.get('valor_unit',0), it.get('status','pendente'), it.get('observacao','')))
+        conn.commit()
+    finally:
+        conn.close()
+
+def excluir_pedido(pedido_id: int):
+    conn = conectar()
+    try:
+        _criar_tabelas_pedidos(conn, USE_POSTGRES)
+        if USE_POSTGRES:
+            cur = conn.cursor(cursor_factory=_psycopg2_extras.RealDictCursor)
+            cur.execute("DELETE FROM pedidos WHERE id=%s", (pedido_id,))
+        else:
+            cur = conn.cursor()
+            cur.execute("DELETE FROM pedido_itens WHERE pedido_id=?", (pedido_id,))
+            cur.execute("DELETE FROM pedidos WHERE id=?", (pedido_id,))
+        conn.commit()
+    finally:
+        conn.close()
+
+
 def salvar_cargo_cbo(cargo: str, cbo_codigo: str, cbo_titulo: str, cbo_descricao: str):
     conn = conectar()
     try:

@@ -8579,7 +8579,7 @@ function gerarPdfPedido() {
     <div style="border:3px solid #16a34a;border-radius:8px;padding:10px 18px;text-align:center;color:#16a34a;flex-shrink:0;transform:rotate(-8deg);min-width:140px">
       <div style="font-size:16px;font-weight:900;letter-spacing:2px;line-height:1.1">APROVADO</div>
       <div style="font-size:13px;font-weight:700;letter-spacing:1px">SESMT</div>
-      <div style="border-top:1px solid #16a34a;margin-top:6px;padding-top:4px;font-size:9px">Data: ____/____/____</div>
+      <div style="border-top:1px solid #16a34a;margin-top:6px;padding-top:4px;font-size:9px">Data: ${new Date().toLocaleDateString('pt-BR')}</div>
     </div>
   </div>
   <script>window.onload=()=>window.print()<\/script>

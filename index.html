@@ -2757,7 +2757,7 @@ function authHeaders() {
 async function apiFetch(url, opts = {}) {
   if (!opts.headers) opts.headers = {};
   if (_authToken) opts.headers['Authorization'] = 'Bearer ' + _authToken;
-  if (opts.body && !opts.headers['Content-Type']) opts.headers['Content-Type'] = 'application/json';
+  if (opts.body && !(opts.body instanceof FormData) && !opts.headers['Content-Type']) opts.headers['Content-Type'] = 'application/json';
   const res = await fetch(url, opts);
   if (res.status === 401) { fazerLogout(); return null; }
   return res;

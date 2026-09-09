@@ -723,8 +723,55 @@ def criar_banco():
         conn.commit()
 
         print(f"OK Banco criado ({'PostgreSQL' if USE_POSTGRES else 'SQLite'})")
+
+        # Seed catálogo de EPIs (apenas insere se ainda não existir)
+        _seed_catalogo_epis(cur, USE_POSTGRES)
+        conn.commit()
     finally:
         conn.close()
+
+
+def _seed_catalogo_epis(cur, use_pg):
+    epis_seed = [
+        ("BOTINA ELASTICO PRETO BICO PLAST USAFE N 37", "48413", 1),
+        ("BOTINA ELASTICO PRETO BICO PLAST USAFE N 38", "48413", 1),
+        ("BOTINA ELASTICO PRETO BICO PLAST USAFE N 39", "48413", 1),
+        ("BOTINA ELASTICO PRETO BICO PLAST USAFE N 40", "48413", 1),
+        ("BOTINA ELASTICO PRETO BICO PLAST USAFE N 41", "48413", 1),
+        ("BOTINA ELASTICO PRETO BICO PLAST USAFE N 42", "48413", 1),
+        ("BOTINA ELASTICO PRETO BICO PLAST USAFE N 43", "48413", 1),
+        ("BOTINA ELASTICO PRETO BICO PLAST USAFE N 44", "48413", 1),
+        ("BOTINA ELASTICO PRETO BICO PLAST USAFE N 45", "48413", 1),
+        ("LUVA MALHA PIGMENTADA 4 FIOS BRANCO OMEGA K1000 TAM UNICO", "37931", 1),
+        ("LUVA MISTA VAQUETA RASPA PETROLEIRA PLASTCOR TAM UNICO", "36250", 1),
+        ("LUVA VAQUETA 100% PETROLEIRA PUNHO 7CM COUROPRO MEDIX TAM G", "48923", 1),
+        ("LUVA NYLON PU FLEXTACTIL PRETA DANNY TAM G", "29014", 1),
+        ("LUVA MALHA EMBORRACHADA BANHO LATEX RUBBERGRIP VERDE MEDIX TAM G", "48737", 1),
+        ("LUVA MALHA EMBORRACHADA BANHO LATEX PALMA SUPER SAFETY TAM 10", "34370", 1),
+        ("LUVA PVC C/ FORRO PALMA ASP 35CM VERDE KALIPSO TAM 9.5", "21420", 1),
+        ("OCULOS INCOLOR JAGUAR RJ KALIPSO", "10346", 1),
+        ("OCULOS CINZA AR ARGON RJ LIBUS 900494", "35765", 1),
+        ("OCULOS CINZA LEOPARDO KALIPSO", "11268", 1),
+        ("MACACAO SEGURANCA BRANCO STEELGEN TIPO 6 VICSA TAM XG", "20662", 1),
+        ("ABAFADOR TIPO CONCHA 15 DB K30 KALIPSO", "14472", 1),
+        ("RESPIRADOR PFF2 C/ VALV DOBRAVEL AZUL AIRPROT", "45364", 1),
+        ("PROTETOR LOMBAR CINTA ERGONOMICA MAZOLA RETA", "", 1),
+        ("PROTETOR SOLAR FPS 30 UVA C/ REPELENTE BOMBONA 1 LT NUTRIEX", "", 1),
+    ]
+    for desc, ca, qtd in epis_seed:
+        try:
+            if use_pg:
+                cur.execute(
+                    "INSERT INTO catalogo_epis (descricao, ca, quantidade_padrao) VALUES (%s,%s,%s) ON CONFLICT (descricao) DO NOTHING",
+                    (desc, ca, qtd)
+                )
+            else:
+                cur.execute(
+                    "INSERT OR IGNORE INTO catalogo_epis (descricao, ca, quantidade_padrao) VALUES (?,?,?)",
+                    (desc, ca, qtd)
+                )
+        except Exception:
+            pass
 
 
 # ── ENGENHEIROS ───────────────────────────────────────────

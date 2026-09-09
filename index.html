@@ -191,19 +191,6 @@ tr:hover td { background:#F9FAFB; }
           style="background:none;border:1.5px solid rgba(255,255,255,.6);color:#fff;border-radius:6px;padding:2px 10px;cursor:pointer;font-size:12px">Fechar</button>
 </div>
 
-<!-- Banner lembrete pedido EPI (solicitantes) -->
-<div id="banner-pedido-epi" style="display:none;position:fixed;top:0;left:0;right:0;z-index:7999;background:#1d4ed8;color:#fff;
-     padding:8px 20px;align-items:center;justify-content:space-between;gap:12px;font-size:13px;font-weight:600">
-  <span><i class="ti ti-package" style="margin-right:6px"></i><span id="banner-pedido-epi-txt">Lembrete: faça seu pedido de EPIs até o dia 20 às 12h.</span></span>
-  <div style="display:flex;gap:8px;align-items:center">
-    <button onclick="fecharModal('modal-pedido-epi');irPara('pedido-epi')"
-            style="background:rgba(255,255,255,.2);border:1.5px solid rgba(255,255,255,.6);color:#fff;border-radius:6px;padding:2px 12px;cursor:pointer;font-size:12px;font-weight:700">
-      Fazer pedido agora
-    </button>
-    <button onclick="document.getElementById('banner-pedido-epi').style.display='none'"
-            style="background:none;border:1.5px solid rgba(255,255,255,.6);color:#fff;border-radius:6px;padding:2px 10px;cursor:pointer;font-size:12px">Fechar</button>
-  </div>
-</div>
 
 <!-- ═══ TELA DE LOGIN ═══ -->
 <div id="tela-login" style="display:none;position:fixed;inset:0;background:var(--fundo);z-index:9999;
@@ -258,7 +245,6 @@ tr:hover td { background:#F9FAFB; }
     <button class="nav-item" data-modulo="alojamentos" onclick="irPara('alojamentos')"><i class="ti ti-home-2"></i>Alojamentos</button>
     <button class="nav-item" data-modulo="acidentes" onclick="irPara('acidentes')"><i class="ti ti-alert-triangle"></i>Acidentes</button>
     <button class="nav-item" data-modulo="historico" onclick="irPara('historico')"><i class="ti ti-clock"></i>Histórico</button>
-    <button class="nav-item" data-modulo="pedido-epi" onclick="irPara('pedido-epi')"><i class="ti ti-package"></i>Pedido de EPIs <span id="badge-pedido-epi" style="display:none;background:#ef4444;color:#fff;border-radius:99px;font-size:10px;font-weight:700;padding:1px 6px;margin-left:4px;vertical-align:middle"></span></button>
     <button class="nav-item" data-modulo="pedidos" onclick="irPara('pedidos')"><i class="ti ti-shopping-cart"></i>Pedidos de Obra</button>
     <button class="nav-item" data-modulo="diario-obra" onclick="irPara('diario-obra')"><i class="ti ti-camera"></i>Diário de Obra</button>
     <button class="nav-item" data-modulo="empresas" onclick="irPara('empresas')"><i class="ti ti-building"></i>Empresas</button>
@@ -1947,106 +1933,6 @@ tr:hover td { background:#F9FAFB; }
   </div>
 </div><!-- fecha panel-diario-obra -->
 
-<!-- ── PEDIDO DE EPIs (SOLICITANTE) ── -->
-<div class="panel" id="panel-pedido-epi">
-  <div class="page-header">
-    <div>
-      <div class="page-title"><i class="ti ti-package" style="margin-right:6px;color:#f59e0b"></i>Pedido de EPIs</div>
-      <div class="page-sub" id="pedido-epi-sub">Faça seu pedido de EPIs para o mês</div>
-    </div>
-    <button class="btn btn-primary" onclick="abrirModalPedidoEpi(null)" id="btn-novo-pedido-epi">
-      <i class="ti ti-plus"></i>Novo Pedido
-    </button>
-  </div>
-
-  <!-- Aviso de prazo -->
-  <div id="aviso-prazo-epi" style="display:none;background:#fef3c7;border:1px solid #f59e0b;border-radius:10px;padding:12px 16px;margin-bottom:16px;font-size:13px;color:#92400e">
-    <i class="ti ti-alert-triangle" style="margin-right:6px"></i><span id="aviso-prazo-epi-txt"></span>
-  </div>
-
-  <div class="card" style="padding:0;overflow:hidden">
-    <table class="tabela" style="min-width:700px">
-      <thead><tr>
-        <th>Mês</th>
-        <th>Solicitante</th>
-        <th>Obra</th>
-        <th style="text-align:center">Itens</th>
-        <th style="text-align:center">Status</th>
-        <th style="text-align:right">Data</th>
-        <th></th>
-      </tr></thead>
-      <tbody id="pedidos-epi-tbody">
-        <tr><td colspan="7" style="text-align:center;padding:32px;color:var(--texto2)">Carregando...</td></tr>
-      </tbody>
-    </table>
-  </div>
-</div>
-
-<!-- Modal Pedido EPI -->
-<div class="modal-overlay" id="modal-pedido-epi">
-  <div class="modal-box" style="max-width:680px;width:95%">
-    <div class="modal-header">
-      <div class="modal-title" id="modal-pedido-epi-titulo">Novo Pedido de EPIs</div>
-      <button class="modal-close" onclick="fecharModal('modal-pedido-epi')"><i class="ti ti-x"></i></button>
-    </div>
-    <div class="modal-body">
-      <input type="hidden" id="pepi-id">
-      <div class="grid2">
-        <div class="field">
-          <label>Mês de referência</label>
-          <input type="month" id="pepi-mes">
-        </div>
-        <div class="field">
-          <label>Obra / Local</label>
-          <input type="text" id="pepi-obra" placeholder="Ex: Lote 11">
-        </div>
-      </div>
-
-      <div style="margin:16px 0 8px;font-weight:600;font-size:13px;color:var(--texto)">Itens solicitados</div>
-      <div style="display:grid;grid-template-columns:1fr 80px 80px auto;gap:6px;margin-bottom:4px;padding:0 4px">
-        <div style="font-size:11px;color:var(--texto2);font-weight:600;text-transform:uppercase;letter-spacing:.04em">Descrição / EPI</div>
-        <div style="font-size:11px;color:var(--texto2);font-weight:600;text-align:center;text-transform:uppercase;letter-spacing:.04em">Qtd</div>
-        <div style="font-size:11px;color:var(--texto2);font-weight:600;text-align:center;text-transform:uppercase;letter-spacing:.04em">Unid.</div>
-        <div></div>
-      </div>
-      <div id="pepi-itens-lista"></div>
-      <button class="btn btn-secondary btn-sm" style="margin-top:8px" onclick="pepiAddItem()">
-        <i class="ti ti-plus"></i>Adicionar item
-      </button>
-
-      <!-- Seção aprovação (só admin vê) -->
-      <div id="pepi-admin-section" style="display:none;border-top:1px solid var(--borda);margin-top:16px;padding-top:16px">
-        <div class="grid2" style="margin-bottom:12px">
-          <div class="field">
-            <label>Status do pedido</label>
-            <select id="pepi-status">
-              <option value="pendente">Pendente</option>
-              <option value="aprovado">Aprovado</option>
-              <option value="entregue_parcial">Entregue parcial</option>
-              <option value="entregue">Entregue</option>
-              <option value="cancelado">Cancelado</option>
-            </select>
-          </div>
-          <div class="field">
-            <label>Observação (admin)</label>
-            <input type="text" id="pepi-obs-admin" placeholder="Comentário para o solicitante">
-          </div>
-        </div>
-        <div id="pepi-entrega-itens" style="display:none">
-          <div style="font-size:12px;font-weight:600;color:var(--texto2);margin-bottom:8px;text-transform:uppercase;letter-spacing:.05em">Quantidades entregues</div>
-          <div id="pepi-entrega-lista"></div>
-        </div>
-      </div>
-    </div>
-    <div class="modal-footer">
-      <button class="btn btn-secondary" onclick="fecharModal('modal-pedido-epi')">Cancelar</button>
-      <button class="btn btn-secondary" id="btn-pdf-pepi" style="display:none" onclick="gerarPdfPedidoEpi()">
-        <i class="ti ti-file-type-pdf"></i>Gerar PDF p/ Compras
-      </button>
-      <button class="btn btn-primary" id="btn-salvar-pepi" onclick="salvarPedidoEpi()"><i class="ti ti-check"></i>Salvar pedido</button>
-    </div>
-  </div>
-</div>
 
 <!-- ── PEDIDOS DE OBRA ── -->
 <div class="panel" id="panel-pedidos">
@@ -2848,15 +2734,8 @@ tr:hover td { background:#F9FAFB; }
           <label>Perfil</label>
           <select id="admin-perfil" onchange="adminTogglePerms()">
             <option value="usuario">Usuário</option>
-            <option value="solicitante">Solicitante de EPI</option>
             <option value="admin">Administrador</option>
           </select>
-        </div>
-      </div>
-      <div id="admin-obra-section" style="margin-top:12px;display:none">
-        <div class="field">
-          <label>Obra / Local responsável</label>
-          <input type="text" id="admin-obra-responsavel" placeholder="Ex: Lote 11, GMM...">
         </div>
       </div>
       <div id="admin-perms-section" style="margin-top:16px;">
@@ -2906,8 +2785,7 @@ const MODULOS = [
   { id:'envio-lote',    label:'Kit SST Envio' },
   { id:'ordem-servico', label:'Treinamentos' },
   { id:'historico',     label:'Histórico' },
-  { id:'pedido-epi',    label:'Pedido de EPIs' },
-  { id:'pedidos',       label:'Pedidos de Obra' },
+{ id:'pedidos',       label:'Pedidos de Obra' },
   { id:'diario-obra',   label:'Diário de Obra' },
   { id:'alojamentos',   label:'Alojamentos' },
   { id:'acidentes',     label:'Acidentes' },
@@ -3008,7 +2886,6 @@ function entrarNoSistema() {
   verificarAPI();
   carregarEmpresa();
   verificarBackup();
-  verificarLembretePedidoEpi();
   // Preload geral em background — deixa caches prontos antes do usuário navegar
   _preloadGeral();
 }
@@ -3111,32 +2988,6 @@ async function carregarIntegracaoLista() {
 // ══════════════════════════════════════════════════════
 //  BACKUP DO SISTEMA
 // ══════════════════════════════════════════════════════
-function verificarLembretePedidoEpi() {
-  const perfil = _authUser?.perfil;
-  const banner = document.getElementById('banner-pedido-epi');
-  // Só mostra para solicitantes (não admin) que têm permissão no módulo
-  if (perfil === 'admin' || !temPermissao('pedido-epi')) {
-    banner.style.display = 'none';
-    return;
-  }
-  const agora = new Date();
-  const dia = agora.getDate();
-  const hora = agora.getHours() + agora.getMinutes() / 60;
-  // Mostra do dia 10 ao dia 20 às 12h
-  if (dia >= 10 && !(dia > 20 || (dia === 20 && hora >= 12))) {
-    const diasRestantes = 20 - dia;
-    const txtEl = document.getElementById('banner-pedido-epi-txt');
-    if (diasRestantes <= 2) {
-      txtEl.textContent = `⚠️ Atenção! O prazo para seu pedido de EPIs encerra ${dia === 20 ? 'HOJE às 12h' : `em ${diasRestantes} dia${diasRestantes > 1 ? 's' : ''}`}. Não perca o prazo!`;
-    } else {
-      txtEl.textContent = `Lembrete: faça seu pedido de EPIs até o dia 20 às 12h. Faltam ${diasRestantes} dias.`;
-    }
-    banner.style.display = 'flex';
-  } else {
-    banner.style.display = 'none';
-  }
-}
-
 async function verificarBackup() {
   try {
     const res = await apiFetch('/api/backup/info');
@@ -3235,7 +3086,6 @@ function adminAbrirModal(usuario) {
   document.getElementById('admin-senha').value  = '';
   document.getElementById('admin-perfil').value = usuario?.perfil || 'usuario';
   document.getElementById('admin-ativo').checked = usuario ? !!usuario.ativo : true;
-  document.getElementById('admin-obra-responsavel').value = usuario?.obra_responsavel || '';
   document.getElementById('modal-usuario-titulo').textContent = usuario ? 'Editar usuário' : 'Novo usuário';
   document.getElementById('admin-senha-label').textContent = usuario ? 'Nova senha (deixe em branco para não alterar)' : 'Senha';
 
@@ -3257,15 +3107,7 @@ function adminAbrirModal(usuario) {
 function adminTogglePerms() {
   const perfil = document.getElementById('admin-perfil').value;
   const isAdmin = perfil === 'admin';
-  const isSolic = perfil === 'solicitante';
   document.getElementById('admin-perms-section').style.display = isAdmin ? 'none' : '';
-  document.getElementById('admin-obra-section').style.display = isSolic ? '' : 'none';
-  // Solicitante recebe automaticamente só a permissão pedido-epi
-  if (isSolic) {
-    document.querySelectorAll('.perm-chk').forEach(c => {
-      c.checked = c.value === 'pedido-epi';
-    });
-  }
 }
 
 async function adminSalvar() {
@@ -3281,8 +3123,7 @@ async function adminSalvar() {
   if (!nome || !login) { alert('Nome e login são obrigatórios.'); return; }
   if (!uid && !senha)  { alert('Informe uma senha para o novo usuário.'); return; }
 
-  const obraResp = document.getElementById('admin-obra-responsavel').value.trim();
-  const body = { nome, login, perfil, permissoes: perms, ativo, obra_responsavel: obraResp };
+  const body = { nome, login, perfil, permissoes: perms, ativo };
   if (senha) body.senha = senha;
 
   const res = await apiFetch(uid ? `/api/usuarios/${uid}` : '/api/usuarios', {
@@ -3328,8 +3169,7 @@ async function irPara(aba) {
   if (aba==='ordem-servico') carregarOSCargos();
   if (aba==='historico')     carregarHistorico();
   if (aba==='diario-obra')   doInit();
-  if (aba==='pedido-epi')    { _pepiCatalogo = []; carregarPedidoEpi(); }
-  if (aba==='pedidos')       carregarPedidos();
+if (aba==='pedidos')       carregarPedidos();
   if (aba==='alojamentos')   alojaInit();
   if (aba==='acidentes')     acidInit();
   if (aba==='admin')         { carregarAdmin(); carregarIntegracaoConfig(); _adminCarregarLogoPreview(); verificarBackup(); }
@@ -8618,18 +8458,8 @@ function _fmtBrl(v) {
 }
 
 // ══════════════════════════════════════════════════════
-//  PEDIDO DE EPIs
+//  CATÁLOGO DE EPIs
 // ══════════════════════════════════════════════════════
-const PEPI_STATUS_LABEL = {
-  pendente: { label: 'Pendente', color: '#f59e0b', bg: '#fef3c7' },
-  aprovado: { label: 'Aprovado', color: '#10b981', bg: '#d1fae5' },
-  entregue_parcial: { label: 'Parcial', color: '#3b82f6', bg: '#dbeafe' },
-  entregue: { label: 'Entregue', color: '#16a34a', bg: '#dcfce7' },
-  cancelado: { label: 'Cancelado', color: '#6b7280', bg: '#f3f4f6' },
-};
-
-let _pepiItemIdx = 0;
-let _pepiPedidoAtual = null;
 let _pepiCatalogo = [];  // cache do catálogo de EPIs
 
 async function _pepiCarregarCatalogo() {
@@ -8639,310 +8469,6 @@ async function _pepiCarregarCatalogo() {
     if (res && res.ok) _pepiCatalogo = await res.json();
   } catch(e) {}
   return _pepiCatalogo;
-}
-
-async function carregarPedidoEpi() {
-  // Mostra aviso de prazo
-  const agora = new Date();
-  const dia = agora.getDate();
-  const hora = agora.getHours() + agora.getMinutes() / 60;
-  const avisoEl = document.getElementById('aviso-prazo-epi');
-  const avisoTxt = document.getElementById('aviso-prazo-epi-txt');
-  if (dia > 20 || (dia === 20 && hora >= 12)) {
-    avisoEl.style.display = '';
-    avisoTxt.textContent = `O prazo para pedidos deste mês encerrou (dia 20 às 12h). Pedidos feitos agora serão para o próximo mês.`;
-  } else if (dia >= 18) {
-    avisoEl.style.display = '';
-    avisoEl.style.background = '#fef3c7';
-    avisoTxt.textContent = `Atenção: o prazo para pedidos deste mês é até o dia 20 às 12h.`;
-  } else {
-    avisoEl.style.display = 'none';
-  }
-
-  // Info do usuário logado
-  const isAdmin = _authUser?.perfil === 'admin';
-  document.getElementById('btn-novo-pedido-epi').style.display = isAdmin ? 'none' : '';
-  document.getElementById('pedido-epi-sub').textContent = isAdmin
-    ? 'Gerencie e aprove pedidos de EPIs dos responsáveis de obra'
-    : `Pedidos da obra: ${_authUser?.obra_responsavel || '—'}`;
-
-  // Badge admin
-  if (isAdmin) {
-    const rc = await apiFetch('/api/pedidos-epi/pendentes/count').catch(()=>null);
-    const badge = document.getElementById('badge-pedido-epi');
-    if (rc && rc.ok) {
-      const d = await rc.json();
-      if (d.count > 0) { badge.style.display = ''; badge.textContent = d.count; }
-      else badge.style.display = 'none';
-    }
-  }
-
-  const res = await apiFetch('/api/pedidos-epi').catch(()=>null);
-  const tbody = document.getElementById('pedidos-epi-tbody');
-  if (!res || !res.ok) {
-    tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:32px;color:var(--texto2)">Erro ao carregar pedidos.</td></tr>';
-    return;
-  }
-  const lista = await res.json();
-  if (!lista.length) {
-    tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:32px;color:var(--texto2)">Nenhum pedido encontrado.</td></tr>';
-    return;
-  }
-  const isAdm = _authUser?.perfil === 'admin';
-  tbody.innerHTML = lista.map(p => {
-    const st = PEPI_STATUS_LABEL[p.status] || PEPI_STATUS_LABEL.pendente;
-    const dt = p.criado_em ? new Date(p.criado_em.endsWith('Z')||p.criado_em.includes('+')?p.criado_em:p.criado_em+'Z').toLocaleDateString('pt-BR') : '—';
-    return `<tr>
-      <td>${p.mes_ref||'—'}</td>
-      <td style="font-weight:600">${p.solicitante||'—'}</td>
-      <td>${p.obra||'—'}</td>
-      <td style="text-align:center"><span id="pepi-count-${p.id}">...</span></td>
-      <td style="text-align:center"><span style="background:${st.bg};color:${st.color};border-radius:99px;font-size:11px;font-weight:700;padding:3px 10px">${st.label}</span></td>
-      <td style="text-align:right;font-size:12px;color:var(--texto2)">${dt}</td>
-      <td style="text-align:right">
-        <button class="btn btn-sm btn-secondary" onclick="verPedidoEpi(${p.id})">
-          <i class="ti ti-eye"></i>${isAdm?'Avaliar':'Ver'}
-        </button>
-      </td>
-    </tr>`;
-  }).join('');
-
-  // Carrega contagem de itens em paralelo
-  lista.forEach(async p => {
-    const r = await apiFetch(`/api/pedidos-epi/${p.id}`).catch(()=>null);
-    if (r && r.ok) {
-      const d = await r.json();
-      const el = document.getElementById(`pepi-count-${p.id}`);
-      if (el) el.textContent = (d.itens||[]).length;
-    }
-  });
-}
-
-function pepiAddItem(item = null) {
-  const idx = _pepiItemIdx++;
-  const lista = document.getElementById('pepi-itens-lista');
-  const div = document.createElement('div');
-  div.id = `pepi-item-${idx}`;
-  div.style.cssText = 'margin-bottom:10px';
-
-  // Opções do catálogo já carregado
-  const cats = _pepiCatalogo;
-  const optsCat = cats.map(e =>
-    `<option value="${e.id}" data-descricao="${e.descricao.replace(/"/g,'&quot;')}" data-ca="${e.ca||''}" data-unidade="UN">${e.descricao}${e.ca ? ' — CA '+e.ca : ''}</option>`
-  ).join('');
-
-  div.innerHTML = `
-    <div style="display:grid;grid-template-columns:1fr 80px 80px auto;gap:8px;align-items:start">
-      <div>
-        <select onchange="pepiOnSelectEpi(this, ${idx})"
-                style="width:100%;font-size:13px;padding:8px 10px;border:1px solid var(--borda);border-radius:8px;background:var(--fundo2);color:var(--texto);margin-bottom:4px">
-          <option value="">— Selecionar do catálogo —</option>
-          ${optsCat}
-          <option value="__outro__">✏️ Outro (digitar manualmente)</option>
-        </select>
-        <input type="text" id="pepi-desc-${idx}" placeholder="Descrição do item"
-               value="${(item?.descricao||'').replace(/"/g,'&quot;')}"
-               style="width:100%;font-size:13px;padding:7px 10px;border:1px solid var(--borda);border-radius:8px;background:var(--fundo2);color:var(--texto);box-sizing:border-box;${item?.descricao ? '' : 'display:none'}">
-        <div id="pepi-ca-${idx}" style="font-size:11px;color:#16a34a;font-weight:600;margin-top:2px;min-height:16px"></div>
-      </div>
-      <input type="number" id="pepi-qtd-${idx}" placeholder="Qtd" min="1" value="${item?.quantidade||1}"
-             style="font-size:13px;padding:8px 10px;border:1px solid var(--borda);border-radius:8px;background:var(--fundo2);color:var(--texto);text-align:center;width:100%;box-sizing:border-box">
-      <input type="text" id="pepi-und-${idx}" placeholder="UN" value="${item?.unidade||'UN'}"
-             style="font-size:13px;padding:8px 10px;border:1px solid var(--borda);border-radius:8px;background:var(--fundo2);color:var(--texto);text-align:center;width:100%;box-sizing:border-box">
-      <button onclick="document.getElementById('pepi-item-${idx}').remove()"
-              style="background:none;border:1px solid #ef4444;color:#ef4444;border-radius:8px;padding:8px 10px;cursor:pointer;font-size:14px;margin-top:0">
-        <i class="ti ti-trash"></i>
-      </button>
-    </div>`;
-
-  lista.appendChild(div);
-
-  // Se é item já salvo, pré-seleciona no select ou mostra campo livre
-  if (item?.descricao) {
-    const sel = div.querySelector('select');
-    const match = cats.find(e => e.descricao === item.descricao);
-    if (match) {
-      sel.value = match.id;
-      const caEl = document.getElementById(`pepi-ca-${idx}`);
-      if (match.ca) caEl.textContent = `C.A.: ${match.ca}`;
-      document.getElementById(`pepi-desc-${idx}`).style.display = 'none';
-    } else {
-      sel.value = '__outro__';
-      document.getElementById(`pepi-desc-${idx}`).style.display = '';
-    }
-  }
-}
-
-function pepiOnSelectEpi(sel, idx) {
-  const val = sel.value;
-  const descEl = document.getElementById(`pepi-desc-${idx}`);
-  const caEl   = document.getElementById(`pepi-ca-${idx}`);
-  if (val === '__outro__') {
-    descEl.style.display = '';
-    descEl.value = '';
-    caEl.textContent = '';
-    descEl.focus();
-  } else if (val) {
-    const opt = sel.options[sel.selectedIndex];
-    descEl.style.display = 'none';
-    descEl.value = opt.dataset.descricao || '';
-    const ca = opt.dataset.ca || '';
-    caEl.textContent = ca ? `C.A.: ${ca}` : '';
-  } else {
-    descEl.style.display = 'none';
-    descEl.value = '';
-    caEl.textContent = '';
-  }
-}
-
-async function abrirModalPedidoEpi(pedido) {
-  _pepiPedidoAtual = pedido;
-  _pepiItemIdx = 0;
-  await _pepiCarregarCatalogo();
-  document.getElementById('pepi-id').value = pedido?.id || '';
-  const agora = new Date();
-  const mesDefault = agora.toISOString().slice(0, 7);
-  document.getElementById('pepi-mes').value = pedido?.mes_ref || mesDefault;
-  document.getElementById('pepi-obra').value = pedido?.obra || _authUser?.obra_responsavel || '';
-  document.getElementById('pepi-itens-lista').innerHTML = '';
-  document.getElementById('modal-pedido-epi-titulo').textContent = pedido ? 'Ver pedido' : 'Novo Pedido de EPIs';
-
-  const isAdmin = _authUser?.perfil === 'admin';
-  const adminSec = document.getElementById('pepi-admin-section');
-  adminSec.style.display = isAdmin && pedido ? '' : 'none';
-  const pdfBtn = document.getElementById('btn-pdf-pepi');
-  pdfBtn.style.display = (isAdmin && pedido && ['aprovado','entregue_parcial','entregue'].includes(pedido?.status)) ? '' : 'none';
-
-  if (isAdmin && pedido) {
-    document.getElementById('pepi-status').value = pedido.status || 'pendente';
-    document.getElementById('pepi-obs-admin').value = pedido.observacao_admin || '';
-    const entregaDiv = document.getElementById('pepi-entrega-itens');
-    const entregaLista = document.getElementById('pepi-entrega-lista');
-    entregaDiv.style.display = '';
-    entregaLista.innerHTML = (pedido.itens||[]).map(it => {
-      const cat = _pepiCatalogo.find(e => e.descricao === it.descricao);
-      const caInfo = cat?.ca ? `<span style="color:#16a34a;font-size:10px;font-weight:700"> C.A. ${cat.ca}</span>` : '';
-      return `<div style="display:grid;grid-template-columns:1fr 90px 90px;gap:8px;align-items:center;margin-bottom:8px;padding:8px;background:var(--fundo2);border-radius:8px">
-        <div>
-          <div style="font-size:13px;color:var(--texto);font-weight:500">${it.descricao}${caInfo}</div>
-          <div style="font-size:11px;color:var(--texto2)">Solicitado: ${it.quantidade} ${it.unidade}</div>
-        </div>
-        <div style="font-size:11px;color:var(--texto2);text-align:center">Já entregue:<br><strong>${it.quantidade_entregue||0}</strong></div>
-        <input type="number" data-item-id="${it.id}" min="0" value="${it.quantidade_entregue||0}"
-               placeholder="Entregar"
-               style="font-size:13px;padding:6px 8px;border:1px solid var(--borda);border-radius:8px;background:var(--fundo);color:var(--texto);text-align:center">
-      </div>`;
-    }).join('');
-    // Readonly itens para admin
-    document.getElementById('btn-salvar-pepi').textContent = '✓ Salvar avaliação';
-  } else {
-    document.getElementById('btn-salvar-pepi').innerHTML = '<i class="ti ti-check"></i>Salvar pedido';
-  }
-
-  // Campos de item readonly para admin (só visualiza)
-  const obraEl = document.getElementById('pepi-obra');
-  const mesEl = document.getElementById('pepi-mes');
-  obraEl.readOnly = isAdmin && !!pedido;
-  mesEl.readOnly = isAdmin && !!pedido;
-
-  if (pedido) {
-    (pedido.itens||[]).forEach(it => pepiAddItem(it));
-    // Torna itens readonly para não-admin visualizando pedido existente
-    setTimeout(() => {
-      document.querySelectorAll('#pepi-itens-lista input').forEach(el => {
-        el.readOnly = true;
-        el.style.opacity = '0.7';
-      });
-      document.querySelectorAll('#pepi-itens-lista button').forEach(el => el.style.display = 'none');
-      document.querySelector('button[onclick="pepiAddItem()"]').style.display = 'none';
-    }, 50);
-  } else {
-    pepiAddItem();
-    setTimeout(() => {
-      document.querySelector('button[onclick="pepiAddItem()"]').style.display = '';
-    }, 50);
-  }
-
-  abrirModal('modal-pedido-epi');
-}
-
-async function verPedidoEpi(id) {
-  const res = await apiFetch(`/api/pedidos-epi/${id}`).catch(()=>null);
-  if (!res || !res.ok) { alert('Erro ao carregar pedido.'); return; }
-  const p = await res.json();
-  abrirModalPedidoEpi(p);
-}
-
-async function salvarPedidoEpi() {
-  const id = document.getElementById('pepi-id').value;
-  const isAdmin = _authUser?.perfil === 'admin';
-
-  if (isAdmin && id) {
-    // Admin atualizando status + entregas
-    const itensEntrega = [...document.querySelectorAll('#pepi-entrega-lista input[data-item-id]')].map(el => ({
-      id: parseInt(el.dataset.itemId),
-      quantidade_entregue: parseFloat(el.value) || 0
-    }));
-    const body = {
-      status: document.getElementById('pepi-status').value,
-      observacao_admin: document.getElementById('pepi-obs-admin').value,
-      itens: itensEntrega
-    };
-    const res = await apiFetch(`/api/pedidos-epi/${id}`, { method: 'PUT', body: JSON.stringify(body) });
-    if (!res || !res.ok) { alert('Erro ao salvar avaliação.'); return; }
-    // Mostra botão PDF se status aprovado
-    const statusSalvo = body.status;
-    if (['aprovado','entregue_parcial','entregue'].includes(statusSalvo)) {
-      document.getElementById('btn-pdf-pepi').style.display = '';
-    }
-    carregarPedidoEpi();
-    return;
-  }
-
-  // Solicitante criando novo pedido
-  const itens = [...document.querySelectorAll('#pepi-itens-lista > div[id^="pepi-item-"]')].map(div => {
-    const sel  = div.querySelector('select');
-    const desc = div.querySelector('input[id^="pepi-desc-"]');
-    const qtd  = div.querySelector('input[id^="pepi-qtd-"]');
-    const und  = div.querySelector('input[id^="pepi-und-"]');
-    let descricao = '';
-    if (sel && sel.value && sel.value !== '__outro__') {
-      const opt = sel.options[sel.selectedIndex];
-      descricao = opt?.dataset?.descricao || opt?.text?.split(' — ')[0] || '';
-    } else if (desc) {
-      descricao = desc.value.trim();
-    }
-    return { descricao, quantidade: parseFloat(qtd?.value)||1, unidade: und?.value?.trim()||'UN' };
-  }).filter(it => it.descricao);
-
-  if (!itens.length) { alert('Adicione ao menos um item.'); return; }
-
-  const body = {
-    mes_ref: document.getElementById('pepi-mes').value,
-    obra: document.getElementById('pepi-obra').value.trim(),
-    itens
-  };
-  const res = await apiFetch('/api/pedidos-epi', { method: 'POST', body: JSON.stringify(body) });
-  if (!res || !res.ok) { alert('Erro ao salvar pedido.'); return; }
-  fecharModal('modal-pedido-epi');
-  carregarPedidoEpi();
-}
-
-async function gerarPdfPedidoEpi() {
-  const id = document.getElementById('pepi-id').value;
-  if (!id) return;
-  const btn = document.getElementById('btn-pdf-pepi');
-  btn.disabled = true; btn.innerHTML = '<i class="ti ti-loader-2"></i> Gerando...';
-  try {
-    const res = await apiFetch(`/api/pedidos-epi/${id}/pdf`);
-    if (!res || !res.ok) { alert('Erro ao gerar PDF.'); return; }
-    const blob = await res.blob();
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url; a.download = `pedido_epi_${id}.pdf`; a.click();
-    URL.revokeObjectURL(url);
-  } catch(e) { alert('Erro ao gerar PDF.'); }
-  finally { btn.disabled = false; btn.innerHTML = '<i class="ti ti-file-type-pdf"></i>Gerar PDF p/ Compras'; }
 }
 
 // ══════════════════════════════════════════════════════

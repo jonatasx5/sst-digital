@@ -377,6 +377,19 @@ def criar_banco():
                 criado_em TEXT DEFAULT (datetime('now','localtime')))""")
         conn.commit()
 
+        # Migração: obra_responsavel em usuarios
+        try:
+            if USE_POSTGRES:
+                cur.execute("ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS obra_responsavel TEXT DEFAULT ''")
+            else:
+                try:
+                    cur.execute("ALTER TABLE usuarios ADD COLUMN obra_responsavel TEXT DEFAULT ''")
+                except Exception:
+                    pass
+            conn.commit()
+        except Exception:
+            pass
+
         # Tabela engenheiros
         if USE_POSTGRES:
             cur.execute("""
@@ -1188,6 +1201,191 @@ def excluir_pedido(pedido_id: int):
     finally:
         conn.close()
 
+
+def _criar_tabela_pedidos_epi(conn, use_pg):
+    cur = conn.cursor()
+    if use_pg:
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS pedidos_epi (
+                id SERIAL PRIMARY KEY,
+                usuario_id INTEGER NOT NULL,
+                solicitante TEXT NOT NULL,
+                obra TEXT NOT NULL,
+                mes_ref TEXT NOT NULL,
+                status TEXT NOT NULL DEFAULT 'pendente',
+                observacao_admin TEXT DEFAULT '',
+                aprovado_em TIMESTAMP,
+                criado_em TIMESTAMP DEFAULT NOW()
+            )
+        """)
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS pedidos_epi_itens (
+                id SERIAL PRIMARY KEY,
+                pedido_id INTEGER NOT NULL REFERENCES pedidos_epi(id) ON DELETE CASCADE,
+                descricao TEXT NOT NULL,
+                unidade TEXT NOT NULL DEFAULT 'UN',
+                quantidade NUMERIC NOT NULL DEFAULT 1,
+                quantidade_entregue NUMERIC NOT NULL DEFAULT 0,
+                observacao TEXT DEFAULT ''
+            )
+        """)
+    else:
+        cur.execute("""CREATE TABLE IF NOT EXISTS pedidos_epi (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            usuario_id INTEGER NOT NULL,
+            solicitante TEXT NOT NULL,
+            obra TEXT NOT NULL,
+            mes_ref TEXT NOT NULL,
+            status TEXT NOT NULL DEFAULT 'pendente',
+            observacao_admin TEXT DEFAULT '',
+            aprovado_em TEXT,
+            criado_em TEXT DEFAULT (datetime('now','localtime')))""")
+        cur.execute("""CREATE TABLE IF NOT EXISTS pedidos_epi_itens (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            pedido_id INTEGER NOT NULL,
+            descricao TEXT NOT NULL,
+            unidade TEXT NOT NULL DEFAULT 'UN',
+            quantidade REAL NOT NULL DEFAULT 1,
+            quantidade_entregue REAL NOT NULL DEFAULT 0,
+            observacao TEXT DEFAULT '')""")
+    conn.commit()
+
+def listar_pedidos_epi(usuario_id=None, status=None) -> list:
+    conn = conectar()
+    try:
+        _criar_tabela_pedidos_epi(conn, USE_POSTGRES)
+        where, params = [], []
+        if usuario_id:
+            where.append("p.usuario_id = %s" if USE_POSTGRES else "p.usuario_id = ?")
+            params.append(usuario_id)
+        if status:
+            where.append("p.status = %s" if USE_POSTGRES else "p.status = ?")
+            params.append(status)
+        cond = ("WHERE " + " AND ".join(where)) if where else ""
+        sql = f"SELECT p.id,p.usuario_id,p.solicitante,p.obra,p.mes_ref,p.status,p.observacao_admin,p.criado_em FROM pedidos_epi p {cond} ORDER BY p.criado_em DESC"
+        if USE_POSTGRES:
+            cur = conn.cursor(cursor_factory=_psycopg2_extras.RealDictCursor)
+            cur.execute(sql, params)
+            rows = [dict(r) for r in cur.fetchall()]
+        else:
+            cur = conn.cursor()
+            cur.execute(sql, params)
+            cols = [d[0] for d in cur.description]
+            rows = [dict(zip(cols, r)) for r in cur.fetchall()]
+        # Adiciona contagem de itens
+        for row in rows:
+            row['criado_em'] = str(row.get('criado_em', ''))
+        return rows
+    finally:
+        conn.close()
+
+def buscar_pedido_epi(pedido_id: int) -> dict | None:
+    conn = conectar()
+    try:
+        _criar_tabela_pedidos_epi(conn, USE_POSTGRES)
+        if USE_POSTGRES:
+            cur = conn.cursor(cursor_factory=_psycopg2_extras.RealDictCursor)
+            cur.execute("SELECT * FROM pedidos_epi WHERE id=%s", (pedido_id,))
+            p = cur.fetchone()
+            if not p: return None
+            p = dict(p)
+            p['criado_em'] = str(p.get('criado_em', ''))
+            cur.execute("SELECT * FROM pedidos_epi_itens WHERE pedido_id=%s ORDER BY id", (pedido_id,))
+            p['itens'] = [dict(r) for r in cur.fetchall()]
+        else:
+            cur = conn.cursor()
+            cur.execute("SELECT * FROM pedidos_epi WHERE id=?", (pedido_id,))
+            cols = [d[0] for d in cur.description]
+            row = cur.fetchone()
+            if not row: return None
+            p = dict(zip(cols, row))
+            cur.execute("SELECT * FROM pedidos_epi_itens WHERE pedido_id=? ORDER BY id", (pedido_id,))
+            cols2 = [d[0] for d in cur.description]
+            p['itens'] = [dict(zip(cols2, r)) for r in cur.fetchall()]
+        return p
+    finally:
+        conn.close()
+
+def criar_pedido_epi(usuario_id, solicitante, obra, mes_ref, itens) -> int:
+    conn = conectar()
+    try:
+        _criar_tabela_pedidos_epi(conn, USE_POSTGRES)
+        if USE_POSTGRES:
+            cur = conn.cursor(cursor_factory=_psycopg2_extras.RealDictCursor)
+            cur.execute("INSERT INTO pedidos_epi (usuario_id,solicitante,obra,mes_ref) VALUES (%s,%s,%s,%s) RETURNING id",
+                        (usuario_id, solicitante, obra, mes_ref))
+            pid = cur.fetchone()['id']
+            for it in itens:
+                cur.execute("INSERT INTO pedidos_epi_itens (pedido_id,descricao,unidade,quantidade,observacao) VALUES (%s,%s,%s,%s,%s)",
+                            (pid, it.get('descricao',''), it.get('unidade','UN'), it.get('quantidade',1), it.get('observacao','')))
+        else:
+            cur = conn.cursor()
+            cur.execute("INSERT INTO pedidos_epi (usuario_id,solicitante,obra,mes_ref) VALUES (?,?,?,?)",
+                        (usuario_id, solicitante, obra, mes_ref))
+            pid = cur.lastrowid
+            for it in itens:
+                cur.execute("INSERT INTO pedidos_epi_itens (pedido_id,descricao,unidade,quantidade,observacao) VALUES (?,?,?,?,?)",
+                            (pid, it.get('descricao',''), it.get('unidade','UN'), it.get('quantidade',1), it.get('observacao','')))
+        conn.commit()
+        return pid
+    finally:
+        conn.close()
+
+def atualizar_status_pedido_epi(pedido_id: int, status: str, observacao_admin: str = '', itens_entrega: list = None):
+    from datetime import datetime as _dt
+    conn = conectar()
+    try:
+        _criar_tabela_pedidos_epi(conn, USE_POSTGRES)
+        aprovado_em = _dt.now().isoformat() if status in ('aprovado', 'entregue_parcial', 'entregue') else None
+        if USE_POSTGRES:
+            cur = conn.cursor(cursor_factory=_psycopg2_extras.RealDictCursor)
+            if aprovado_em:
+                cur.execute("UPDATE pedidos_epi SET status=%s, observacao_admin=%s, aprovado_em=%s WHERE id=%s",
+                            (status, observacao_admin, aprovado_em, pedido_id))
+            else:
+                cur.execute("UPDATE pedidos_epi SET status=%s, observacao_admin=%s WHERE id=%s",
+                            (status, observacao_admin, pedido_id))
+            if itens_entrega:
+                for it in itens_entrega:
+                    cur.execute("UPDATE pedidos_epi_itens SET quantidade_entregue=%s WHERE id=%s",
+                                (it.get('quantidade_entregue', 0), it['id']))
+        else:
+            cur = conn.cursor()
+            if aprovado_em:
+                cur.execute("UPDATE pedidos_epi SET status=?, observacao_admin=?, aprovado_em=? WHERE id=?",
+                            (status, observacao_admin, aprovado_em, pedido_id))
+            else:
+                cur.execute("UPDATE pedidos_epi SET status=?, observacao_admin=? WHERE id=?",
+                            (status, observacao_admin, pedido_id))
+            if itens_entrega:
+                for it in itens_entrega:
+                    cur.execute("UPDATE pedidos_epi_itens SET quantidade_entregue=? WHERE id=?",
+                                (it.get('quantidade_entregue', 0), it['id']))
+        conn.commit()
+    finally:
+        conn.close()
+
+def excluir_pedido_epi(pedido_id: int):
+    conn = conectar()
+    try:
+        _criar_tabela_pedidos_epi(conn, USE_POSTGRES)
+        if USE_POSTGRES:
+            cur = conn.cursor()
+            cur.execute("DELETE FROM pedidos_epi WHERE id=%s", (pedido_id,))
+        else:
+            cur = conn.cursor()
+            cur.execute("DELETE FROM pedidos_epi_itens WHERE pedido_id=?", (pedido_id,))
+            cur.execute("DELETE FROM pedidos_epi WHERE id=?", (pedido_id,))
+        conn.commit()
+    finally:
+        conn.close()
+
+def contar_pedidos_epi_pendentes() -> int:
+    try:
+        r = executar("SELECT COUNT(*) FROM pedidos_epi WHERE status='pendente'", fetchone=True)
+        return r[0] if r else 0
+    except Exception:
+        return 0
 
 def _criar_tabela_fichas_epi(conn, use_pg):
     cur = conn.cursor()
@@ -2096,7 +2294,7 @@ def limpar_todos_extras():
 
 # ── USUÁRIOS ──────────────────────────────────────────────
 
-def criar_usuario(nome: str, login: str, senha_hash: str, perfil: str = "usuario", permissoes: list = None) -> int:
+def criar_usuario(nome: str, login: str, senha_hash: str, perfil: str = "usuario", permissoes: list = None, obra_responsavel: str = '') -> int:
     import json
     perms = json.dumps(permissoes or [])
     conn = conectar()
@@ -2104,15 +2302,15 @@ def criar_usuario(nome: str, login: str, senha_hash: str, perfil: str = "usuario
         if USE_POSTGRES:
             cur = conn.cursor(cursor_factory=_psycopg2_extras.RealDictCursor)
             cur.execute(
-                "INSERT INTO usuarios (nome,login,senha_hash,perfil,permissoes) VALUES (%s,%s,%s,%s,%s) RETURNING id",
-                (nome, login, senha_hash, perfil, perms)
+                "INSERT INTO usuarios (nome,login,senha_hash,perfil,permissoes,obra_responsavel) VALUES (%s,%s,%s,%s,%s,%s) RETURNING id",
+                (nome, login, senha_hash, perfil, perms, obra_responsavel)
             )
             uid = cur.fetchone()["id"]
         else:
             cur = conn.cursor()
             cur.execute(
-                "INSERT INTO usuarios (nome,login,senha_hash,perfil,permissoes) VALUES (?,?,?,?,?)",
-                (nome, login, senha_hash, perfil, perms)
+                "INSERT INTO usuarios (nome,login,senha_hash,perfil,permissoes,obra_responsavel) VALUES (?,?,?,?,?,?)",
+                (nome, login, senha_hash, perfil, perms, obra_responsavel)
             )
             uid = cur.lastrowid
         conn.commit()
@@ -2156,10 +2354,10 @@ def listar_usuarios() -> list:
     try:
         if USE_POSTGRES:
             cur = conn.cursor(cursor_factory=_psycopg2_extras.RealDictCursor)
-            cur.execute("SELECT id,nome,login,perfil,permissoes,ativo,criado_em FROM usuarios ORDER BY nome")
+            cur.execute("SELECT id,nome,login,perfil,permissoes,ativo,obra_responsavel,criado_em FROM usuarios ORDER BY nome")
         else:
             cur = conn.cursor()
-            cur.execute("SELECT id,nome,login,perfil,permissoes,ativo,criado_em FROM usuarios ORDER BY nome")
+            cur.execute("SELECT id,nome,login,perfil,permissoes,ativo,obra_responsavel,criado_em FROM usuarios ORDER BY nome")
         return [dict(r) for r in cur.fetchall()]
     finally:
         conn.close()
@@ -2167,35 +2365,36 @@ def listar_usuarios() -> list:
 
 def atualizar_usuario(uid: int, dados: dict):
     import json
+    obra = dados.get("obra_responsavel", "")
     conn = conectar()
     try:
         if USE_POSTGRES:
             cur = conn.cursor()
             if "senha_hash" in dados:
                 cur.execute(
-                    "UPDATE usuarios SET nome=%s,login=%s,senha_hash=%s,perfil=%s,permissoes=%s,ativo=%s WHERE id=%s",
+                    "UPDATE usuarios SET nome=%s,login=%s,senha_hash=%s,perfil=%s,permissoes=%s,ativo=%s,obra_responsavel=%s WHERE id=%s",
                     (dados["nome"], dados["login"], dados["senha_hash"],
-                     dados["perfil"], json.dumps(dados.get("permissoes", [])), dados.get("ativo", 1), uid)
+                     dados["perfil"], json.dumps(dados.get("permissoes", [])), dados.get("ativo", 1), obra, uid)
                 )
             else:
                 cur.execute(
-                    "UPDATE usuarios SET nome=%s,login=%s,perfil=%s,permissoes=%s,ativo=%s WHERE id=%s",
+                    "UPDATE usuarios SET nome=%s,login=%s,perfil=%s,permissoes=%s,ativo=%s,obra_responsavel=%s WHERE id=%s",
                     (dados["nome"], dados["login"], dados["perfil"],
-                     json.dumps(dados.get("permissoes", [])), dados.get("ativo", 1), uid)
+                     json.dumps(dados.get("permissoes", [])), dados.get("ativo", 1), obra, uid)
                 )
         else:
             cur = conn.cursor()
             if "senha_hash" in dados:
                 cur.execute(
-                    "UPDATE usuarios SET nome=?,login=?,senha_hash=?,perfil=?,permissoes=?,ativo=? WHERE id=?",
+                    "UPDATE usuarios SET nome=?,login=?,senha_hash=?,perfil=?,permissoes=?,ativo=?,obra_responsavel=? WHERE id=?",
                     (dados["nome"], dados["login"], dados["senha_hash"],
-                     dados["perfil"], json.dumps(dados.get("permissoes", [])), dados.get("ativo", 1), uid)
+                     dados["perfil"], json.dumps(dados.get("permissoes", [])), dados.get("ativo", 1), obra, uid)
                 )
             else:
                 cur.execute(
-                    "UPDATE usuarios SET nome=?,login=?,perfil=?,permissoes=?,ativo=? WHERE id=?",
+                    "UPDATE usuarios SET nome=?,login=?,perfil=?,permissoes=?,ativo=?,obra_responsavel=? WHERE id=?",
                     (dados["nome"], dados["login"], dados["perfil"],
-                     json.dumps(dados.get("permissoes", [])), dados.get("ativo", 1), uid)
+                     json.dumps(dados.get("permissoes", [])), dados.get("ativo", 1), obra, uid)
                 )
         conn.commit()
     finally:

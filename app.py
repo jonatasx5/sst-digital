@@ -560,11 +560,12 @@ async def login(dados: dict):
         perms = _json.loads(perms)
     token = _criar_token(usuario["id"], usuario["perfil"], perms)
     return {
-        "token":      token,
-        "id":         usuario["id"],
-        "nome":       usuario["nome"],
-        "perfil":     usuario["perfil"],
-        "permissoes": perms,
+        "token":            token,
+        "id":               usuario["id"],
+        "nome":             usuario["nome"],
+        "perfil":           usuario["perfil"],
+        "permissoes":       perms,
+        "obra_responsavel": usuario.get("obra_responsavel", ""),
     }
 
 
@@ -617,7 +618,8 @@ async def criar_usuario(dados: dict, _=Depends(exigir_admin)):
         login=dados["login"],
         senha_hash=_hash_senha(dados["senha"]),
         perfil=dados.get("perfil", "usuario"),
-        permissoes=dados.get("permissoes", [])
+        permissoes=dados.get("permissoes", []),
+        obra_responsavel=dados.get("obra_responsavel", "")
     )
     return {"ok": True, "id": uid}
 
@@ -628,11 +630,12 @@ async def atualizar_usuario(uid: int, dados: dict, _=Depends(exigir_admin)):
     if not usuario:
         raise HTTPException(404, "Usuário não encontrado")
     update = {
-        "nome":       dados.get("nome", usuario["nome"]),
-        "login":      dados.get("login", usuario["login"]),
-        "perfil":     dados.get("perfil", usuario["perfil"]),
-        "permissoes": dados.get("permissoes", []),
-        "ativo":      dados.get("ativo", usuario["ativo"]),
+        "nome":             dados.get("nome", usuario["nome"]),
+        "login":            dados.get("login", usuario["login"]),
+        "perfil":           dados.get("perfil", usuario["perfil"]),
+        "permissoes":       dados.get("permissoes", []),
+        "ativo":            dados.get("ativo", usuario["ativo"]),
+        "obra_responsavel": dados.get("obra_responsavel", usuario.get("obra_responsavel", "")),
     }
     if dados.get("senha"):
         update["senha_hash"] = _hash_senha(dados["senha"])
@@ -947,6 +950,198 @@ async def info_backup(_=Depends(verificar_acesso)):
     ultimo = banco.get_configuracao("ultimo_backup", "")
     return {"ultimo_backup": ultimo}
 
+
+# ══════════════════════════════════════════════════════════
+#  PEDIDOS EPI (solicitantes de obra)
+# ══════════════════════════════════════════════════════════
+
+@app.get("/api/pedidos-epi")
+async def listar_pedidos_epi(payload=Depends(verificar_acesso)):
+    usuario_id = None
+    if payload.get("perfil") not in ("admin",):
+        usuario_id = payload.get("sub")
+    return banco.listar_pedidos_epi(usuario_id=usuario_id)
+
+@app.get("/api/pedidos-epi/{pid}/pdf")
+async def pdf_pedido_epi(pid: int, _=Depends(exigir_admin)):
+    from reportlab.lib.pagesizes import A4
+    from reportlab.lib import colors
+    from reportlab.lib.units import cm
+    from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer, HRFlowable
+    from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+    from reportlab.lib.enums import TA_CENTER, TA_LEFT, TA_RIGHT
+    import io as _io
+    from datetime import datetime as _dt
+
+    p = banco.buscar_pedido_epi(pid)
+    if not p:
+        raise HTTPException(404, "Pedido não encontrado")
+
+    # Config empresa
+    empresa_nome = banco.get_configuracao("empresa_nome", "SST Digital")
+    empresa_cnpj = banco.get_configuracao("empresa_cnpj", "")
+    resp_sst = banco.get_configuracao("resp_sst", "")
+    crea = banco.get_configuracao("crea", "")
+
+    buf = _io.BytesIO()
+    doc = SimpleDocTemplate(buf, pagesize=A4,
+                            leftMargin=2*cm, rightMargin=2*cm,
+                            topMargin=2*cm, bottomMargin=2*cm)
+    styles = getSampleStyleSheet()
+    w = A4[0] - 4*cm  # largura útil
+
+    verde = colors.HexColor("#16a34a")
+    cinza = colors.HexColor("#6b7280")
+    cinza_claro = colors.HexColor("#f9fafb")
+
+    titulo_style = ParagraphStyle("titulo", parent=styles["Title"], fontSize=14, textColor=verde, spaceAfter=4)
+    sub_style    = ParagraphStyle("sub", parent=styles["Normal"], fontSize=9, textColor=cinza, spaceAfter=2)
+    normal       = ParagraphStyle("norm", parent=styles["Normal"], fontSize=10, leading=14)
+    carimbo_style = ParagraphStyle("carimbo", parent=styles["Normal"], fontSize=8, textColor=cinza_claro, leading=11)
+
+    story = []
+
+    # Cabeçalho
+    story.append(Paragraph(empresa_nome, titulo_style))
+    if empresa_cnpj:
+        story.append(Paragraph(f"CNPJ: {empresa_cnpj}", sub_style))
+    story.append(Spacer(1, 8))
+    story.append(HRFlowable(width=w, thickness=2, color=verde, spaceAfter=10))
+
+    story.append(Paragraph("<b>REQUISIÇÃO DE EPIs / MATERIAIS DE SEGURANÇA</b>", ParagraphStyle("h2",parent=styles["Heading2"],fontSize=12,textColor=verde,spaceAfter=6)))
+    story.append(Spacer(1, 4))
+
+    # Dados do pedido
+    status_map = {"pendente":"Pendente","aprovado":"APROVADO","entregue_parcial":"Entregue parcial","entregue":"Entregue","cancelado":"Cancelado"}
+    st_label = status_map.get(p.get("status",""), p.get("status",""))
+    info_data = [
+        ["Solicitante:", p.get("solicitante","")],
+        ["Obra / Local:", p.get("obra","")],
+        ["Mês de referência:", p.get("mes_ref","")],
+        ["Status:", st_label],
+        ["Data do pedido:", p.get("criado_em","")[:10] if p.get("criado_em") else ""],
+        ["Data da aprovação:", p.get("aprovado_em","")[:10] if p.get("aprovado_em") else _dt.now().strftime("%Y-%m-%d")],
+    ]
+    info_tbl = Table(info_data, colWidths=[5*cm, w-5*cm])
+    info_tbl.setStyle(TableStyle([
+        ("FONTNAME", (0,0), (0,-1), "Helvetica-Bold"),
+        ("FONTSIZE", (0,0), (-1,-1), 10),
+        ("BOTTOMPADDING", (0,0), (-1,-1), 4),
+        ("TOPPADDING", (0,0), (-1,-1), 4),
+        ("TEXTCOLOR", (0,0), (0,-1), cinza),
+    ]))
+    story.append(info_tbl)
+    story.append(Spacer(1, 14))
+
+    # Tabela de itens
+    story.append(Paragraph("<b>Itens Solicitados</b>", ParagraphStyle("h3",parent=styles["Heading3"],fontSize=11,spaceAfter=6)))
+    itens = p.get("itens") or []
+    tbl_data = [["#", "Descrição", "Unidade", "Qtd Solicitada", "Qtd Entregue"]]
+    for i, it in enumerate(itens, 1):
+        tbl_data.append([
+            str(i),
+            it.get("descricao",""),
+            it.get("unidade","UN"),
+            str(int(it.get("quantidade",0))),
+            str(int(it.get("quantidade_entregue",0))) if it.get("quantidade_entregue") else "—",
+        ])
+
+    col_w = [1*cm, w-9*cm, 2*cm, 3*cm, 3*cm]
+    itens_tbl = Table(tbl_data, colWidths=col_w)
+    itens_tbl.setStyle(TableStyle([
+        ("BACKGROUND", (0,0), (-1,0), verde),
+        ("TEXTCOLOR", (0,0), (-1,0), colors.white),
+        ("FONTNAME", (0,0), (-1,0), "Helvetica-Bold"),
+        ("FONTSIZE", (0,0), (-1,-1), 9),
+        ("ALIGN", (0,0), (-1,-1), "CENTER"),
+        ("ALIGN", (1,0), (1,-1), "LEFT"),
+        ("BOTTOMPADDING", (0,0), (-1,-1), 5),
+        ("TOPPADDING", (0,0), (-1,-1), 5),
+        ("ROWBACKGROUNDS", (0,1), (-1,-1), [colors.white, colors.HexColor("#f0fdf4")]),
+        ("GRID", (0,0), (-1,-1), 0.5, colors.HexColor("#d1d5db")),
+        ("ROUNDEDCORNERS", [4]),
+    ]))
+    story.append(itens_tbl)
+
+    if p.get("observacao_admin"):
+        story.append(Spacer(1, 12))
+        story.append(Paragraph(f"<b>Observação SESMT:</b> {p['observacao_admin']}", normal))
+
+    # Carimbo SESMT
+    story.append(Spacer(1, 30))
+    story.append(HRFlowable(width=w, thickness=0.5, color=cinza, spaceAfter=8))
+
+    carimbo_items = [
+        ["APROVADO PELO SESMT", ""],
+        [f"Responsável: {resp_sst}" if resp_sst else "Responsável SST:", ""],
+        [f"CREA/CFT: {crea}" if crea else "", ""],
+        [f"Data: {_dt.now().strftime('%d/%m/%Y')}", ""],
+        ["_________________________", ""],
+        ["Assinatura", ""],
+    ]
+    carimbo_tbl = Table(carimbo_items, colWidths=[8*cm, w-8*cm])
+    carimbo_tbl.setStyle(TableStyle([
+        ("BACKGROUND", (0,0), (0,-1), verde),
+        ("TEXTCOLOR", (0,0), (0,-1), colors.white),
+        ("FONTNAME", (0,0), (0,0), "Helvetica-Bold"),
+        ("FONTSIZE", (0,0), (-1,-1), 8),
+        ("ALIGN", (0,0), (0,-1), "CENTER"),
+        ("BOTTOMPADDING", (0,0), (-1,-1), 3),
+        ("TOPPADDING", (0,0), (-1,-1), 3),
+        ("ROUNDEDCORNERS", [4]),
+    ]))
+    story.append(carimbo_tbl)
+
+    doc.build(story)
+    buf.seek(0)
+    nome = f"pedido_epi_{pid}_{p.get('obra','').replace(' ','_')}.pdf"
+    return Response(content=buf.read(), media_type="application/pdf",
+                    headers={"Content-Disposition": f'attachment; filename="{nome}"'})
+
+@app.get("/api/pedidos-epi/pendentes/count")
+async def count_pedidos_epi_pendentes(_=Depends(exigir_admin)):
+    return {"count": banco.contar_pedidos_epi_pendentes()}
+
+@app.get("/api/pedidos-epi/{pid}")
+async def buscar_pedido_epi(pid: int, payload=Depends(verificar_acesso)):
+    p = banco.buscar_pedido_epi(pid)
+    if not p:
+        raise HTTPException(404, "Pedido não encontrado")
+    if payload.get("perfil") not in ("admin",) and p["usuario_id"] != payload.get("sub"):
+        raise HTTPException(403, "Sem permissão")
+    return p
+
+@app.post("/api/pedidos-epi")
+async def criar_pedido_epi(dados: dict, payload=Depends(verificar_acesso)):
+    from datetime import datetime as _dt
+    itens = dados.get("itens", [])
+    if not itens:
+        raise HTTPException(400, "Informe ao menos um item")
+    usuario_id = payload.get("sub")
+    usuario = banco.buscar_usuario_por_id(usuario_id)
+    solicitante = usuario.get("nome", "") if usuario else ""
+    obra = dados.get("obra") or (usuario.get("obra_responsavel", "") if usuario else "")
+    mes_ref = dados.get("mes_ref", _dt.now().strftime("%Y-%m"))
+    pid = banco.criar_pedido_epi(usuario_id, solicitante, obra, mes_ref, itens)
+    return {"ok": True, "id": pid}
+
+@app.put("/api/pedidos-epi/{pid}")
+async def atualizar_pedido_epi(pid: int, dados: dict, _=Depends(exigir_admin)):
+    p = banco.buscar_pedido_epi(pid)
+    if not p:
+        raise HTTPException(404, "Pedido não encontrado")
+    banco.atualizar_status_pedido_epi(
+        pid,
+        dados.get("status", p["status"]),
+        dados.get("observacao_admin", p.get("observacao_admin", "")),
+        dados.get("itens")
+    )
+    return {"ok": True}
+
+@app.delete("/api/pedidos-epi/{pid}")
+async def excluir_pedido_epi(pid: int, _=Depends(exigir_admin)):
+    banco.excluir_pedido_epi(pid)
+    return {"ok": True}
 
 # ══════════════════════════════════════════════════════════
 #  ROTA PRINCIPAL — serve o HTML

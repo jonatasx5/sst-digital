@@ -807,6 +807,148 @@ async def excluir_pedido(pedido_id: int, _=Depends(verificar_acesso)):
 
 
 # ══════════════════════════════════════════════════════════
+#  BACKUP GERAL DO SISTEMA
+# ══════════════════════════════════════════════════════════
+
+@app.get("/api/backup/exportar")
+async def exportar_backup(_=Depends(verificar_acesso)):
+    import io as _io, zipfile, csv, json
+    from datetime import datetime as _dt
+
+    buf = _io.BytesIO()
+    agora = _dt.now().strftime("%Y-%m-%d_%H-%M")
+
+    with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as zf:
+
+        # ── 1. Funcionários ──
+        try:
+            funcs = banco.buscar_funcionarios(termo="", apenas_ativos=False)
+            if funcs:
+                csv_buf = _io.StringIO()
+                campos = ["id","nome","cpf","matricula","cargo","cbo","lotacao","admissao","celular","email","empresa","situacao","assinou_doc","status_doc","link_doc"]
+                w = csv.DictWriter(csv_buf, fieldnames=campos, extrasaction="ignore")
+                w.writeheader(); w.writerows(funcs)
+                zf.writestr("dados/funcionarios.csv", csv_buf.getvalue())
+        except Exception as e:
+            zf.writestr("dados/funcionarios_ERRO.txt", str(e))
+
+        # ── 2. Histórico de envios (Kit SST) ──
+        try:
+            conn = banco.conectar()
+            cur = conn.cursor()
+            if banco.USE_POSTGRES:
+                cur.execute("SELECT * FROM envios ORDER BY criado_em DESC")
+                cols = [d[0] for d in cur.description]
+                rows = [dict(zip(cols, r)) for r in cur.fetchall()]
+            else:
+                cur.execute("SELECT * FROM envios ORDER BY criado_em DESC")
+                cols = [d[0] for d in cur.description]
+                rows = [dict(zip(cols, r)) for r in cur.fetchall()]
+            conn.close()
+            if rows:
+                csv_buf = _io.StringIO()
+                w = csv.DictWriter(csv_buf, fieldnames=list(rows[0].keys()), extrasaction="ignore")
+                w.writeheader(); w.writerows(rows)
+                zf.writestr("dados/historico_envios.csv", csv_buf.getvalue())
+        except Exception as e:
+            zf.writestr("dados/historico_envios_ERRO.txt", str(e))
+
+        # ── 3. Pedidos de Obra ──
+        try:
+            pedidos = banco.listar_pedidos()
+            if pedidos:
+                csv_buf = _io.StringIO()
+                campos_p = ["id","mes_ref","num_oc","data_oc","solicitante","departamento","obra","fornecedor","total_solicitado","total_aprovado","criado_em"]
+                w = csv.DictWriter(csv_buf, fieldnames=campos_p, extrasaction="ignore")
+                w.writeheader(); w.writerows(pedidos)
+                zf.writestr("dados/pedidos.csv", csv_buf.getvalue())
+                # Itens de pedido
+                itens_todos = []
+                for p in pedidos:
+                    det = banco.buscar_pedido(p["id"])
+                    for it in (det.get("itens") or []):
+                        it["pedido_id"] = p["id"]
+                        it["num_oc"] = p.get("num_oc","")
+                        itens_todos.append(it)
+                if itens_todos:
+                    csv_buf2 = _io.StringIO()
+                    campos_it = ["id","pedido_id","num_oc","descricao","unidade","quantidade","valor_unit","status","observacao"]
+                    w2 = csv.DictWriter(csv_buf2, fieldnames=campos_it, extrasaction="ignore")
+                    w2.writeheader(); w2.writerows(itens_todos)
+                    zf.writestr("dados/pedidos_itens.csv", csv_buf2.getvalue())
+        except Exception as e:
+            zf.writestr("dados/pedidos_ERRO.txt", str(e))
+
+        # ── 4. Fichas EPI assinadas (arquivos) ──
+        try:
+            conn = banco.conectar()
+            cur = conn.cursor()
+            if banco.USE_POSTGRES:
+                cur.execute("SELECT id, funcionario_id, nome_arquivo, mime_type, obra, criado_em, conteudo FROM fichas_epi ORDER BY criado_em")
+                cols = [d[0] for d in cur.description]
+                fichas = [dict(zip(cols, r)) for r in cur.fetchall()]
+            else:
+                cur.execute("SELECT id, funcionario_id, nome_arquivo, mime_type, obra, criado_em, conteudo FROM fichas_epi ORDER BY criado_em")
+                cols = [d[0] for d in cur.description]
+                fichas = [dict(zip(cols, r)) for r in cur.fetchall()]
+            conn.close()
+            for fi in fichas:
+                ext = fi["nome_arquivo"].rsplit(".",1)[-1] if "." in fi["nome_arquivo"] else "bin"
+                nome = f"fichas_epi/func_{fi['funcionario_id']}/ficha_{fi['id']}.{ext}"
+                zf.writestr(nome, bytes(fi["conteudo"]))
+            if fichas:
+                csv_buf = _io.StringIO()
+                w = csv.DictWriter(csv_buf, fieldnames=["id","funcionario_id","nome_arquivo","obra","criado_em"], extrasaction="ignore")
+                w.writeheader()
+                for fi in fichas:
+                    w.writerow({k: fi[k] for k in ["id","funcionario_id","nome_arquivo","obra","criado_em"]})
+                zf.writestr("dados/fichas_epi_index.csv", csv_buf.getvalue())
+        except Exception as e:
+            zf.writestr("fichas_epi/ERRO.txt", str(e))
+
+        # ── 5. Modelos de documentos (DOCX) ──
+        try:
+            conn = banco.conectar()
+            cur = conn.cursor()
+            if banco.USE_POSTGRES:
+                cur.execute("SELECT doc_id, nome, conteudo FROM modelos WHERE conteudo IS NOT NULL")
+            else:
+                cur.execute("SELECT doc_id, nome, conteudo FROM modelos WHERE conteudo IS NOT NULL")
+            for row in cur.fetchall():
+                doc_id, nome, conteudo = row[0], row[1], row[2]
+                nome_safe = "".join(c if c.isalnum() or c in "-_ " else "_" for c in nome)
+                zf.writestr(f"modelos/{doc_id}_{nome_safe}.docx", bytes(conteudo))
+            conn.close()
+        except Exception as e:
+            zf.writestr("modelos/ERRO.txt", str(e))
+
+        # ── 6. Informações resumidas em JSON ──
+        try:
+            resumo = {
+                "exportado_em": agora,
+                "total_funcionarios": len(funcs) if 'funcs' in dir() else 0,
+                "empresa": banco.get_configuracao("empresa", "JS Construtora"),
+            }
+            zf.writestr("LEIA-ME.json", json.dumps(resumo, ensure_ascii=False, indent=2))
+        except Exception:
+            pass
+
+    # Registra data do último backup
+    banco.set_configuracao("ultimo_backup", _dt.now().isoformat())
+
+    buf.seek(0)
+    nome_zip = f"backup_sst_digital_{agora}.zip"
+    return StreamingResponse(buf, media_type="application/zip",
+                             headers={"Content-Disposition": f'attachment; filename="{nome_zip}"'})
+
+
+@app.get("/api/backup/info")
+async def info_backup(_=Depends(verificar_acesso)):
+    ultimo = banco.get_configuracao("ultimo_backup", "")
+    return {"ultimo_backup": ultimo}
+
+
+# ══════════════════════════════════════════════════════════
 #  ROTA PRINCIPAL — serve o HTML
 # ══════════════════════════════════════════════════════════
 

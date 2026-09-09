@@ -183,6 +183,14 @@ tr:hover td { background:#F9FAFB; }
 </head>
 <body>
 
+<!-- Banner aviso backup -->
+<div id="banner-backup" hidden style="position:fixed;top:0;left:0;right:0;z-index:8000;background:#b45309;color:#fff;
+     padding:8px 20px;display:flex;align-items:center;justify-content:space-between;gap:12px;font-size:13px;font-weight:600">
+  <span><i class="ti ti-alert-triangle" style="margin-right:6px"></i>Já faz mais de 15 dias sem backup! Acesse <strong>Administração</strong> e faça um backup agora.</span>
+  <button onclick="document.getElementById('banner-backup').hidden=true"
+          style="background:none;border:1.5px solid rgba(255,255,255,.6);color:#fff;border-radius:6px;padding:2px 10px;cursor:pointer;font-size:12px">Fechar</button>
+</div>
+
 <!-- ═══ TELA DE LOGIN ═══ -->
 <div id="tela-login" style="display:none;position:fixed;inset:0;background:var(--fundo);z-index:9999;
      align-items:center;justify-content:center;">
@@ -2589,6 +2597,25 @@ tr:hover td { background:#F9FAFB; }
     <button class="btn btn-primary" onclick="adminAbrirModal(null)"><i class="ti ti-plus"></i>Novo usuário</button>
   </div>
 
+  <!-- Backup do Sistema -->
+  <div class="card" style="margin-bottom:20px;border-left:4px solid #f59e0b">
+    <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px">
+      <div>
+        <div style="font-weight:700;font-size:14px;display:flex;align-items:center;gap:6px">
+          <i class="ti ti-database-export" style="color:#f59e0b;font-size:18px"></i>Backup do Sistema
+        </div>
+        <div id="backup-info-txt" style="font-size:12px;color:var(--texto2);margin-top:3px">Verificando último backup...</div>
+      </div>
+      <button id="btn-fazer-backup" class="btn btn-sm" onclick="fazerBackup()"
+              style="background:#f59e0b;color:#fff;border-color:#f59e0b;font-weight:700;display:flex;align-items:center;gap:6px">
+        <i class="ti ti-download"></i>Fazer Backup Agora
+      </button>
+    </div>
+    <div style="font-size:11px;color:var(--texto2);margin-top:8px">
+      Baixa um arquivo ZIP com todos os dados: funcionários, pedidos, histórico, fichas EPI assinadas e modelos de documentos.
+    </div>
+  </div>
+
   <!-- Logo do Sistema -->
   <div class="card" style="margin-bottom:20px;">
     <div class="card-title"><i class="ti ti-photo"></i> Logo do Sistema</div>
@@ -2856,6 +2883,7 @@ function entrarNoSistema() {
   if (primeiro) irPara(primeiro.id);
   verificarAPI();
   carregarEmpresa();
+  verificarBackup();
   // Preload geral em background — deixa caches prontos antes do usuário navegar
   _preloadGeral();
 }
@@ -2953,6 +2981,48 @@ async function carregarIntegracaoLista() {
       <tbody>${lista.map(v=>`<tr><td style="padding:6px">${v.nome}</td><td style="padding:6px">${v.cpf||'—'}</td><td style="padding:6px">${v.confirmado_em||''}</td></tr>`).join('')}</tbody>
     </table>`;
   } catch(e) { div.innerHTML = '<em>Erro ao carregar.</em>'; }
+}
+
+// ══════════════════════════════════════════════════════
+//  BACKUP DO SISTEMA
+// ══════════════════════════════════════════════════════
+async function verificarBackup() {
+  try {
+    const res = await apiFetch('/api/backup/info');
+    if (!res || !res.ok) return;
+    const data = await res.json();
+    const infoEl = document.getElementById('backup-info-txt');
+    if (!data.ultimo_backup) {
+      if (infoEl) infoEl.textContent = 'Nenhum backup realizado ainda.';
+      document.getElementById('banner-backup').hidden = false;
+      return;
+    }
+    const ultimo = new Date(data.ultimo_backup);
+    const diasPassados = Math.floor((Date.now() - ultimo.getTime()) / 86400000);
+    const dtFmt = ultimo.toLocaleDateString('pt-BR') + ' às ' + ultimo.toLocaleTimeString('pt-BR', {hour:'2-digit',minute:'2-digit'});
+    if (infoEl) infoEl.textContent = `Último backup: ${dtFmt} (há ${diasPassados} dia${diasPassados !== 1 ? 's' : ''})`;
+    if (diasPassados >= 15) document.getElementById('banner-backup').hidden = false;
+  } catch(e) {}
+}
+
+async function fazerBackup() {
+  const btn = document.getElementById('btn-fazer-backup');
+  if (btn) { btn.disabled = true; btn.innerHTML = '<i class="ti ti-loader-2"></i> Gerando...'; }
+  try {
+    const res = await apiFetch('/api/backup/exportar');
+    if (!res || !res.ok) { alert('Erro ao gerar backup.'); return; }
+    const blob = await res.blob();
+    const cd = res.headers.get('Content-Disposition') || '';
+    const match = cd.match(/filename="([^"]+)"/);
+    const nome = match ? match[1] : 'backup_sst_digital.zip';
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = nome; a.click();
+    URL.revokeObjectURL(url);
+    document.getElementById('banner-backup').hidden = true;
+    await verificarBackup();
+  } catch(e) { alert('Erro ao gerar backup.'); }
+  finally { if (btn) { btn.disabled = false; btn.innerHTML = '<i class="ti ti-download"></i>Fazer Backup Agora'; } }
 }
 
 // ══════════════════════════════════════════════════════
@@ -3097,7 +3167,7 @@ async function irPara(aba) {
   if (aba==='pedidos')       carregarPedidos();
   if (aba==='alojamentos')   alojaInit();
   if (aba==='acidentes')     acidInit();
-  if (aba==='admin')         { carregarAdmin(); carregarIntegracaoConfig(); _adminCarregarLogoPreview(); }
+  if (aba==='admin')         { carregarAdmin(); carregarIntegracaoConfig(); _adminCarregarLogoPreview(); verificarBackup(); }
   if (aba==='empresas')      carregarEmpresas();
   if (aba==='terceiros')     carregarTerceiros();
 

@@ -2997,11 +2997,13 @@ async function verificarBackup() {
       document.getElementById('banner-backup').hidden = false;
       return;
     }
-    const ultimo = new Date(data.ultimo_backup);
+    // Garante parse como UTC (adiciona Z se não tiver timezone)
+    const raw = data.ultimo_backup.endsWith('Z') || data.ultimo_backup.includes('+') ? data.ultimo_backup : data.ultimo_backup + 'Z';
+    const ultimo = new Date(raw);
     const diasPassados = Math.floor((Date.now() - ultimo.getTime()) / 86400000);
     const dtFmt = ultimo.toLocaleDateString('pt-BR') + ' às ' + ultimo.toLocaleTimeString('pt-BR', {hour:'2-digit',minute:'2-digit'});
     if (infoEl) infoEl.textContent = `Último backup: ${dtFmt} (há ${diasPassados} dia${diasPassados !== 1 ? 's' : ''})`;
-    if (diasPassados >= 15) document.getElementById('banner-backup').hidden = false;
+    document.getElementById('banner-backup').hidden = diasPassados < 15;
   } catch(e) {}
 }
 

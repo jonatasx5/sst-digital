@@ -2298,7 +2298,7 @@ def salvar_plano_acao_vistoria(vistoria_id: int, acoes: list):
 
 def listar_vistorias_alojamento() -> list:
     return executar(
-        'SELECT id,frente_servico,contrato,localizacao,data_vistoria,responsavel,resultado,criado_em FROM alojamento_vistorias ORDER BY criado_em DESC',
+        'SELECT id,frente_servico,contrato,localizacao,data_vistoria,responsavel,encarregado,resultado,link_assinatura,zapsign_token,criado_em FROM alojamento_vistorias ORDER BY criado_em DESC',
         fetchall=True) or []
 
 

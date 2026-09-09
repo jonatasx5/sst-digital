@@ -9011,8 +9011,9 @@ function renderPedidosTabela() {
 // ── Novo Pedido ──
 let _npItens = [];
 
-function abrirModalNovoPedido() {
+async function abrirModalNovoPedido() {
   _npItens = [];
+  await _pepiCarregarCatalogo();
   const hoje = new Date();
   document.getElementById('np-mes').value = hoje.toISOString().slice(0,7);
   document.getElementById('np-solicitante').value = '';
@@ -9028,15 +9029,44 @@ function abrirModalNovoPedido() {
 function npRenderItens() {
   const div = document.getElementById('np-itens-lista');
   if (!_npItens.length) { div.innerHTML = '<div style="font-size:12px;color:var(--texto2);padding:8px 0">Nenhum item adicionado.</div>'; return; }
+  const catOpts = _pepiCatalogo.length
+    ? '<option value="">— Selecionar EPI —</option>' + _pepiCatalogo.map(e=>`<option value="${e.descricao}" data-ca="${e.ca||''}" data-un="${e.unidade||'UN'}">${e.descricao}</option>`).join('') + '<option value="__outro__">Outro (digitar manualmente)</option>'
+    : '';
   div.innerHTML = _npItens.map((it,i)=>`
-    <div style="display:grid;grid-template-columns:1fr 60px 60px 100px 80px 28px;gap:6px;margin-bottom:6px;align-items:center">
-      <input type="text" value="${it.descricao}" oninput="_npItens[${i}].descricao=this.value" placeholder="Descrição do item" style="padding:6px 8px;border:1px solid var(--borda);border-radius:6px;font-size:12px;background:var(--card);color:var(--texto)">
-      <input type="text" value="${it.unidade||'UN'}" oninput="_npItens[${i}].unidade=this.value" placeholder="UN" style="padding:6px 8px;border:1px solid var(--borda);border-radius:6px;font-size:12px;background:var(--card);color:var(--texto);text-align:center">
-      <input type="number" value="${it.quantidade}" oninput="_npItens[${i}].quantidade=parseFloat(this.value)||1;npAtualizarTotal(${i})" min="0.01" step="0.01" placeholder="Qtd" style="padding:6px 8px;border:1px solid var(--borda);border-radius:6px;font-size:12px;background:var(--card);color:var(--texto);text-align:center">
-      <input type="number" value="${it.valor_unit}" oninput="_npItens[${i}].valor_unit=parseFloat(this.value)||0;npAtualizarTotal(${i})" min="0" step="0.01" placeholder="R$ 0,00" style="padding:6px 8px;border:1px solid var(--borda);border-radius:6px;font-size:12px;background:var(--card);color:var(--texto);text-align:right">
-      <span id="np-tot-${i}" style="font-size:12px;font-weight:600;color:var(--verde);text-align:right;font-variant-numeric:tabular-nums">${_fmtBrl((it.quantidade||1)*(it.valor_unit||0))}</span>
-      <button onclick="_npItens.splice(${i},1);npRenderItens()" style="border:none;background:none;color:#ef4444;cursor:pointer;font-size:16px;padding:0">×</button>
+    <div style="margin-bottom:8px">
+      <div style="display:grid;grid-template-columns:1fr 60px 60px 100px 80px 28px;gap:6px;align-items:center">
+        ${catOpts ? `<select onchange="npOnSelectEpi(this,${i})" style="padding:6px 8px;border:1px solid var(--borda);border-radius:6px;font-size:12px;background:var(--card);color:var(--texto)">
+          ${catOpts.replace(`value="${it.descricao}"`,`value="${it.descricao}" selected`)}
+        </select>` : `<input type="text" value="${it.descricao}" oninput="_npItens[${i}].descricao=this.value" placeholder="Descrição do item" style="padding:6px 8px;border:1px solid var(--borda);border-radius:6px;font-size:12px;background:var(--card);color:var(--texto)">`}
+        <input type="text" value="${it.unidade||'UN'}" oninput="_npItens[${i}].unidade=this.value" placeholder="UN" style="padding:6px 8px;border:1px solid var(--borda);border-radius:6px;font-size:12px;background:var(--card);color:var(--texto);text-align:center">
+        <input type="number" value="${it.quantidade}" oninput="_npItens[${i}].quantidade=parseFloat(this.value)||1;npAtualizarTotal(${i})" min="0.01" step="0.01" placeholder="Qtd" style="padding:6px 8px;border:1px solid var(--borda);border-radius:6px;font-size:12px;background:var(--card);color:var(--texto);text-align:center">
+        <input type="number" value="${it.valor_unit}" oninput="_npItens[${i}].valor_unit=parseFloat(this.value)||0;npAtualizarTotal(${i})" min="0" step="0.01" placeholder="R$ 0,00" style="padding:6px 8px;border:1px solid var(--borda);border-radius:6px;font-size:12px;background:var(--card);color:var(--texto);text-align:right">
+        <span id="np-tot-${i}" style="font-size:12px;font-weight:600;color:var(--verde);text-align:right;font-variant-numeric:tabular-nums">${_fmtBrl((it.quantidade||1)*(it.valor_unit||0))}</span>
+        <button onclick="_npItens.splice(${i},1);npRenderItens()" style="border:none;background:none;color:#ef4444;cursor:pointer;font-size:16px;padding:0">×</button>
+      </div>
+      ${it._manual ? `<input type="text" id="np-manual-${i}" value="${it.descricao}" oninput="_npItens[${i}].descricao=this.value" placeholder="Digite a descrição" style="width:100%;margin-top:4px;padding:5px 8px;border:1px solid var(--borda);border-radius:6px;font-size:12px;background:var(--card);color:var(--texto)">` : ''}
+      ${it.ca ? `<div style="font-size:11px;color:#16a34a;margin-top:2px">CA: ${it.ca}</div>` : ''}
     </div>`).join('');
+}
+
+function npOnSelectEpi(sel, i) {
+  const val = sel.value;
+  if (val === '__outro__') {
+    _npItens[i].descricao = '';
+    _npItens[i].ca = '';
+    _npItens[i]._manual = true;
+  } else if (val) {
+    const opt = sel.selectedOptions[0];
+    _npItens[i].descricao = val;
+    _npItens[i].ca = opt.dataset.ca || '';
+    _npItens[i].unidade = opt.dataset.un || 'UN';
+    _npItens[i]._manual = false;
+  } else {
+    _npItens[i].descricao = '';
+    _npItens[i].ca = '';
+    _npItens[i]._manual = false;
+  }
+  npRenderItens();
 }
 
 function npAtualizarTotal(i) {
@@ -9069,6 +9099,7 @@ async function abrirEditarPedido(id) {
   const res = await apiFetch(`/api/pedidos/${id}`).catch(()=>null);
   if (!res || !res.ok) { alert('Erro ao carregar pedido.'); return; }
   _pedidoEditando = await res.json();
+  await _pepiCarregarCatalogo();
   const p = _pedidoEditando;
   document.getElementById('ep-titulo').textContent = `OC ${p.num_oc||'—'} · ${p.solicitante} — ${_fmtMes(p.mes_ref)}`;
   document.getElementById('ep-info').innerHTML = [
@@ -9093,11 +9124,27 @@ function epRenderItens() {
   const itens = _pedidoEditando.itens || [];
   const tbody = document.getElementById('ep-tbody');
 
+  const catOpts = _pepiCatalogo.length
+    ? '<option value="">— Selecionar EPI —</option>' + _pepiCatalogo.map(e=>`<option value="${e.descricao}" data-ca="${e.ca||''}" data-un="${e.unidade||'UN'}">${e.descricao}</option>`).join('') + '<option value="__outro__">Outro (digitar manualmente)</option>'
+    : '';
+
   tbody.innerHTML = itens.map((it,i)=>{
     const opts = _statusOpts.map(s=>`<option value="${s.v}"${it.status===s.v?' selected':''}>${s.l}</option>`).join('');
     const st = _statusOpts.find(s=>s.v===(it.status||'pendente'))||_statusOpts[0];
+    const descEsc = (it.descricao||'').replace(/"/g,'&quot;');
+    const inCatalog = catOpts && _pepiCatalogo.some(e=>e.descricao===it.descricao);
+    const descCell = catOpts
+      ? `<div>
+           <select onchange="epOnSelectEpi(this,${i})" style="width:100%;padding:4px 6px;border:1px solid var(--borda);border-radius:6px;font-size:12px;background:var(--card);color:var(--texto)">
+             ${catOpts.replace(`value="${it.descricao}"`,`value="${it.descricao}" selected`)}
+             ${!inCatalog && it.descricao ? `<option value="${descEsc}" selected>${descEsc}</option>` : ''}
+           </select>
+           ${it._manual ? `<input type="text" value="${descEsc}" oninput="_pedidoEditando.itens[${i}].descricao=this.value" placeholder="Digite a descrição" style="width:100%;margin-top:4px;padding:4px 6px;border:1px solid var(--borda);border-radius:6px;font-size:12px;background:var(--card);color:var(--texto)">` : ''}
+           ${it.ca ? `<div style="font-size:11px;color:#16a34a;margin-top:2px">CA: ${it.ca}</div>` : ''}
+         </div>`
+      : `<input type="text" value="${descEsc}" oninput="_pedidoEditando.itens[${i}].descricao=this.value" style="width:100%;padding:4px 6px;border:1px solid var(--borda);border-radius:6px;font-size:12px;background:var(--card);color:var(--texto)">`;
     return `<tr id="ep-row-${i}">
-      <td style="padding:6px 8px"><input type="text" value="${(it.descricao||'').replace(/"/g,'&quot;')}" oninput="_pedidoEditando.itens[${i}].descricao=this.value" style="width:100%;padding:4px 6px;border:1px solid var(--borda);border-radius:6px;font-size:12px;background:var(--card);color:var(--texto)"></td>
+      <td style="padding:6px 8px">${descCell}</td>
       <td style="padding:6px 4px"><input type="text" value="${it.unidade||'UN'}" oninput="_pedidoEditando.itens[${i}].unidade=this.value" style="width:50px;padding:4px 6px;border:1px solid var(--borda);border-radius:6px;font-size:12px;background:var(--card);color:var(--texto);text-align:center"></td>
       <td style="padding:6px 4px"><input type="number" value="${it.quantidade}" oninput="_pedidoEditando.itens[${i}].quantidade=parseFloat(this.value)||1;epAtualizarTotais()" min="0.01" step="0.01" style="width:60px;padding:4px 6px;border:1px solid var(--borda);border-radius:6px;font-size:12px;background:var(--card);color:var(--texto);text-align:center"></td>
       <td style="padding:6px 4px"><input type="number" value="${it.valor_unit}" oninput="_pedidoEditando.itens[${i}].valor_unit=parseFloat(this.value)||0;epAtualizarTotais()" min="0" step="0.01" style="width:100px;padding:4px 6px;border:1px solid var(--borda);border-radius:6px;font-size:12px;background:var(--card);color:var(--texto);text-align:right"></td>
@@ -9125,6 +9172,26 @@ function epAtualizarTotais() {
   const ta = document.getElementById('ep-total-apr');
   if (ts) ts.textContent = _fmtBrl(sol);
   if (ta) ta.textContent = _fmtBrl(apr);
+}
+
+function epOnSelectEpi(sel, i) {
+  const val = sel.value;
+  if (val === '__outro__') {
+    _pedidoEditando.itens[i].descricao = '';
+    _pedidoEditando.itens[i].ca = '';
+    _pedidoEditando.itens[i]._manual = true;
+  } else if (val) {
+    const opt = sel.selectedOptions[0];
+    _pedidoEditando.itens[i].descricao = val;
+    _pedidoEditando.itens[i].ca = opt.dataset.ca || '';
+    _pedidoEditando.itens[i].unidade = opt.dataset.un || 'UN';
+    _pedidoEditando.itens[i]._manual = false;
+  } else {
+    _pedidoEditando.itens[i].descricao = '';
+    _pedidoEditando.itens[i].ca = '';
+    _pedidoEditando.itens[i]._manual = false;
+  }
+  epRenderItens();
 }
 
 function epAddItem() {

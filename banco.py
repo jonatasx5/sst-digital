@@ -1189,6 +1189,113 @@ def excluir_pedido(pedido_id: int):
         conn.close()
 
 
+def _criar_tabela_fichas_epi(conn, use_pg):
+    cur = conn.cursor()
+    if use_pg:
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS fichas_epi (
+                id SERIAL PRIMARY KEY,
+                funcionario_id INTEGER NOT NULL,
+                nome_arquivo TEXT NOT NULL,
+                mime_type TEXT NOT NULL,
+                conteudo BYTEA NOT NULL,
+                obra TEXT DEFAULT '',
+                criado_em TIMESTAMP DEFAULT NOW()
+            )
+        """)
+    else:
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS fichas_epi (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                funcionario_id INTEGER NOT NULL,
+                nome_arquivo TEXT NOT NULL,
+                mime_type TEXT NOT NULL,
+                conteudo BLOB NOT NULL,
+                obra TEXT DEFAULT '',
+                criado_em TEXT DEFAULT (datetime('now'))
+            )
+        """)
+    conn.commit()
+
+
+def listar_fichas_epi(funcionario_id: int) -> list:
+    conn = conectar()
+    try:
+        _criar_tabela_fichas_epi(conn, USE_POSTGRES)
+        if USE_POSTGRES:
+            cur = conn.cursor(cursor_factory=_psycopg2_extras.RealDictCursor)
+            cur.execute("SELECT id, nome_arquivo, mime_type, obra, criado_em FROM fichas_epi WHERE funcionario_id=%s ORDER BY criado_em DESC", (funcionario_id,))
+        else:
+            cur = conn.cursor()
+            cur.execute("SELECT id, nome_arquivo, mime_type, obra, criado_em FROM fichas_epi WHERE funcionario_id=? ORDER BY criado_em DESC", (funcionario_id,))
+        rows = cur.fetchall()
+        if USE_POSTGRES:
+            return [dict(r) for r in rows]
+        cols = [d[0] for d in cur.description]
+        return [dict(zip(cols, r)) for r in rows]
+    finally:
+        conn.close()
+
+
+def salvar_ficha_epi(funcionario_id: int, nome_arquivo: str, mime_type: str, conteudo: bytes, obra: str = "") -> int:
+    conn = conectar()
+    try:
+        _criar_tabela_fichas_epi(conn, USE_POSTGRES)
+        if USE_POSTGRES:
+            cur = conn.cursor()
+            cur.execute(
+                "INSERT INTO fichas_epi (funcionario_id, nome_arquivo, mime_type, conteudo, obra) VALUES (%s,%s,%s,%s,%s) RETURNING id",
+                (funcionario_id, nome_arquivo, mime_type, conteudo, obra)
+            )
+            fid = cur.fetchone()[0]
+        else:
+            cur = conn.cursor()
+            cur.execute(
+                "INSERT INTO fichas_epi (funcionario_id, nome_arquivo, mime_type, conteudo, obra) VALUES (?,?,?,?,?)",
+                (funcionario_id, nome_arquivo, mime_type, conteudo, obra)
+            )
+            fid = cur.lastrowid
+        conn.commit()
+        return fid
+    finally:
+        conn.close()
+
+
+def buscar_ficha_epi(ficha_id: int) -> dict | None:
+    conn = conectar()
+    try:
+        _criar_tabela_fichas_epi(conn, USE_POSTGRES)
+        if USE_POSTGRES:
+            cur = conn.cursor(cursor_factory=_psycopg2_extras.RealDictCursor)
+            cur.execute("SELECT * FROM fichas_epi WHERE id=%s", (ficha_id,))
+            row = cur.fetchone()
+            return dict(row) if row else None
+        else:
+            cur = conn.cursor()
+            cur.execute("SELECT * FROM fichas_epi WHERE id=?", (ficha_id,))
+            row = cur.fetchone()
+            if not row: return None
+            cols = [d[0] for d in cur.description]
+            return dict(zip(cols, row))
+    finally:
+        conn.close()
+
+
+def excluir_ficha_epi(ficha_id: int):
+    conn = conectar()
+    try:
+        _criar_tabela_fichas_epi(conn, USE_POSTGRES)
+        if USE_POSTGRES:
+            cur = conn.cursor()
+            cur.execute("DELETE FROM fichas_epi WHERE id=%s", (ficha_id,))
+        else:
+            cur = conn.cursor()
+            cur.execute("DELETE FROM fichas_epi WHERE id=?", (ficha_id,))
+        conn.commit()
+    finally:
+        conn.close()
+
+
 def salvar_cargo_cbo(cargo: str, cbo_codigo: str, cbo_titulo: str, cbo_descricao: str):
     conn = conectar()
     try:

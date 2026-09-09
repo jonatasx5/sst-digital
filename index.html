@@ -1682,6 +1682,23 @@ tr:hover td { background:#F9FAFB; }
       </div>
     </div>
 
+    <!-- Fichas EPI Assinadas -->
+    <div id="mf-fichas-epi-section" style="display:none;border-top:1px solid var(--borda);margin:12px 0 10px;padding-top:12px">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+        <label style="font-weight:600;font-size:13px;color:var(--texto)"><i class="ti ti-file-certificate" style="margin-right:5px;color:#f59e0b"></i>Fichas EPI Assinadas</label>
+        <label style="display:inline-flex;align-items:center;gap:4px;padding:4px 10px;border:1.5px solid #f59e0b;border-radius:8px;background:var(--card);color:#f59e0b;font-size:12px;font-weight:600;cursor:pointer">
+          <i class="ti ti-upload" style="font-size:13px"></i>Enviar ficha
+          <input type="file" id="inp-ficha-epi" accept="image/*,.pdf" style="display:none" onchange="uploadFichaEpi(this)">
+        </label>
+      </div>
+      <div style="margin-bottom:8px">
+        <input type="text" id="mf-ficha-obra" placeholder="Obra/referência (opcional)" style="width:100%;padding:6px 10px;border:1.5px solid var(--borda);border-radius:8px;font-size:12px;background:var(--card);color:var(--texto)">
+      </div>
+      <div id="mf-fichas-lista" style="display:flex;flex-direction:column;gap:6px;max-height:220px;overflow-y:auto">
+        <div style="color:var(--texto2);font-size:12px;text-align:center;padding:12px">Nenhuma ficha enviada</div>
+      </div>
+    </div>
+
     <button class="btn btn-primary" style="width:100%;justify-content:center" onclick="salvarFunc()">
       <i class="ti ti-device-floppy"></i>Salvar
     </button>
@@ -3502,9 +3519,74 @@ function abrirModalFunc(f) {
   if (f.id) {
     document.getElementById('mf-docs-section').style.display = '';
     mfRenderDocs(f.id);
+    document.getElementById('mf-fichas-epi-section').style.display = '';
+    document.getElementById('mf-ficha-obra').value = '';
+    carregarFichasEpi(f.id);
   } else {
     document.getElementById('mf-docs-section').style.display = 'none';
+    document.getElementById('mf-fichas-epi-section').style.display = 'none';
   }
+}
+
+let _fichasEpiFuncId = null;
+
+async function carregarFichasEpi(funcId) {
+  _fichasEpiFuncId = funcId;
+  const lista = document.getElementById('mf-fichas-lista');
+  lista.innerHTML = '<div style="color:var(--texto2);font-size:12px;text-align:center;padding:12px">Carregando...</div>';
+  const res = await apiFetch(`/api/funcionarios/${funcId}/fichas-epi`).catch(()=>null);
+  if (!res || !res.ok) { lista.innerHTML = '<div style="color:#ef4444;font-size:12px;text-align:center;padding:12px">Erro ao carregar.</div>'; return; }
+  const fichas = await res.json();
+  if (!fichas.length) {
+    lista.innerHTML = '<div style="color:var(--texto2);font-size:12px;text-align:center;padding:12px">Nenhuma ficha enviada ainda.</div>';
+    return;
+  }
+  lista.innerHTML = fichas.map(f => {
+    const dt = f.criado_em ? new Date(f.criado_em).toLocaleDateString('pt-BR') : '';
+    const isImg = (f.mime_type||'').startsWith('image/');
+    const icon = isImg ? 'ti-photo' : 'ti-file-type-pdf';
+    return `<div style="display:flex;align-items:center;gap:8px;padding:7px 10px;border:1px solid var(--borda);border-radius:8px;background:var(--fundo)">
+      <i class="ti ${icon}" style="font-size:18px;color:#f59e0b;flex-shrink:0"></i>
+      <div style="flex:1;min-width:0">
+        <div style="font-size:12px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${f.nome_arquivo}</div>
+        <div style="font-size:11px;color:var(--texto2)">${f.obra ? f.obra+' · ' : ''}${dt}</div>
+      </div>
+      <button onclick="verFichaEpi(${f.id})" title="Visualizar"
+              style="padding:4px 8px;border:1.5px solid #f59e0b;border-radius:6px;background:var(--card);color:#f59e0b;font-size:11px;font-weight:600;cursor:pointer;white-space:nowrap">
+        <i class="ti ti-eye"></i> Ver
+      </button>
+      <button onclick="excluirFichaEpi(${f.id})" title="Excluir"
+              style="border:none;background:none;color:#ef4444;cursor:pointer;font-size:16px;padding:2px 4px;flex-shrink:0">×</button>
+    </div>`;
+  }).join('');
+}
+
+async function uploadFichaEpi(inp) {
+  if (!inp.files[0] || !_fichasEpiFuncId) return;
+  const obra = document.getElementById('mf-ficha-obra').value.trim();
+  const fd = new FormData();
+  fd.append('file', inp.files[0]);
+  fd.append('obra', obra);
+  inp.disabled = true;
+  const res = await apiFetch(`/api/funcionarios/${_fichasEpiFuncId}/fichas-epi`, {method:'POST', body:fd}).catch(()=>null);
+  inp.value = '';
+  inp.disabled = false;
+  if (!res || !res.ok) { alert('Erro ao enviar ficha.'); return; }
+  await carregarFichasEpi(_fichasEpiFuncId);
+}
+
+async function verFichaEpi(fichaId) {
+  const res = await apiFetch(`/api/fichas-epi/${fichaId}/arquivo`).catch(()=>null);
+  if (!res || !res.ok) { alert('Erro ao abrir ficha.'); return; }
+  const blob = await res.blob();
+  const url = URL.createObjectURL(blob);
+  window.open(url, '_blank');
+}
+
+async function excluirFichaEpi(fichaId) {
+  if (!confirm('Excluir esta ficha?')) return;
+  const res = await apiFetch(`/api/fichas-epi/${fichaId}`, {method:'DELETE'}).catch(()=>null);
+  if (res && res.ok && _fichasEpiFuncId) await carregarFichasEpi(_fichasEpiFuncId);
 }
 
 async function salvarFunc() {

@@ -4274,6 +4274,39 @@ async def gerar_treinamentos_avulso(dados: dict = Body(...), _=Depends(verificar
 
 
 # ══════════════════════════════════════════════════════════
+#  FICHAS EPI ASSINADAS
+# ══════════════════════════════════════════════════════════
+
+@app.get("/api/funcionarios/{func_id}/fichas-epi")
+async def listar_fichas_epi(func_id: int, _=Depends(verificar_acesso)):
+    return banco.listar_fichas_epi(func_id)
+
+@app.post("/api/funcionarios/{func_id}/fichas-epi")
+async def upload_ficha_epi(func_id: int, file: UploadFile = File(...), obra: str = Form(""), _=Depends(verificar_acesso)):
+    conteudo = await file.read()
+    if len(conteudo) > 20 * 1024 * 1024:
+        from fastapi import HTTPException
+        raise HTTPException(400, "Arquivo muito grande (máx 20MB)")
+    fid = banco.salvar_ficha_epi(func_id, file.filename, file.content_type, conteudo, obra)
+    return {"ok": True, "id": fid}
+
+@app.get("/api/fichas-epi/{ficha_id}/arquivo")
+async def baixar_ficha_epi(ficha_id: int, _=Depends(verificar_acesso)):
+    from fastapi import HTTPException
+    from fastapi.responses import Response
+    ficha = banco.buscar_ficha_epi(ficha_id)
+    if not ficha:
+        raise HTTPException(404, "Ficha não encontrada")
+    return Response(content=bytes(ficha["conteudo"]), media_type=ficha["mime_type"],
+                    headers={"Content-Disposition": f'inline; filename="{ficha["nome_arquivo"]}"'})
+
+@app.delete("/api/fichas-epi/{ficha_id}")
+async def excluir_ficha_epi(ficha_id: int, _=Depends(verificar_acesso)):
+    banco.excluir_ficha_epi(ficha_id)
+    return {"ok": True}
+
+
+# ══════════════════════════════════════════════════════════
 #  EMPRESAS
 # ══════════════════════════════════════════════════════════
 

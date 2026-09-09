@@ -1117,9 +1117,12 @@ async def criar_pedido_epi(dados: dict, payload=Depends(verificar_acesso)):
     itens = dados.get("itens", [])
     if not itens:
         raise HTTPException(400, "Informe ao menos um item")
-    usuario_id = payload.get("sub")
+        usuario_id = payload.get("sub")
     usuario = banco.buscar_usuario_por_id(usuario_id)
-    solicitante = usuario.get("nome", "") if usuario else ""
+    if payload.get("perfil") == "admin" and dados.get("solicitante"):
+        solicitante = dados.get("solicitante")
+    else:
+        solicitante = usuario.get("nome", "") if usuario else ""
     obra = dados.get("obra") or (usuario.get("obra_responsavel", "") if usuario else "")
     mes_ref = dados.get("mes_ref", _dt.now().strftime("%Y-%m"))
     pid = banco.criar_pedido_epi(usuario_id, solicitante, obra, mes_ref, itens)

@@ -673,10 +673,26 @@ async def exportar_usuarios_csv(_=Depends(exigir_admin)):
 @app.get("/api/funcionarios/exportar-csv")
 async def exportar_funcionarios_csv(_=Depends(exigir_admin)):
     import io, csv
+    from datetime import datetime as _dt
+
+    def _fmt_data(val):
+        if not val:
+            return ''
+        v = str(val).strip()
+        for fmt in ('%Y-%m-%d', '%d/%m/%Y', '%Y/%m/%d'):
+            try:
+                return _dt.strptime(v, fmt).strftime('%d/%m/%Y')
+            except ValueError:
+                continue
+        return v  # retorna como está se não reconhecer o formato
+
     funcionarios = banco.buscar_funcionarios(termo="", apenas_ativos=False)
+
+    sem_admissao = []
     buf = io.StringIO()
     writer = csv.writer(buf, delimiter=';')
     writer.writerow(['Nome', 'CPF', 'Função', 'Obra/Lotação', 'Data Admissão', 'Situação'])
+
     for f in funcionarios:
         ativo = f.get('ativo')
         sit = f.get('situacao', '')
@@ -686,14 +702,30 @@ async def exportar_funcionarios_csv(_=Depends(exigir_admin)):
             situacao = 'Desligado'
         else:
             situacao = 'Ativo'
+
+        # campo correto é 'admissao', não 'data_admissao'
+        admissao_raw = f.get('admissao') or f.get('data_admissao') or ''
+        admissao = _fmt_data(admissao_raw)
+
+        if not admissao and situacao == 'Ativo':
+            sem_admissao.append(f.get('nome', ''))
+
         writer.writerow([
             f.get('nome', ''),
             f.get('cpf', ''),
             f.get('cargo', ''),
             f.get('lotacao', ''),
-            f.get('data_admissao', ''),
+            admissao,
             situacao,
         ])
+
+    # Seção de cadastros incompletos no final do arquivo
+    if sem_admissao:
+        writer.writerow([])
+        writer.writerow(['=== ATIVOS SEM DATA DE ADMISSÃO ==='])
+        for nome in sem_admissao:
+            writer.writerow([nome])
+
     buf.seek(0)
     return StreamingResponse(
         iter([buf.getvalue().encode('utf-8-sig')]),

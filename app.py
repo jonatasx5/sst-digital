@@ -678,7 +678,8 @@ async def exportar_funcionarios_csv(_=Depends(exigir_admin)):
     writer = csv.writer(buf, delimiter=';')
     writer.writerow(['Nome', 'CPF', 'Função', 'Obra/Lotação', 'Data Admissão', 'Situação'])
     for f in funcionarios:
-        situacao = 'Ativo' if f.get('ativo') else 'Desligado'
+        situacao = f.get('situacao') or ('Ativo' if f.get('ativo') else 'Desligado')
+        situacao = situacao.capitalize()
         writer.writerow([
             f.get('nome', ''),
             f.get('cpf', ''),

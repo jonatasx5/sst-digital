@@ -651,6 +651,25 @@ async def deletar_usuario(uid: int, payload=Depends(exigir_admin)):
     return {"ok": True}
 
 
+@app.get("/api/usuarios/exportar-csv")
+async def exportar_usuarios_csv(_=Depends(exigir_admin)):
+    import io, csv
+    usuarios = banco.listar_usuarios()
+    buf = io.StringIO()
+    writer = csv.writer(buf, delimiter=';')
+    writer.writerow(['Nome', 'Login', 'Perfil', 'Situação', 'Módulos Permitidos'])
+    for u in usuarios:
+        situacao = 'Ativo' if u.get('ativo') else 'Desligado'
+        perms = ', '.join(u.get('permissoes') or [])
+        writer.writerow([u.get('nome',''), u.get('login',''), u.get('perfil',''), situacao, perms])
+    buf.seek(0)
+    return StreamingResponse(
+        iter([buf.getvalue().encode('utf-8-sig')]),
+        media_type='text/csv',
+        headers={'Content-Disposition': 'attachment; filename="usuarios_sst.csv"'}
+    )
+
+
 # ══════════════════════════════════════════════════════════
 #  ENGENHEIROS
 # ══════════════════════════════════════════════════════════

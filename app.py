@@ -670,6 +670,31 @@ async def exportar_usuarios_csv(_=Depends(exigir_admin)):
     )
 
 
+@app.get("/api/funcionarios/exportar-csv")
+async def exportar_funcionarios_csv(_=Depends(exigir_admin)):
+    import io, csv
+    funcionarios = banco.buscar_funcionarios(termo="", apenas_ativos=False)
+    buf = io.StringIO()
+    writer = csv.writer(buf, delimiter=';')
+    writer.writerow(['Nome', 'CPF', 'Função', 'Obra/Lotação', 'Data Admissão', 'Situação'])
+    for f in funcionarios:
+        situacao = 'Ativo' if f.get('ativo') else 'Desligado'
+        writer.writerow([
+            f.get('nome', ''),
+            f.get('cpf', ''),
+            f.get('cargo', ''),
+            f.get('lotacao', ''),
+            f.get('data_admissao', ''),
+            situacao,
+        ])
+    buf.seek(0)
+    return StreamingResponse(
+        iter([buf.getvalue().encode('utf-8-sig')]),
+        media_type='text/csv',
+        headers={'Content-Disposition': 'attachment; filename="funcionarios_sst.csv"'}
+    )
+
+
 # ══════════════════════════════════════════════════════════
 #  ENGENHEIROS
 # ══════════════════════════════════════════════════════════

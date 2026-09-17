@@ -2597,7 +2597,7 @@ tr:hover td { background:#F9FAFB; }
   <div class="page-header">
     <div><div class="page-title">Administração</div><div class="page-sub">Gerencie usuários e permissões</div></div>
     <div style="display:flex;gap:8px">
-      <button class="btn btn-secondary" onclick="exportarUsuariosCSV()" title="Exportar lista de usuários em CSV"><i class="ti ti-download"></i>Exportar usuários</button>
+      <button class="btn btn-secondary" onclick="exportarFuncionariosCSV()" title="Exportar relação de funcionários em CSV"><i class="ti ti-download"></i>Exportar funcionários</button>
       <button class="btn btn-primary" onclick="adminAbrirModal(null)"><i class="ti ti-plus"></i>Novo usuário</button>
     </div>
   </div>
@@ -3035,6 +3035,18 @@ async function fazerBackup() {
 // ══════════════════════════════════════════════════════
 //  ADMIN — PAINEL DE USUÁRIOS
 // ══════════════════════════════════════════════════════
+async function exportarFuncionariosCSV() {
+  const res = await apiFetch('/api/funcionarios/exportar-csv');
+  if (!res || !res.ok) { alert('Erro ao exportar.'); return; }
+  const blob = await res.blob();
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'funcionarios_sst.csv';
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
 async function exportarUsuariosCSV() {
   const res = await apiFetch('/api/usuarios/exportar-csv');
   if (!res || !res.ok) { alert('Erro ao exportar.'); return; }

@@ -4737,7 +4737,7 @@ async def listar_empresas(_=Depends(verificar_acesso)):
     return banco.listar_empresas()
 
 
-@app.post("/api/admin/corrigir-cnpj-recopav")
+@app.get("/api/admin/corrigir-cnpj-recopav")
 async def corrigir_cnpj_recopav(_=Depends(exigir_admin)):
     """Força o CNPJ correto da RECOPAV no banco de produção."""
     conn = banco.conectar()

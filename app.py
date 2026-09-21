@@ -261,12 +261,11 @@ async def startup_event():
         ]
         if banco.USE_POSTGRES:
             for _nome, _cnpj, _resp in _seed:
-                # Insere se não existe; se existe, só atualiza CNPJ quando vier preenchido
                 cur.execute("""INSERT INTO empresas (nome, cnpj, resp_sst) VALUES (%s,%s,%s)
                     ON CONFLICT (nome) DO UPDATE SET
-                        cnpj = CASE WHEN %s <> '' THEN %s ELSE empresas.cnpj END,
+                        cnpj = EXCLUDED.cnpj,
                         resp_sst = CASE WHEN %s <> '' THEN %s ELSE empresas.resp_sst END""",
-                    (_nome, _cnpj, _resp, _cnpj, _cnpj, _resp, _resp))
+                    (_nome, _cnpj, _resp, _resp, _resp))
         else:
             for _nome, _cnpj, _resp in _seed:
                 cur.execute("INSERT OR IGNORE INTO empresas (nome, cnpj, resp_sst) VALUES (?,?,?)",
@@ -4736,6 +4735,29 @@ async def excluir_ficha_epi(ficha_id: int, _=Depends(verificar_acesso)):
 @app.get("/api/empresas")
 async def listar_empresas(_=Depends(verificar_acesso)):
     return banco.listar_empresas()
+
+
+@app.post("/api/admin/corrigir-cnpj-recopav")
+async def corrigir_cnpj_recopav(_=Depends(exigir_admin)):
+    """Força o CNPJ correto da RECOPAV no banco de produção."""
+    conn = banco.conectar()
+    try:
+        cur = conn.cursor()
+        if banco.USE_POSTGRES:
+            cur.execute("""
+                UPDATE empresas SET cnpj='61.773.385/0001-14'
+                WHERE LOWER(nome) LIKE '%recopav%'
+            """)
+        else:
+            cur.execute("""
+                UPDATE empresas SET cnpj='61.773.385/0001-14'
+                WHERE LOWER(nome) LIKE '%recopav%'
+            """)
+        rows = cur.rowcount
+        conn.commit()
+        return {"ok": True, "registros_atualizados": rows}
+    finally:
+        conn.close()
 
 
 @app.post("/api/empresas")

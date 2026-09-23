@@ -3,7 +3,7 @@ SST Digital - Sistema Web
 Backend FastAPI para geração e envio de kits SST via Autentique
 """
 
-from fastapi import FastAPI, UploadFile, File, Form, HTTPException, Request, Depends, Body
+from fastapi import FastAPI, UploadFile, File, Form, HTTPException, Request, Depends, Body, List as QueryList
 from fastapi.responses import HTMLResponse, JSONResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
@@ -889,6 +889,397 @@ async def atualizar_pedido(pedido_id: int, dados: dict, _=Depends(verificar_aces
 async def excluir_pedido(pedido_id: int, _=Depends(verificar_acesso)):
     banco.excluir_pedido(pedido_id)
     return {"ok": True}
+
+
+@app.post("/api/pedidos/importar-xls")
+async def importar_xls(files: list[UploadFile] = File(...), _=Depends(verificar_acesso)):
+    """
+    Recebe um ou mais XLS/XLSX, lê todas as abas, normaliza itens via Claude,
+    consolida por categoria (EPI / Uniforme / Ferramenta / Material),
+    salva pedidos no banco e retorna o consolidado + observações.
+    """
+    import io as _io
+    import pandas as pd
+    import openpyxl
+    from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
+    from openpyxl.utils import get_column_letter
+    from collections import defaultdict
+    import anthropic as _anthropic
+    import base64
+
+    ANTHROPIC_KEY = os.environ.get("ANTHROPIC_API_KEY", "")
+
+    # ── Dicionário base de normalização ──────────────────────────────────────
+    SINONIMOS = {
+        # Luvas
+        "luva vaqueta": "LUVA VAQUETA", "luva de vaqueta": "LUVA VAQUETA",
+        "luva raspa": "LUVA VAQUETA", "luva de raspa": "LUVA VAQUETA",
+        "luva rasgo": "LUVA VAQUETA", "luva de couro": "LUVA VAQUETA",
+        "luva de segurança": "LUVA VAQUETA", "luva segurança": "LUVA VAQUETA",
+        "luva pigmentada": "LUVA PIGMENTADA", "luva de pano": "LUVA PIGMENTADA",
+        "luva pano": "LUVA PIGMENTADA",
+        "luva cano longo pvc": "LUVA PVC CANO LONGO",
+        "luva cano longo": "LUVA PVC CANO LONGO",
+        # Botas
+        "bota": "BOTINA DE COURO", "botina": "BOTINA DE COURO",
+        "coturno": "BOTINA DE COURO", "bota de couro": "BOTINA DE COURO",
+        "bota encarregado": "BOTINA DE COURO",
+        # Óculos
+        "oculos escuro": "ÓCULOS DE PROTEÇÃO ESCURO",
+        "óculos escuro": "ÓCULOS DE PROTEÇÃO ESCURO",
+        "oculos de proteção escuro": "ÓCULOS DE PROTEÇÃO ESCURO",
+        "óculos de proteção": "ÓCULOS DE PROTEÇÃO ESCURO",
+        # Vassoura
+        "vassoura": "VASSOURÃO", "vassourão": "VASSOURÃO",
+        "vassoura cabo grosso": "VASSOURÃO", "vassourão cabo grosso": "VASSOURÃO",
+        # Chapéu
+        "chapeu": "CHAPÉU ÁRABE", "chapéu": "CHAPÉU ÁRABE",
+        "chapeu arabe": "CHAPÉU ÁRABE", "chapéu árabe": "CHAPÉU ÁRABE",
+        "chapeus arabes": "CHAPÉU ÁRABE", "chapéus árabes": "CHAPÉU ÁRABE",
+    }
+
+    # Categorias por palavra-chave
+    CATEGORIAS = {
+        "EPI": ["botina","bota","luva","óculos","oculos","capacete","máscara","mascara",
+                "protetor","epi","colete","cinto","talabarte","mangote"],
+        "UNIFORME": ["uniforme","chapéu","chapeu","camisa","calça","calca","jaqueta",
+                     "colete de identificação","bota social"],
+        "FERRAMENTA": ["ferramenta","pá","enxada","picareta","marreta","talhadeira",
+                       "chave","alicate","serra","nível","trena","prumo"],
+        "MATERIAL": ["vassourão","vassoura","cimento","areia","brita","tinta","massa",
+                     "impermeabilizante","tubo","fio","cabo","disjuntor","tomada",
+                     "papelaria","limpeza","elétrico","hidráulico","pintura"],
+    }
+
+    def classificar(item_nome: str) -> str:
+        nome = item_nome.lower()
+        for cat, palavras in CATEGORIAS.items():
+            for p in palavras:
+                if p in nome:
+                    return cat
+        return "MATERIAL"
+
+    def normalizar_nome(item_nome: str) -> tuple[str, str | None]:
+        """Retorna (nome_normalizado, observação_se_corrigido)"""
+        chave = item_nome.lower().strip()
+        # Busca exata
+        if chave in SINONIMOS:
+            norm = SINONIMOS[chave]
+            if norm != item_nome.upper():
+                return norm, f"corrigido: '{item_nome}' → {norm}"
+            return norm, None
+        # Busca parcial
+        for k, v in SINONIMOS.items():
+            if k in chave:
+                return v, f"corrigido: '{item_nome}' → {v}"
+        # Extrai número de nº para botas/uniformes
+        import re
+        m = re.search(r'\b(bota|botina)\b.*?(\d{2})', chave)
+        if m:
+            norm = f"BOTINA DE COURO, {m.group(2)}"
+            return norm, f"corrigido: '{item_nome}' → {norm}"
+        return item_nome.upper(), None
+
+    # ── Leitura de todos os arquivos ─────────────────────────────────────────
+    todos_itens = []  # lista de dicts
+    meta = {}         # obra, solicitante, data, prazo
+
+    for f in files:
+        conteudo = await f.read()
+        try:
+            engine = "xlrd" if f.filename.lower().endswith(".xls") else "openpyxl"
+            xls = pd.ExcelFile(_io.BytesIO(conteudo), engine=engine)
+        except Exception:
+            continue
+
+        for sheet in xls.sheet_names:
+            df = pd.read_excel(xls, sheet_name=sheet, header=None)
+            if df.empty:
+                continue
+
+            # Extrai metadados do cabeçalho (linhas 0-3)
+            for r in range(min(4, len(df))):
+                for c in range(len(df.columns)):
+                    val = str(df.iloc[r, c]) if not pd.isna(df.iloc[r, c]) else ""
+                    if "aplicação:" in val.lower() and not meta.get("obra"):
+                        meta["obra"] = val.split(":", 1)[-1].strip()
+                    if "solicitante:" in val.lower() and not meta.get("solicitante"):
+                        meta["solicitante"] = val.split(":", 1)[-1].strip()
+                    if "data:" in val.lower() and not meta.get("data"):
+                        # tenta extrair data
+                        parte = val.split(":", 1)[-1].strip()
+                        if parte and parte != "nan":
+                            meta["data"] = parte
+                    if "prazo" in val.lower() and "entrega" in val.lower() and not meta.get("prazo"):
+                        parte = val.split(":", 1)[-1].strip()
+                        if parte and parte != "nan":
+                            meta["prazo"] = parte
+
+            # Extrai itens (a partir da linha 6, col 1=descrição, col 9=qtd, col 7=marca)
+            for r in range(6, len(df)):
+                desc_raw = df.iloc[r, 1] if len(df.columns) > 1 else None
+                qtd_raw  = df.iloc[r, 9] if len(df.columns) > 9 else None
+                marca    = str(df.iloc[r, 7]) if len(df.columns) > 7 and not pd.isna(df.iloc[r, 7]) else ""
+                unid     = str(df.iloc[r, 8]) if len(df.columns) > 8 and not pd.isna(df.iloc[r, 8]) else "UNID."
+
+                if pd.isna(desc_raw) or str(desc_raw).strip() in ["", "nan", "OBSERVAÇÕES:\\n", "OBSERVAÇÕES:"]:
+                    continue
+                if pd.isna(qtd_raw):
+                    continue
+                try:
+                    qtd = float(qtd_raw)
+                except (ValueError, TypeError):
+                    continue
+                if qtd <= 0:
+                    continue
+
+                desc = str(desc_raw).strip()
+                todos_itens.append({
+                    "desc_original": desc,
+                    "marca": marca if marca != "nan" else "",
+                    "unidade": unid if unid != "nan" else "UNID.",
+                    "qtd": qtd,
+                    "sheet": sheet,
+                    "arquivo": f.filename,
+                })
+
+    if not todos_itens:
+        return JSONResponse({"ok": False, "erro": "Nenhum item encontrado nos arquivos."})
+
+    # ── Normalização + análise Claude ─────────────────────────────────────────
+    observacoes = []
+    itens_norm = []
+
+    for it in todos_itens:
+        nome_norm, obs = normalizar_nome(it["desc_original"])
+        if obs:
+            observacoes.append(obs)
+        cat = classificar(nome_norm)
+        # extrai CA do campo marca
+        import re
+        ca_match = re.search(r'(?:C\.?A\.?\s*|CA\s*)(\d+)', it["marca"], re.IGNORECASE)
+        ca = ca_match.group(1) if ca_match else ""
+        itens_norm.append({
+            "descricao": nome_norm,
+            "ca": ca,
+            "unidade": it["unidade"],
+            "qtd": it["qtd"],
+            "categoria": cat,
+            "marca_original": it["marca"],
+        })
+
+    # ── Análise de anomalias via Claude ──────────────────────────────────────
+    analise_texto = ""
+    if ANTHROPIC_KEY:
+        try:
+            # Busca histórico de pedidos no banco para comparação
+            historico = banco.listar_pedidos()
+            hist_resumo = []
+            for p in historico[-10:]:  # últimos 10 pedidos
+                det = banco.buscar_pedido(p["id"])
+                if det and det.get("itens"):
+                    for it in det["itens"]:
+                        hist_resumo.append(f"{p.get('mes_ref','?')} | {p.get('obra','?')} | {it.get('descricao','?')} | qtd: {it.get('quantidade',0)}")
+
+            resumo_atual = "\n".join([f"{i['descricao']} | qtd: {i['qtd']} | cat: {i['categoria']}" for i in itens_norm])
+            hist_txt = "\n".join(hist_resumo) if hist_resumo else "Sem histórico anterior."
+
+            client = _anthropic.Anthropic(api_key=ANTHROPIC_KEY)
+            msg = client.messages.create(
+                model="claude-haiku-4-5-20251001",
+                max_tokens=1024,
+                messages=[{
+                    "role": "user",
+                    "content": f"""Você é um analisador de pedidos de EPI e materiais para obras.
+
+PEDIDO ATUAL:
+{resumo_atual}
+
+HISTÓRICO DE PEDIDOS ANTERIORES:
+{hist_txt}
+
+Analise o pedido atual comparado ao histórico e identifique:
+1. Variações grandes (>50%) em relação ao histórico
+2. Itens novos que nunca foram pedidos
+3. Itens que sumiram mas eram frequentes
+4. Qualquer anomalia relevante para gestão
+
+Responda de forma direta e objetiva, em tópicos curtos em português. Se não houver anomalias relevantes, diga "Nenhuma anomalia identificada." Máximo 10 linhas."""
+                }]
+            )
+            analise_texto = msg.content[0].text
+        except Exception as e:
+            analise_texto = f"(Análise indisponível: {e})"
+
+    # ── Consolida por categoria ───────────────────────────────────────────────
+    from collections import defaultdict
+    por_cat = defaultdict(lambda: defaultdict(lambda: {"qtd": 0, "ca": "", "unidade": "UNID."}))
+    for it in itens_norm:
+        key = it["descricao"]
+        por_cat[it["categoria"]][key]["qtd"] += it["qtd"]
+        if it["ca"] and not por_cat[it["categoria"]][key]["ca"]:
+            por_cat[it["categoria"]][key]["ca"] = it["ca"]
+        if it["unidade"]:
+            por_cat[it["categoria"]][key]["unidade"] = it["unidade"]
+
+    # ── Salva no banco ────────────────────────────────────────────────────────
+    from datetime import datetime as _dt
+    mes_ref = _dt.now().strftime("%Y-%m")
+    obra    = meta.get("obra", "Importado XLS")
+    solicit = meta.get("solicitante", "IMPORTAÇÃO")
+
+    itens_banco = []
+    num = 1
+    for cat, items in por_cat.items():
+        for desc, dados in items.items():
+            itens_banco.append({
+                "num_oc": str(num),
+                "descricao": desc,
+                "unidade": dados["unidade"],
+                "quantidade": dados["qtd"],
+                "valor_unit": 0,
+                "status": "pendente",
+                "observacao": f"CA: {dados['ca']}" if dados["ca"] else ""
+            })
+            num += 1
+
+    pid = banco.criar_pedido(mes_ref, solicit, obra, itens_banco,
+                             num_oc="IMP", data_oc="", fornecedor="", departamento="Obras")
+
+    # ── Gera XLSX consolidado ─────────────────────────────────────────────────
+    wb = openpyxl.Workbook()
+    wb.remove(wb.active)
+
+    thin = Side(style="thin", color="BBBBBB")
+    bdr  = Border(left=thin, right=thin, top=thin, bottom=thin)
+    HDR  = PatternFill("solid", fgColor="1F497D")
+    FILLS = {
+        "EPI":       PatternFill("solid", fgColor="DCE6F1"),
+        "UNIFORME":  PatternFill("solid", fgColor="EBF1DE"),
+        "FERRAMENTA":PatternFill("solid", fgColor="FFF2CC"),
+        "MATERIAL":  PatternFill("solid", fgColor="FCE4D6"),
+    }
+    ALT = PatternFill("solid", fgColor="F7F7F7")
+    SEP = PatternFill("solid", fgColor="2E4057")
+    GRAY= PatternFill("solid", fgColor="D9D9D9")
+
+    ORDEM_CAT = ["EPI", "UNIFORME", "FERRAMENTA", "MATERIAL"]
+
+    ws = wb.create_sheet("REQUISIÇÃO CONSOLIDADA")
+
+    # cabeçalho
+    ws.merge_cells("A1:K1")
+    c = ws["A1"]; c.value = "REQUISIÇÃO — MATERIAIS/SERVIÇOS"
+    c.font = Font(name="Arial", bold=True, size=13, color="FFFFFF")
+    c.fill = HDR; c.alignment = Alignment(horizontal="center", vertical="center")
+    ws.row_dimensions[1].height = 22
+
+    ws.merge_cells("A2:F2"); ws.merge_cells("G2:K2")
+    ws["A2"].value = f"Departamento: Obras"
+    ws["G2"].value = f"Aplicação: {obra}"
+    for cel in [ws["A2"], ws["G2"]]:
+        cel.font = Font(name="Arial", size=10); cel.fill = GRAY; cel.border = bdr
+    ws.row_dimensions[2].height = 16
+
+    ws.merge_cells("A3:C3"); ws.merge_cells("D3:F3"); ws.merge_cells("G3:J3")
+    ws["A3"].value = f"Data: {meta.get('data', _dt.now().strftime('%d/%m/%Y'))}"
+    ws["D3"].value = f"Prazo de entrega: {meta.get('prazo', '')}"
+    ws["G3"].value = f"Solicitante: {solicit}"
+    ws["K3"].value = "Nº. 0000"
+    for cel in [ws["A3"], ws["D3"], ws["G3"], ws["K3"]]:
+        cel.font = Font(name="Arial", size=10); cel.fill = GRAY; cel.border = bdr
+    ws.row_dimensions[3].height = 16
+
+    # cabeçalho tabela
+    ws.merge_cells("A4:A5"); ws.merge_cells("B4:G5")
+    ws.merge_cells("H4:H5"); ws.merge_cells("I4:I5")
+    ws.merge_cells("J4:J5"); ws.merge_cells("K4:K5")
+    for col, val in [(1,"PEDIDO"),(2,"DESCRIÇÃO"),(8,"MARCA"),(9,"UNID."),(10,"QUANT."),(11,"ATENDIDO/\nSIM/NÃO")]:
+        c = ws.cell(row=4, column=col, value=val)
+        c.font = Font(name="Arial", bold=True, color="FFFFFF", size=10)
+        c.fill = HDR; c.border = bdr
+        c.alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
+    ws.row_dimensions[4].height = 20; ws.row_dimensions[5].height = 16
+
+    r = 6
+    num_item = 1
+    for cat in ORDEM_CAT:
+        if cat not in por_cat:
+            continue
+        items = por_cat[cat]
+        fill_cat = FILLS.get(cat, ALT)
+        # separador categoria
+        ws.merge_cells(f"A{r}:K{r}")
+        sc = ws.cell(row=r, column=1, value=f"▌  {cat}")
+        sc.font = Font(name="Arial", bold=True, color="FFFFFF", size=10)
+        sc.fill = SEP; sc.alignment = Alignment(horizontal="left", vertical="center")
+        ws.row_dimensions[r].height = 18; r += 1
+
+        for i, (desc, dados) in enumerate(sorted(items.items())):
+            ws.merge_cells(f"B{r}:G{r}")
+            fill = fill_cat if i % 2 == 0 else ALT
+            ws.cell(row=r, column=1,  value=num_item).fill = fill
+            ws.cell(row=r, column=1).font = Font(name="Arial", size=10)
+            ws.cell(row=r, column=1).border = bdr
+            ws.cell(row=r, column=1).alignment = Alignment(horizontal="center")
+            ws.cell(row=r, column=2,  value=desc).fill = fill
+            ws.cell(row=r, column=2).font = Font(name="Arial", size=10)
+            ws.cell(row=r, column=2).border = bdr
+            ca_val = f"C.A {dados['ca']}" if dados["ca"] else ""
+            ws.cell(row=r, column=8,  value=ca_val).fill = fill
+            ws.cell(row=r, column=8).font = Font(name="Arial", size=10)
+            ws.cell(row=r, column=8).border = bdr
+            ws.cell(row=r, column=8).alignment = Alignment(horizontal="center")
+            ws.cell(row=r, column=9,  value=dados["unidade"]).fill = fill
+            ws.cell(row=r, column=9).font = Font(name="Arial", size=10)
+            ws.cell(row=r, column=9).border = bdr
+            ws.cell(row=r, column=9).alignment = Alignment(horizontal="center")
+            ws.cell(row=r, column=10, value=int(dados["qtd"])).fill = fill
+            ws.cell(row=r, column=10).font = Font(name="Arial", size=10)
+            ws.cell(row=r, column=10).border = bdr
+            ws.cell(row=r, column=10).alignment = Alignment(horizontal="center")
+            ws.cell(row=r, column=11, value="").fill = fill
+            ws.cell(row=r, column=11).border = bdr
+            for col in range(3, 8):
+                ws.cell(row=r, column=col).fill = fill
+                ws.cell(row=r, column=col).border = bdr
+            ws.row_dimensions[r].height = 15
+            num_item += 1; r += 1
+
+    # Observações
+    obs_txt = "OBSERVAÇÕES: " + (" | ".join(observacoes) if observacoes else "Nenhuma correção aplicada.")
+    ws.merge_cells(f"A{r}:K{r}")
+    oc = ws.cell(row=r, column=1, value=obs_txt)
+    oc.font = Font(name="Arial", size=9, italic=True)
+    oc.fill = GRAY; oc.border = bdr
+    oc.alignment = Alignment(vertical="top", wrap_text=True)
+    ws.row_dimensions[r].height = max(30, len(observacoes) * 14)
+
+    # larguras
+    ws.column_dimensions["A"].width = 9
+    for col in ["B","C","D","E","F","G"]: ws.column_dimensions[col].width = 7
+    ws.column_dimensions["G"].width = 22
+    ws.column_dimensions["H"].width = 14
+    ws.column_dimensions["I"].width = 8
+    ws.column_dimensions["J"].width = 9
+    ws.column_dimensions["K"].width = 12
+
+    buf = _io.BytesIO()
+    wb.save(buf)
+    xlsx_b64 = base64.b64encode(buf.getvalue()).decode()
+
+    return {
+        "ok": True,
+        "pedido_id": pid,
+        "obra": obra,
+        "solicitante": solicit,
+        "total_itens": len(itens_banco),
+        "categorias": {cat: len(items) for cat, items in por_cat.items()},
+        "observacoes": observacoes,
+        "analise": analise_texto,
+        "xlsx_b64": xlsx_b64,
+        "xlsx_nome": f"requisicao_consolidada_{mes_ref}.xlsx",
+    }
 
 
 # ══════════════════════════════════════════════════════════

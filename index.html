@@ -1939,6 +1939,7 @@ tr:hover td { background:#F9FAFB; }
   <div class="page-header">
     <div><div class="page-title">Pedidos de Obra</div><div class="page-sub">Gerencie e aprove pedidos de materiais por mês</div></div>
     <div style="display:flex;gap:8px">
+      <button class="btn btn-outline btn-sm" onclick="abrirModalImportarXls()"><i class="ti ti-file-upload"></i>Importar XLS</button>
       <button class="btn btn-outline btn-sm" onclick="abrirModalNovoPedido()"><i class="ti ti-plus"></i>Novo Pedido</button>
     </div>
   </div>
@@ -1980,6 +1981,75 @@ tr:hover td { background:#F9FAFB; }
         </tr></thead>
         <tbody id="ped-tbody"></tbody>
       </table>
+    </div>
+  </div>
+</div>
+
+<!-- Modal Importar XLS -->
+<div class="modal-overlay" id="modal-importar-xls" style="display:none" onclick="if(event.target===this)fecharModal('modal-importar-xls')">
+  <div class="modal" style="max-width:680px;width:95%">
+    <div class="modal-header"><span class="modal-title"><i class="ti ti-file-upload"></i> Importar Pedidos XLS</span><button class="modal-close" onclick="fecharModal('modal-importar-xls')">✕</button></div>
+    <div class="modal-body">
+      <!-- Upload area -->
+      <div id="xls-drop-area" onclick="document.getElementById('xls-file-input').click()"
+        style="border:2px dashed var(--borda);border-radius:12px;padding:32px;text-align:center;cursor:pointer;transition:all .2s;margin-bottom:16px"
+        ondragover="event.preventDefault();this.style.borderColor='var(--primario)'"
+        ondragleave="this.style.borderColor='var(--borda)'"
+        ondrop="xlsHandleDrop(event)">
+        <i class="ti ti-cloud-upload" style="font-size:36px;color:var(--texto2);display:block;margin-bottom:8px"></i>
+        <div style="font-weight:600;color:var(--texto);margin-bottom:4px">Clique ou arraste os arquivos XLS/XLSX</div>
+        <div style="font-size:12px;color:var(--texto2)">Pode enviar vários arquivos de uma vez</div>
+        <input type="file" id="xls-file-input" multiple accept=".xls,.xlsx" style="display:none" onchange="xlsOnFileSelect(this.files)">
+      </div>
+      <!-- Lista de arquivos selecionados -->
+      <div id="xls-files-list" style="display:none;margin-bottom:16px">
+        <div style="font-size:12px;font-weight:600;color:var(--texto2);margin-bottom:6px;text-transform:uppercase">Arquivos selecionados:</div>
+        <div id="xls-files-names" style="font-size:13px;color:var(--texto)"></div>
+      </div>
+      <!-- Estado processando -->
+      <div id="xls-processando" style="display:none;text-align:center;padding:20px">
+        <div class="spinner" style="margin:0 auto 12px"></div>
+        <div style="color:var(--texto2);font-size:13px">Lendo arquivos, normalizando itens e analisando pedido...</div>
+      </div>
+      <!-- Resultado -->
+      <div id="xls-resultado" style="display:none">
+        <div style="display:flex;gap:10px;margin-bottom:14px;flex-wrap:wrap">
+          <div class="card" style="padding:10px 14px;flex:1;min-width:120px;text-align:center">
+            <div style="font-size:11px;color:var(--texto2);text-transform:uppercase;font-weight:600">Total Itens</div>
+            <div id="xls-res-itens" style="font-size:22px;font-weight:700;color:var(--texto)">0</div>
+          </div>
+          <div class="card" style="padding:10px 14px;flex:1;min-width:120px;text-align:center">
+            <div style="font-size:11px;color:var(--texto2);text-transform:uppercase;font-weight:600">Obra</div>
+            <div id="xls-res-obra" style="font-size:13px;font-weight:600;color:var(--texto)">—</div>
+          </div>
+          <div class="card" style="padding:10px 14px;flex:1;min-width:120px;text-align:center">
+            <div style="font-size:11px;color:var(--texto2);text-transform:uppercase;font-weight:600">Solicitante</div>
+            <div id="xls-res-solicit" style="font-size:13px;font-weight:600;color:var(--texto)">—</div>
+          </div>
+        </div>
+        <!-- Análise Claude -->
+        <div id="xls-analise-box" style="background:var(--bg);border-radius:10px;padding:14px;margin-bottom:14px;display:none">
+          <div style="font-size:12px;font-weight:600;color:var(--primario);margin-bottom:8px;display:flex;align-items:center;gap:6px">
+            <i class="ti ti-sparkles"></i> ANÁLISE DE GESTÃO
+          </div>
+          <div id="xls-analise-texto" style="font-size:13px;color:var(--texto);white-space:pre-wrap;line-height:1.6"></div>
+        </div>
+        <!-- Correções aplicadas -->
+        <div id="xls-obs-box" style="background:#fffbeb;border:1px solid #f59e0b;border-radius:10px;padding:12px;margin-bottom:14px;display:none">
+          <div style="font-size:12px;font-weight:600;color:#d97706;margin-bottom:6px">CORREÇÕES APLICADAS AUTOMATICAMENTE</div>
+          <ul id="xls-obs-lista" style="margin:0;padding-left:18px;font-size:12px;color:var(--texto);line-height:1.8"></ul>
+        </div>
+        <!-- Download -->
+        <button id="xls-btn-download" class="btn btn-primary" style="width:100%" onclick="xlsDownload()">
+          <i class="ti ti-download"></i> Baixar Requisição Consolidada (XLSX)
+        </button>
+      </div>
+    </div>
+    <div class="modal-footer" id="xls-footer">
+      <button class="btn btn-outline" onclick="fecharModal('modal-importar-xls')">Fechar</button>
+      <button class="btn btn-primary" id="xls-btn-processar" style="display:none" onclick="xlsProcessar()">
+        <i class="ti ti-cpu"></i> Processar e Importar
+      </button>
     </div>
   </div>
 </div>
@@ -8496,6 +8566,108 @@ async function _pepiCarregarCatalogo() {
     if (res && res.ok) _pepiCatalogo = await res.json();
   } catch(e) {}
   return _pepiCatalogo;
+}
+
+// ── IMPORTAR XLS ──────────────────────────────────────
+let _xlsFiles = [];
+let _xlsResultado = null;
+
+function abrirModalImportarXls() {
+  _xlsFiles = []; _xlsResultado = null;
+  document.getElementById('xls-files-list').style.display = 'none';
+  document.getElementById('xls-processando').style.display = 'none';
+  document.getElementById('xls-resultado').style.display = 'none';
+  document.getElementById('xls-btn-processar').style.display = 'none';
+  document.getElementById('xls-footer').style.display = '';
+  document.getElementById('xls-drop-area').style.display = '';
+  document.getElementById('xls-file-input').value = '';
+  abrirModal('modal-importar-xls');
+}
+
+function xlsHandleDrop(e) {
+  e.preventDefault();
+  document.getElementById('xls-drop-area').style.borderColor = 'var(--borda)';
+  xlsOnFileSelect(e.dataTransfer.files);
+}
+
+function xlsOnFileSelect(files) {
+  _xlsFiles = Array.from(files);
+  if (!_xlsFiles.length) return;
+  const nomes = _xlsFiles.map(f => `📄 ${f.name}`).join('<br>');
+  document.getElementById('xls-files-names').innerHTML = nomes;
+  document.getElementById('xls-files-list').style.display = '';
+  document.getElementById('xls-btn-processar').style.display = '';
+}
+
+async function xlsProcessar() {
+  if (!_xlsFiles.length) return;
+  document.getElementById('xls-drop-area').style.display = 'none';
+  document.getElementById('xls-files-list').style.display = 'none';
+  document.getElementById('xls-processando').style.display = '';
+  document.getElementById('xls-btn-processar').style.display = 'none';
+  document.getElementById('xls-resultado').style.display = 'none';
+
+  try {
+    const fd = new FormData();
+    _xlsFiles.forEach(f => fd.append('files', f));
+    const token = localStorage.getItem('sst_token');
+    const res = await fetch('/api/pedidos/importar-xls', {
+      method: 'POST',
+      headers: { 'Authorization': `Bearer ${token}` },
+      body: fd
+    });
+    const data = await res.json();
+    _xlsResultado = data;
+
+    document.getElementById('xls-processando').style.display = 'none';
+
+    if (!data.ok) {
+      alert('Erro: ' + (data.erro || 'Falha ao processar arquivos.'));
+      document.getElementById('xls-drop-area').style.display = '';
+      document.getElementById('xls-btn-processar').style.display = '';
+      return;
+    }
+
+    // Preenche resultado
+    document.getElementById('xls-res-itens').textContent = data.total_itens;
+    document.getElementById('xls-res-obra').textContent = data.obra || '—';
+    document.getElementById('xls-res-solicit').textContent = data.solicitante || '—';
+
+    // Análise Claude
+    if (data.analise) {
+      document.getElementById('xls-analise-texto').textContent = data.analise;
+      document.getElementById('xls-analise-box').style.display = '';
+    }
+
+    // Correções
+    if (data.observacoes && data.observacoes.length) {
+      const ul = document.getElementById('xls-obs-lista');
+      ul.innerHTML = data.observacoes.map(o => `<li>${o}</li>`).join('');
+      document.getElementById('xls-obs-box').style.display = '';
+    }
+
+    document.getElementById('xls-resultado').style.display = '';
+    document.getElementById('xls-footer').style.display = 'none';
+    await carregarPedidos();
+
+  } catch(e) {
+    document.getElementById('xls-processando').style.display = 'none';
+    alert('Erro de comunicação: ' + e.message);
+    document.getElementById('xls-drop-area').style.display = '';
+    document.getElementById('xls-btn-processar').style.display = '';
+  }
+}
+
+function xlsDownload() {
+  if (!_xlsResultado || !_xlsResultado.xlsx_b64) return;
+  const bin = atob(_xlsResultado.xlsx_b64);
+  const bytes = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+  const blob = new Blob([bytes], {type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = _xlsResultado.xlsx_nome || 'requisicao_consolidada.xlsx';
+  a.click();
 }
 
 // ══════════════════════════════════════════════════════

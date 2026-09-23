@@ -3,7 +3,8 @@ SST Digital - Sistema Web
 Backend FastAPI para geração e envio de kits SST via Autentique
 """
 
-from fastapi import FastAPI, UploadFile, File, Form, HTTPException, Request, Depends, Body, List as QueryList
+from fastapi import FastAPI, UploadFile, File, Form, HTTPException, Request, Depends, Body
+from typing import List as QueryList
 from fastapi.responses import HTMLResponse, JSONResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
@@ -892,7 +893,7 @@ async def excluir_pedido(pedido_id: int, _=Depends(verificar_acesso)):
 
 
 @app.post("/api/pedidos/importar-xls")
-async def importar_xls(files: list[UploadFile] = File(...), _=Depends(verificar_acesso)):
+async def importar_xls(files: QueryList[UploadFile] = File(...), _=Depends(verificar_acesso)):
     """
     Recebe um ou mais XLS/XLSX, lê todas as abas, normaliza itens via Claude,
     consolida por categoria (EPI / Uniforme / Ferramenta / Material),

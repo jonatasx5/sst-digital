@@ -1150,91 +1150,94 @@ Responda de forma direta e objetiva, em tópicos curtos em português. Se não h
     pid = banco.criar_pedido(mes_ref, solicit, obra, itens_banco,
                              num_oc="IMP", data_oc="", fornecedor="", departamento="Obras")
 
-    # ── Gera XLSX consolidado ─────────────────────────────────────────────────
+    # ── Gera XLSX — uma aba por categoria (modelo padrão) ────────────────────
     wb = openpyxl.Workbook()
     wb.remove(wb.active)
 
-    thin = Side(style="thin", color="BBBBBB")
+    thin = Side(style="thin", color="000000")
     bdr  = Border(left=thin, right=thin, top=thin, bottom=thin)
+    GRAY = PatternFill("solid", fgColor="D9D9D9")
     HDR  = PatternFill("solid", fgColor="1F497D")
-    FILLS = {
-        "EPI":       PatternFill("solid", fgColor="DCE6F1"),
-        "UNIFORME":  PatternFill("solid", fgColor="EBF1DE"),
-        "FERRAMENTA":PatternFill("solid", fgColor="FFF2CC"),
-        "MATERIAL":  PatternFill("solid", fgColor="FCE4D6"),
+
+    WHITE = PatternFill("solid", fgColor="FFFFFF")
+    ROW_FILLS = {
+        "EPI": (WHITE, WHITE), "UNIFORME": (WHITE, WHITE),
+        "FERRAMENTA": (WHITE, WHITE), "MATERIAL": (WHITE, WHITE),
     }
-    ALT = PatternFill("solid", fgColor="F7F7F7")
-    SEP = PatternFill("solid", fgColor="2E4057")
-    GRAY= PatternFill("solid", fgColor="D9D9D9")
 
     ORDEM_CAT = ["EPI", "UNIFORME", "FERRAMENTA", "MATERIAL"]
+    data_str  = meta.get("data", _dt.now().strftime("%d/%m/%Y"))
+    prazo_str = meta.get("prazo", "")
+    obs_txt   = "OBSERVAÇÕES: " + (" | ".join(observacoes) if observacoes else "")
 
-    ws = wb.create_sheet("REQUISIÇÃO CONSOLIDADA")
+    def criar_aba(wb, nome_aba, cat, items, num_inicio):
+        ws = wb.create_sheet(nome_aba)
+        f1, f2 = ROW_FILLS.get(cat, (PatternFill("solid", fgColor="F2F2F2"), PatternFill("solid", fgColor="FFFFFF")))
 
-    # cabeçalho
-    ws.merge_cells("A1:K1")
-    c = ws["A1"]; c.value = "REQUISIÇÃO — MATERIAIS/SERVIÇOS"
-    c.font = Font(name="Arial", bold=True, size=13, color="FFFFFF")
-    c.fill = HDR; c.alignment = Alignment(horizontal="center", vertical="center")
-    ws.row_dimensions[1].height = 22
+        # Linha 1-2: título
+        ws.merge_cells("A1:C1"); ws.merge_cells("D1:K1")
+        ws["D1"].value = "REQUISIÇÃO"
+        ws["D1"].font = Font(name="Arial", bold=True, size=14, color="FFFFFF")
+        ws["D1"].fill = HDR; ws["D1"].alignment = Alignment(horizontal="center", vertical="center")
+        ws.row_dimensions[1].height = 22
 
-    ws.merge_cells("A2:F2"); ws.merge_cells("G2:K2")
-    ws["A2"].value = f"Departamento: Obras"
-    ws["G2"].value = f"Aplicação: {obra}"
-    for cel in [ws["A2"], ws["G2"]]:
-        cel.font = Font(name="Arial", size=10); cel.fill = GRAY; cel.border = bdr
-    ws.row_dimensions[2].height = 16
+        ws.merge_cells("A2:C2"); ws.merge_cells("D2:K2")
+        ws["D2"].value = "MATERIAIS/SERVIÇOS"
+        ws["D2"].font = Font(name="Arial", bold=True, size=12, color="FFFFFF")
+        ws["D2"].fill = HDR; ws["D2"].alignment = Alignment(horizontal="center", vertical="center")
+        ws.row_dimensions[2].height = 18
 
-    ws.merge_cells("A3:C3"); ws.merge_cells("D3:F3"); ws.merge_cells("G3:J3")
-    ws["A3"].value = f"Data: {meta.get('data', _dt.now().strftime('%d/%m/%Y'))}"
-    ws["D3"].value = f"Prazo de entrega: {meta.get('prazo', '')}"
-    ws["G3"].value = f"Solicitante: {solicit}"
-    ws["K3"].value = "Nº. 0000"
-    for cel in [ws["A3"], ws["D3"], ws["G3"], ws["K3"]]:
-        cel.font = Font(name="Arial", size=10); cel.fill = GRAY; cel.border = bdr
-    ws.row_dimensions[3].height = 16
+        # Linha 3: Departamento / Aplicação
+        ws.merge_cells("A3:F3"); ws.merge_cells("G3:K3")
+        ws["A3"].value = "Departamento: Obras"
+        ws["G3"].value = f"Aplicação: {obra}"
+        for cel in [ws["A3"], ws["G3"]]:
+            cel.font = Font(name="Arial", size=10); cel.fill = GRAY; cel.border = bdr
+        ws.row_dimensions[3].height = 16
 
-    # cabeçalho tabela
-    ws.merge_cells("A4:A5"); ws.merge_cells("B4:G5")
-    ws.merge_cells("H4:H5"); ws.merge_cells("I4:I5")
-    ws.merge_cells("J4:J5"); ws.merge_cells("K4:K5")
-    for col, val in [(1,"PEDIDO"),(2,"DESCRIÇÃO"),(8,"MARCA"),(9,"UNID."),(10,"QUANT."),(11,"ATENDIDO/\nSIM/NÃO")]:
-        c = ws.cell(row=4, column=col, value=val)
-        c.font = Font(name="Arial", bold=True, color="FFFFFF", size=10)
-        c.fill = HDR; c.border = bdr
-        c.alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
-    ws.row_dimensions[4].height = 20; ws.row_dimensions[5].height = 16
+        # Linha 4: Data / Prazo / Solicitante / Nº
+        ws.merge_cells("A4:C4"); ws.merge_cells("D4:F4")
+        ws.merge_cells("G4:J4")
+        ws["A4"].value = f"Data: {data_str}"
+        ws["D4"].value = f"Prazo de entrega: {prazo_str}"
+        ws["G4"].value = f"Solicitante: {solicit}"
+        ws["K4"].value = "Nº. 0000"
+        for cel in [ws["A4"], ws["D4"], ws["G4"], ws["K4"]]:
+            cel.font = Font(name="Arial", size=10); cel.fill = GRAY; cel.border = bdr
+        ws.row_dimensions[4].height = 16
 
-    r = 6
-    num_item = 1
-    for cat in ORDEM_CAT:
-        if cat not in por_cat:
-            continue
-        items = por_cat[cat]
-        fill_cat = FILLS.get(cat, ALT)
-        # separador categoria
-        ws.merge_cells(f"A{r}:K{r}")
-        sc = ws.cell(row=r, column=1, value=f"▌  {cat}")
-        sc.font = Font(name="Arial", bold=True, color="FFFFFF", size=10)
-        sc.fill = SEP; sc.alignment = Alignment(horizontal="left", vertical="center")
-        ws.row_dimensions[r].height = 18; r += 1
+        # Linhas 5-6: cabeçalho tabela
+        ws.merge_cells("A5:A6"); ws.merge_cells("B5:G6")
+        ws.merge_cells("H5:H6"); ws.merge_cells("I5:I6")
+        ws.merge_cells("J5:J6"); ws.merge_cells("K5:K6")
+        for col, val in [(1,"PEDIDO"),(2,"DESCRIÇÃO"),(8,"MARCA"),(9,"UNID."),(10,"QUANT."),(11,"ATENDIDO/\nSIM/NÃO")]:
+            c = ws.cell(row=5, column=col, value=val)
+            c.font = Font(name="Arial", bold=True, color="FFFFFF", size=10)
+            c.fill = HDR; c.border = bdr
+            c.alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
+        ws.row_dimensions[5].height = 20; ws.row_dimensions[6].height = 14
 
+        # Itens
+        r = 7
         for i, (desc, dados) in enumerate(sorted(items.items())):
+            fill = f1 if i % 2 == 0 else f2
             ws.merge_cells(f"B{r}:G{r}")
-            fill = fill_cat if i % 2 == 0 else ALT
-            ws.cell(row=r, column=1,  value=num_item).fill = fill
+            ws.cell(row=r, column=1, value=num_inicio+i).fill = fill
             ws.cell(row=r, column=1).font = Font(name="Arial", size=10)
             ws.cell(row=r, column=1).border = bdr
             ws.cell(row=r, column=1).alignment = Alignment(horizontal="center")
-            ws.cell(row=r, column=2,  value=desc).fill = fill
+            ws.cell(row=r, column=2, value=desc).fill = fill
             ws.cell(row=r, column=2).font = Font(name="Arial", size=10)
             ws.cell(row=r, column=2).border = bdr
+            for col in range(3, 8):
+                ws.cell(row=r, column=col).fill = fill
+                ws.cell(row=r, column=col).border = bdr
             ca_val = f"C.A {dados['ca']}" if dados["ca"] else ""
-            ws.cell(row=r, column=8,  value=ca_val).fill = fill
+            ws.cell(row=r, column=8, value=ca_val).fill = fill
             ws.cell(row=r, column=8).font = Font(name="Arial", size=10)
             ws.cell(row=r, column=8).border = bdr
             ws.cell(row=r, column=8).alignment = Alignment(horizontal="center")
-            ws.cell(row=r, column=9,  value=dados["unidade"]).fill = fill
+            ws.cell(row=r, column=9, value=dados["unidade"]).fill = fill
             ws.cell(row=r, column=9).font = Font(name="Arial", size=10)
             ws.cell(row=r, column=9).border = bdr
             ws.cell(row=r, column=9).alignment = Alignment(horizontal="center")
@@ -1244,29 +1247,32 @@ Responda de forma direta e objetiva, em tópicos curtos em português. Se não h
             ws.cell(row=r, column=10).alignment = Alignment(horizontal="center")
             ws.cell(row=r, column=11, value="").fill = fill
             ws.cell(row=r, column=11).border = bdr
-            for col in range(3, 8):
-                ws.cell(row=r, column=col).fill = fill
-                ws.cell(row=r, column=col).border = bdr
             ws.row_dimensions[r].height = 15
-            num_item += 1; r += 1
+            r += 1
 
-    # Observações
-    obs_txt = "OBSERVAÇÕES: " + (" | ".join(observacoes) if observacoes else "Nenhuma correção aplicada.")
-    ws.merge_cells(f"A{r}:K{r}")
-    oc = ws.cell(row=r, column=1, value=obs_txt)
-    oc.font = Font(name="Arial", size=9, italic=True)
-    oc.fill = GRAY; oc.border = bdr
-    oc.alignment = Alignment(vertical="top", wrap_text=True)
-    ws.row_dimensions[r].height = max(30, len(observacoes) * 14)
+        # Observações
+        ws.merge_cells(f"A{r}:K{r}")
+        oc = ws.cell(row=r, column=1, value=obs_txt)
+        oc.font = Font(name="Arial", size=9, italic=True)
+        oc.fill = GRAY; oc.border = bdr
+        oc.alignment = Alignment(vertical="top", wrap_text=True)
+        ws.row_dimensions[r].height = max(30, len(observacoes) * 14 + 10)
 
-    # larguras
-    ws.column_dimensions["A"].width = 9
-    for col in ["B","C","D","E","F","G"]: ws.column_dimensions[col].width = 7
-    ws.column_dimensions["G"].width = 22
-    ws.column_dimensions["H"].width = 14
-    ws.column_dimensions["I"].width = 8
-    ws.column_dimensions["J"].width = 9
-    ws.column_dimensions["K"].width = 12
+        # Larguras
+        ws.column_dimensions["A"].width = 9
+        for col in ["B","C","D","E","F"]: ws.column_dimensions[col].width = 6
+        ws.column_dimensions["G"].width = 24
+        ws.column_dimensions["H"].width = 14
+        ws.column_dimensions["I"].width = 8
+        ws.column_dimensions["J"].width = 9
+        ws.column_dimensions["K"].width = 12
+
+    num_inicio = 1
+    for cat in ORDEM_CAT:
+        if cat not in por_cat:
+            continue
+        criar_aba(wb, cat, cat, por_cat[cat], num_inicio)
+        num_inicio += len(por_cat[cat])
 
     buf = _io.BytesIO()
     wb.save(buf)

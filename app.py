@@ -905,7 +905,10 @@ async def importar_xls(files: QueryList[UploadFile] = File(...), _=Depends(verif
     from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
     from openpyxl.utils import get_column_letter
     from collections import defaultdict
-    import anthropic as _anthropic
+    try:
+        import anthropic as _anthropic
+    except ImportError:
+        _anthropic = None
     import base64
 
     ANTHROPIC_KEY = os.environ.get("ANTHROPIC_API_KEY", "")
@@ -1071,7 +1074,7 @@ async def importar_xls(files: QueryList[UploadFile] = File(...), _=Depends(verif
 
     # ── Análise de anomalias via Claude ──────────────────────────────────────
     analise_texto = ""
-    if ANTHROPIC_KEY:
+    if ANTHROPIC_KEY and _anthropic:
         try:
             # Busca histórico de pedidos no banco para comparação
             historico = banco.listar_pedidos()

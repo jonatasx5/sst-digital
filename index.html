@@ -8616,7 +8616,9 @@ async function xlsProcessar() {
       headers: { 'Authorization': `Bearer ${token}` },
       body: fd
     });
-    const data = await res.json();
+    let data;
+    try { data = await res.json(); }
+    catch { throw new Error('Erro interno no servidor (status ' + res.status + ')'); }
     _xlsResultado = data;
 
     document.getElementById('xls-processando').style.display = 'none';

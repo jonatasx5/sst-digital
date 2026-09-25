@@ -1695,10 +1695,15 @@ tr:hover td { background:#F9FAFB; }
     <div id="mf-fichas-epi-section" style="display:none;border-top:1px solid var(--borda);margin:12px 0 10px;padding-top:12px">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
         <label style="font-weight:600;font-size:13px;color:var(--texto)"><i class="ti ti-file-certificate" style="margin-right:5px;color:#f59e0b"></i>Fichas EPI Assinadas</label>
-        <label style="display:inline-flex;align-items:center;gap:4px;padding:4px 10px;border:1.5px solid #f59e0b;border-radius:8px;background:var(--card);color:#f59e0b;font-size:12px;font-weight:600;cursor:pointer">
-          <i class="ti ti-upload" style="font-size:13px"></i>Enviar ficha
-          <input type="file" id="inp-ficha-epi" accept="image/*,.pdf" style="display:none" onchange="uploadFichaEpi(this)">
-        </label>
+        <div style="display:flex;gap:6px">
+          <button onclick="abrirModalScanAuto()" style="display:inline-flex;align-items:center;gap:4px;padding:4px 10px;border:1.5px solid #3b82f6;border-radius:8px;background:var(--card);color:#3b82f6;font-size:12px;font-weight:600;cursor:pointer;border-style:solid">
+            <i class="ti ti-scan" style="font-size:13px"></i>Scan Auto
+          </button>
+          <label style="display:inline-flex;align-items:center;gap:4px;padding:4px 10px;border:1.5px solid #f59e0b;border-radius:8px;background:var(--card);color:#f59e0b;font-size:12px;font-weight:600;cursor:pointer">
+            <i class="ti ti-upload" style="font-size:13px"></i>Enviar ficha
+            <input type="file" id="inp-ficha-epi" accept="image/*,.pdf" style="display:none" onchange="uploadFichaEpi(this)">
+          </label>
+        </div>
       </div>
       <div style="margin-bottom:8px">
         <input type="text" id="mf-ficha-obra" placeholder="Obra/referência (opcional)" style="width:100%;padding:6px 10px;border:1.5px solid var(--borda);border-radius:8px;font-size:12px;background:var(--card);color:var(--texto)">
@@ -1711,6 +1716,44 @@ tr:hover td { background:#F9FAFB; }
     <button class="btn btn-primary" style="width:100%;justify-content:center" onclick="salvarFunc()">
       <i class="ti ti-device-floppy"></i>Salvar
     </button>
+  </div>
+</div>
+
+<!-- ── MODAL SCAN AUTO EPI ── -->
+<div class="modal-bg" id="modal-scan-auto">
+  <div class="modal" style="max-width:560px">
+    <div class="modal-title">
+      <i class="ti ti-scan" style="color:#3b82f6;margin-right:6px"></i>Scan Automático de Fichas EPI
+      <button class="modal-close" onclick="fecharModal('modal-scan-auto')">×</button>
+    </div>
+    <p style="font-size:12px;color:var(--texto2);margin:0 0 10px">
+      Envie as fotos/scans das fichas físicas. O sistema lê o nome do funcionário e salva automaticamente no registro correto.
+    </p>
+    <div id="scan-upload-zone" class="upload-zone" style="margin-bottom:10px"
+      onclick="document.getElementById('inp-scan-fichas').click()"
+      ondragover="event.preventDefault();this.classList.add('drag')"
+      ondragleave="this.classList.remove('drag')"
+      ondrop="scanHandleDrop(event)">
+      <i class="ti ti-photo-scan" style="font-size:32px;color:#3b82f6"></i>
+      <p>Clique ou arraste as imagens aqui</p>
+      <p style="font-size:11px;color:var(--texto2)">JPG, PNG, PDF — múltiplos arquivos permitidos</p>
+    </div>
+    <input type="file" id="inp-scan-fichas" accept="image/*,.pdf" multiple style="display:none" onchange="scanOnFileSelect(this.files)">
+    <div style="margin-bottom:10px">
+      <input type="text" id="scan-obra" placeholder="Obra/referência (opcional)" style="width:100%;padding:6px 10px;border:1.5px solid var(--borda);border-radius:8px;font-size:12px;background:var(--card);color:var(--texto);box-sizing:border-box">
+    </div>
+    <div id="scan-file-list" style="margin-bottom:10px;font-size:12px;color:var(--texto2)"></div>
+    <button class="btn btn-primary" style="width:100%;justify-content:center" onclick="scanProcessar()" id="btn-scan-processar" disabled>
+      <i class="ti ti-cpu"></i>Processar com IA
+    </button>
+    <div id="scan-spinner" style="display:none;text-align:center;padding:16px;color:var(--texto2);font-size:13px">
+      <i class="ti ti-loader-2" style="animation:spin 1s linear infinite;font-size:24px;display:block;margin-bottom:6px"></i>
+      Lendo fichas com Claude Vision…
+    </div>
+    <div id="scan-resultados" style="margin-top:12px;display:none">
+      <div id="scan-resumo" style="font-size:13px;font-weight:600;margin-bottom:8px;padding:8px 12px;border-radius:8px;background:var(--fundo)"></div>
+      <div id="scan-lista-resultados" style="display:flex;flex-direction:column;gap:6px;max-height:280px;overflow-y:auto"></div>
+    </div>
   </div>
 </div>
 
@@ -3760,6 +3803,85 @@ async function excluirFichaEpi(fichaId) {
   const res = await apiFetch(`/api/fichas-epi/${fichaId}`, {method:'DELETE'}).catch(()=>null);
   if (res && res.ok && _fichasEpiFuncId) await carregarFichasEpi(_fichasEpiFuncId);
 }
+
+// ── SCAN AUTO ──────────────────────────────────────────────
+let _scanFiles = [];
+
+function abrirModalScanAuto() {
+  _scanFiles = [];
+  document.getElementById('scan-file-list').innerHTML = '';
+  document.getElementById('scan-resultados').style.display = 'none';
+  document.getElementById('scan-spinner').style.display = 'none';
+  document.getElementById('btn-scan-processar').disabled = true;
+  document.getElementById('scan-obra').value = document.getElementById('mf-ficha-obra')?.value || '';
+  document.getElementById('modal-scan-auto').style.display = 'flex';
+}
+
+function scanHandleDrop(e) {
+  e.preventDefault();
+  e.currentTarget.classList.remove('drag');
+  scanOnFileSelect(e.dataTransfer.files);
+}
+
+function scanOnFileSelect(files) {
+  _scanFiles = [...(files || [])];
+  const el = document.getElementById('scan-file-list');
+  if (!_scanFiles.length) { el.innerHTML = ''; document.getElementById('btn-scan-processar').disabled = true; return; }
+  el.innerHTML = _scanFiles.map(f =>
+    `<div style="display:flex;align-items:center;gap:6px"><i class="ti ti-photo" style="color:#3b82f6"></i>${f.name}</div>`
+  ).join('');
+  document.getElementById('btn-scan-processar').disabled = false;
+}
+
+async function scanProcessar() {
+  if (!_scanFiles.length) return;
+  const btn = document.getElementById('btn-scan-processar');
+  const spinner = document.getElementById('scan-spinner');
+  const resultados = document.getElementById('scan-resultados');
+  btn.disabled = true;
+  spinner.style.display = 'block';
+  resultados.style.display = 'none';
+
+  const obra = document.getElementById('scan-obra').value.trim();
+  const fd = new FormData();
+  _scanFiles.forEach(f => fd.append('files', f));
+  fd.append('obra', obra);
+
+  let data;
+  try {
+    const res = await apiFetch('/api/fichas-epi/scan-auto', {method:'POST', body:fd});
+    data = res.ok ? await res.json() : null;
+  } catch(e) { data = null; }
+
+  spinner.style.display = 'none';
+  btn.disabled = false;
+
+  if (!data) {
+    alert('Erro ao processar fichas. Verifique se ANTHROPIC_API_KEY está configurada no Railway.');
+    return;
+  }
+
+  const statusColors = {salvo:'#22c55e', nao_identificado:'#f59e0b', sem_match:'#f97316', erro_vision:'#ef4444'};
+  const statusLabels = {salvo:'Salvo', nao_identificado:'Não identificado', sem_match:'Sem match', erro_vision:'Erro Vision'};
+
+  document.getElementById('scan-resumo').innerHTML =
+    `<i class="ti ti-check-circle" style="color:#22c55e"></i> ${data.salvos} de ${data.total} fichas salvas automaticamente`;
+
+  document.getElementById('scan-lista-resultados').innerHTML = (data.resultados || []).map(r => {
+    const cor = statusColors[r.status] || '#888';
+    const label = statusLabels[r.status] || r.status;
+    const detalhe = r.status === 'salvo'
+      ? `→ <strong>${r.funcionario}</strong> (ID ${r.funcionario_id}, confiança ${r.confianca})`
+      : r.detalhe || r.nome_lido || '';
+    return `<div style="display:flex;align-items:flex-start;gap:8px;padding:8px;border-radius:8px;background:var(--fundo);font-size:12px">
+      <span style="color:${cor};font-weight:700;min-width:90px">${label}</span>
+      <div><div style="font-weight:600">${r.arquivo}</div>${r.nome_lido ? `<div style="color:var(--texto2)">Lido: ${r.nome_lido}</div>` : ''}${detalhe ? `<div>${detalhe}</div>` : ''}</div>
+    </div>`;
+  }).join('');
+
+  resultados.style.display = 'block';
+}
+// ── FIM SCAN AUTO ──────────────────────────────────────────
 
 async function salvarFunc() {
   const dados = {};

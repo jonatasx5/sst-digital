@@ -5129,6 +5129,115 @@ async def excluir_ficha_epi(ficha_id: int, _=Depends(verificar_acesso)):
     return {"ok": True}
 
 
+@app.post("/api/fichas-epi/scan-auto")
+async def scan_fichas_auto(
+    files: QueryList[UploadFile] = File(...),
+    obra: str = Form(""),
+    _=Depends(verificar_acesso)
+):
+    """
+    Recebe imagens de fichas EPI escaneadas, usa Claude Vision para ler o nome
+    do funcionário, faz o match no banco e salva no registro correto.
+    """
+    import base64, unicodedata, re as _re
+
+    try:
+        import anthropic as _anthropic
+        _cli = _anthropic.Anthropic(api_key=os.environ.get("ANTHROPIC_API_KEY", ""))
+    except Exception:
+        raise HTTPException(500, "Anthropic SDK não disponível. Instale a lib e configure ANTHROPIC_API_KEY.")
+
+    def _norm(s):
+        s = unicodedata.normalize("NFD", s.lower())
+        s = "".join(c for c in s if unicodedata.category(c) != "Mn")
+        return _re.sub(r"\s+", " ", s).strip()
+
+    def _score(query_parts, candidate):
+        cand = _norm(candidate)
+        return sum(1 for p in query_parts if p in cand)
+
+    todos = banco.buscar_funcionarios("", apenas_ativos=False)
+
+    resultados = []
+    for file in files:
+        conteudo = await file.read()
+        ext = (file.filename or "").rsplit(".", 1)[-1].lower() or "jpeg"
+        mime = file.content_type or f"image/{ext}"
+        b64 = base64.standard_b64encode(conteudo).decode()
+
+        # Claude Vision: extrair nome do funcionário
+        try:
+            resp = _cli.messages.create(
+                model="claude-haiku-4-5-20251001",
+                max_tokens=256,
+                messages=[{
+                    "role": "user",
+                    "content": [
+                        {
+                            "type": "image",
+                            "source": {"type": "base64", "media_type": mime, "data": b64}
+                        },
+                        {
+                            "type": "text",
+                            "text": (
+                                "Esta é uma ficha de controle de EPI. "
+                                "Leia o campo 'Nome do empregado' e responda APENAS com o nome completo, "
+                                "sem mais nada. Se não encontrar, responda 'NÃO IDENTIFICADO'."
+                            )
+                        }
+                    ]
+                }]
+            )
+            nome_lido = resp.content[0].text.strip()
+        except Exception as e:
+            resultados.append({
+                "arquivo": file.filename,
+                "status": "erro_vision",
+                "detalhe": str(e)
+            })
+            continue
+
+        if not nome_lido or "NÃO IDENTIFICADO" in nome_lido.upper():
+            resultados.append({
+                "arquivo": file.filename,
+                "status": "nao_identificado",
+                "nome_lido": nome_lido
+            })
+            continue
+
+        # Match fuzzy: parte das palavras do nome lido contra os funcionários
+        partes = [p for p in _norm(nome_lido).split() if len(p) > 2]
+        scored = [(f, _score(partes, f["nome"])) for f in todos]
+        scored.sort(key=lambda x: x[1], reverse=True)
+
+        melhor, pontos = scored[0] if scored else (None, 0)
+
+        if not melhor or pontos == 0:
+            resultados.append({
+                "arquivo": file.filename,
+                "status": "sem_match",
+                "nome_lido": nome_lido
+            })
+            continue
+
+        func_id = melhor["id"]
+        nome_arquivo = file.filename or f"ficha_scan_{func_id}.{ext}"
+        fid = banco.salvar_ficha_epi(func_id, nome_arquivo, mime, conteudo, obra)
+
+        resultados.append({
+            "arquivo": file.filename,
+            "status": "salvo",
+            "nome_lido": nome_lido,
+            "funcionario": melhor["nome"],
+            "funcionario_id": func_id,
+            "ficha_id": fid,
+            "confianca": pontos
+        })
+
+    salvos = sum(1 for r in resultados if r["status"] == "salvo")
+    return {"ok": True, "total": len(files), "salvos": salvos, "resultados": resultados}
+
+
 # ══════════════════════════════════════════════════════════
 #  EMPRESAS
 # ══════════════════════════════════════════════════════════

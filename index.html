@@ -1982,9 +1982,16 @@ tr:hover td { background:#F9FAFB; }
 <div class="panel" id="panel-asos">
   <div class="page-header">
     <div><div class="page-title">Controle de ASOs</div><div class="page-sub">Acompanhe os exames clínicos anuais dos funcionários ativos</div></div>
-    <div style="display:flex;gap:8px;align-items:center">
+    <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+      <select id="aso-filtro-status" onchange="asoFiltrar()" style="padding:6px 12px;border:1.5px solid var(--borda);border-radius:8px;font-size:13px;background:var(--card);color:var(--texto)">
+        <option value="">Todos</option>
+        <option value="vencido">Vencidos</option>
+        <option value="critico">Vence em 15 dias</option>
+        <option value="atencao">Vence em 30 dias</option>
+        <option value="ok">Em dia</option>
+      </select>
       <input type="text" id="aso-busca" placeholder="Buscar funcionário..." oninput="asoFiltrar()"
-        style="padding:6px 12px;border:1.5px solid var(--borda);border-radius:8px;font-size:13px;background:var(--card);color:var(--texto);width:220px">
+        style="padding:6px 12px;border:1.5px solid var(--borda);border-radius:8px;font-size:13px;background:var(--card);color:var(--texto);width:200px">
     </div>
   </div>
 
@@ -9224,7 +9231,10 @@ async function asoCarregar() {
 
 function asoFiltrar() {
   const termo = (document.getElementById('aso-busca').value || '').toLowerCase();
-  const filtrado = termo ? _asoData.filter(f => (f.nome||'').toLowerCase().includes(termo) || (f.cargo||'').toLowerCase().includes(termo)) : _asoData;
+  const status = document.getElementById('aso-filtro-status').value;
+  let filtrado = _asoData;
+  if (status) filtrado = filtrado.filter(f => f.status_aso === status);
+  if (termo)  filtrado = filtrado.filter(f => (f.nome||'').toLowerCase().includes(termo) || (f.cargo||'').toLowerCase().includes(termo));
   asoRenderizar(filtrado);
 }
 

@@ -1323,11 +1323,11 @@ async def exportar_backup(_=Depends(verificar_acesso)):
             conn = banco.conectar()
             cur = conn.cursor()
             if banco.USE_POSTGRES:
-                cur.execute("SELECT * FROM envios ORDER BY criado_em DESC")
+                cur.execute("SELECT * FROM envios ORDER BY enviado_em DESC")
                 cols = [d[0] for d in cur.description]
                 rows = [dict(zip(cols, r)) for r in cur.fetchall()]
             else:
-                cur.execute("SELECT * FROM envios ORDER BY criado_em DESC")
+                cur.execute("SELECT * FROM envios ORDER BY enviado_em DESC")
                 cols = [d[0] for d in cur.description]
                 rows = [dict(zip(cols, r)) for r in cur.fetchall()]
             conn.close()

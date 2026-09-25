@@ -9235,6 +9235,12 @@ function asoFiltrar() {
   let filtrado = _asoData;
   if (status) filtrado = filtrado.filter(f => f.status_aso === status);
   if (termo)  filtrado = filtrado.filter(f => (f.nome||'').toLowerCase().includes(termo) || (f.cargo||'').toLowerCase().includes(termo));
+  // Ordenação: vencidos = mais atrasado primeiro; demais = mais próximo de vencer primeiro
+  if (status === 'vencido') {
+    filtrado = [...filtrado].sort((a, b) => (a.dias_para_vencer ?? 0) - (b.dias_para_vencer ?? 0));
+  } else if (status) {
+    filtrado = [...filtrado].sort((a, b) => (a.dias_para_vencer ?? 9999) - (b.dias_para_vencer ?? 9999));
+  }
   asoRenderizar(filtrado);
 }
 

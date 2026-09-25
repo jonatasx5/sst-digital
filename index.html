@@ -9260,7 +9260,7 @@ function asoRenderizar(lista) {
     return;
   }
 
-  document.getElementById('aso-lista').innerHTML = lista.map(f => {
+  document.getElementById('aso-lista').innerHTML = lista.map((f, i) => {
     const cor = statusCor[f.status_aso] || '#94a3b8';
     const label = statusLabel[f.status_aso] || f.status_aso;
     const dias = f.dias_para_vencer;
@@ -9269,6 +9269,7 @@ function asoRenderizar(lista) {
     const exameTxt = f.data_exame ? f.data_exame.toString().slice(0,10) : '—';
 
     return `<div style="display:flex;align-items:center;gap:12px;padding:10px 14px;border-radius:10px;background:var(--card);border:1px solid var(--borda);border-left:4px solid ${cor}">
+      <div style="min-width:24px;text-align:right;font-size:12px;font-weight:700;color:var(--texto2);flex-shrink:0">${i + 1}</div>
       <div style="flex:1;min-width:0">
         <div style="font-weight:600;font-size:13px">${f.nome}</div>
         <div style="font-size:11px;color:var(--texto2)">${f.cargo||''} ${f.lotacao ? '· '+f.lotacao : ''}</div>

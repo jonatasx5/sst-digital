@@ -245,6 +245,7 @@ tr:hover td { background:#F9FAFB; }
     <button class="nav-item" data-modulo="alojamentos" onclick="irPara('alojamentos')"><i class="ti ti-home-2"></i>Alojamentos</button>
     <button class="nav-item" data-modulo="acidentes" onclick="irPara('acidentes')"><i class="ti ti-alert-triangle"></i>Acidentes</button>
     <button class="nav-item" data-modulo="historico" onclick="irPara('historico')"><i class="ti ti-clock"></i>Histórico</button>
+    <button class="nav-item" data-modulo="asos" onclick="irPara('asos')"><i class="ti ti-stethoscope"></i>Controle de ASOs</button>
     <button class="nav-item" data-modulo="pedidos" onclick="irPara('pedidos')"><i class="ti ti-shopping-cart"></i>Pedidos de Obra</button>
     <button class="nav-item" data-modulo="diario-obra" onclick="irPara('diario-obra')"><i class="ti ti-camera"></i>Diário de Obra</button>
     <button class="nav-item" data-modulo="empresas" onclick="irPara('empresas')"><i class="ti ti-building"></i>Empresas</button>
@@ -1977,6 +1978,56 @@ tr:hover td { background:#F9FAFB; }
 </div><!-- fecha panel-diario-obra -->
 
 
+<!-- ── CONTROLE DE ASOs ── -->
+<div class="panel" id="panel-asos">
+  <div class="page-header">
+    <div><div class="page-title">Controle de ASOs</div><div class="page-sub">Acompanhe os exames clínicos anuais dos funcionários ativos</div></div>
+    <div style="display:flex;gap:8px;align-items:center">
+      <input type="text" id="aso-busca" placeholder="Buscar funcionário..." oninput="asoFiltrar()"
+        style="padding:6px 12px;border:1.5px solid var(--borda);border-radius:8px;font-size:13px;background:var(--card);color:var(--texto);width:220px">
+    </div>
+  </div>
+
+  <!-- Cards de resumo -->
+  <div style="display:flex;gap:12px;margin-bottom:16px;flex-wrap:wrap">
+    <div class="stat-card" id="aso-stat-ok"    style="flex:1;min-width:120px;border-left:4px solid #22c55e">
+      <div style="font-size:22px;font-weight:700;color:#22c55e" id="aso-n-ok">—</div>
+      <div style="font-size:12px;color:var(--texto2)">Em dia</div>
+    </div>
+    <div class="stat-card" id="aso-stat-atencao" style="flex:1;min-width:120px;border-left:4px solid #f59e0b">
+      <div style="font-size:22px;font-weight:700;color:#f59e0b" id="aso-n-atencao">—</div>
+      <div style="font-size:12px;color:var(--texto2)">Vence em 30 dias</div>
+    </div>
+    <div class="stat-card" id="aso-stat-critico" style="flex:1;min-width:120px;border-left:4px solid #f97316">
+      <div style="font-size:22px;font-weight:700;color:#f97316" id="aso-n-critico">—</div>
+      <div style="font-size:12px;color:var(--texto2)">Vence em 15 dias</div>
+    </div>
+    <div class="stat-card" id="aso-stat-vencido" style="flex:1;min-width:120px;border-left:4px solid #ef4444">
+      <div style="font-size:22px;font-weight:700;color:#ef4444" id="aso-n-vencido">—</div>
+      <div style="font-size:12px;color:var(--texto2)">Vencidos</div>
+    </div>
+  </div>
+
+  <div id="aso-lista" style="display:flex;flex-direction:column;gap:6px"></div>
+</div>
+
+<!-- Modal registrar ASO -->
+<div class="modal-bg" id="modal-aso">
+  <div class="modal" style="max-width:400px">
+    <div class="modal-title">
+      Registrar Exame ASO
+      <button class="modal-close" onclick="fecharModal('modal-aso')">×</button>
+    </div>
+    <div style="font-size:13px;font-weight:600;margin-bottom:12px" id="aso-modal-nome"></div>
+    <label style="font-size:12px;color:var(--texto2);display:block;margin-bottom:4px">Data do exame</label>
+    <input type="date" id="aso-data-exame" style="width:100%;padding:8px 12px;border:1.5px solid var(--borda);border-radius:8px;font-size:13px;background:var(--card);color:var(--texto);box-sizing:border-box;margin-bottom:16px">
+    <input type="hidden" id="aso-func-id">
+    <button class="btn btn-primary" style="width:100%;justify-content:center" onclick="asoSalvar()">
+      <i class="ti ti-check"></i>Salvar
+    </button>
+  </div>
+</div>
+
 <!-- ── PEDIDOS DE OBRA ── -->
 <div class="panel" id="panel-pedidos">
   <div class="page-header">
@@ -2901,6 +2952,7 @@ const MODULOS = [
   { id:'envio-lote',    label:'Kit SST Envio' },
   { id:'ordem-servico', label:'Treinamentos' },
   { id:'historico',     label:'Histórico' },
+{ id:'asos',          label:'Controle de ASOs' },
 { id:'pedidos',       label:'Pedidos de Obra' },
   { id:'diario-obra',   label:'Diário de Obra' },
   { id:'alojamentos',   label:'Alojamentos' },
@@ -3309,6 +3361,7 @@ async function irPara(aba) {
   if (aba==='ordem-servico') carregarOSCargos();
   if (aba==='historico')     carregarHistorico();
   if (aba==='diario-obra')   doInit();
+  if (aba==='asos')          asoCarregar();
 if (aba==='pedidos')       carregarPedidos();
   if (aba==='alojamentos')   alojaInit();
   if (aba==='acidentes')     acidInit();
@@ -9154,6 +9207,97 @@ function gerarPdfPedido() {
   w.document.write(html);
   w.document.close();
 }
+
+// ── CONTROLE DE ASOs ──────────────────────────────────────
+let _asoData = [];
+
+async function asoCarregar() {
+  document.getElementById('aso-lista').innerHTML = '<div style="text-align:center;padding:24px;color:var(--texto2)">Carregando...</div>';
+  const res = await apiFetch('/api/asos').catch(() => null);
+  if (!res || !res.ok) {
+    document.getElementById('aso-lista').innerHTML = '<div style="color:#ef4444;padding:16px">Erro ao carregar ASOs.</div>';
+    return;
+  }
+  _asoData = await res.json();
+  asoRenderizar(_asoData);
+}
+
+function asoFiltrar() {
+  const termo = (document.getElementById('aso-busca').value || '').toLowerCase();
+  const filtrado = termo ? _asoData.filter(f => (f.nome||'').toLowerCase().includes(termo) || (f.cargo||'').toLowerCase().includes(termo)) : _asoData;
+  asoRenderizar(filtrado);
+}
+
+function asoRenderizar(lista) {
+  const statusCor   = { ok:'#22c55e', atencao:'#f59e0b', critico:'#f97316', vencido:'#ef4444', sem_admissao:'#94a3b8' };
+  const statusLabel = { ok:'Em dia', atencao:'Atenção', critico:'Crítico', vencido:'Vencido', sem_admissao:'Sem admissão' };
+
+  // Contadores
+  const contar = s => _asoData.filter(f => f.status_aso === s).length;
+  document.getElementById('aso-n-ok').textContent      = contar('ok');
+  document.getElementById('aso-n-atencao').textContent = contar('atencao');
+  document.getElementById('aso-n-critico').textContent = contar('critico');
+  document.getElementById('aso-n-vencido').textContent = contar('vencido');
+
+  if (!lista.length) {
+    document.getElementById('aso-lista').innerHTML = '<div style="text-align:center;padding:24px;color:var(--texto2)">Nenhum funcionário encontrado.</div>';
+    return;
+  }
+
+  document.getElementById('aso-lista').innerHTML = lista.map(f => {
+    const cor = statusCor[f.status_aso] || '#94a3b8';
+    const label = statusLabel[f.status_aso] || f.status_aso;
+    const dias = f.dias_para_vencer;
+    const diasTxt = dias === null ? '—' : dias < 0 ? `${Math.abs(dias)} dias vencido` : dias === 0 ? 'Vence hoje' : `${dias} dias`;
+    const vencTxt = f.data_vencimento ? f.data_vencimento.toString().slice(0,10) : (f.admissao ? `(base: admissão ${f.admissao})` : '—');
+    const exameTxt = f.data_exame ? f.data_exame.toString().slice(0,10) : '—';
+
+    return `<div style="display:flex;align-items:center;gap:12px;padding:10px 14px;border-radius:10px;background:var(--card);border:1px solid var(--borda);border-left:4px solid ${cor}">
+      <div style="flex:1;min-width:0">
+        <div style="font-weight:600;font-size:13px">${f.nome}</div>
+        <div style="font-size:11px;color:var(--texto2)">${f.cargo||''} ${f.lotacao ? '· '+f.lotacao : ''}</div>
+      </div>
+      <div style="text-align:center;min-width:90px">
+        <div style="font-size:11px;color:var(--texto2)">Último exame</div>
+        <div style="font-size:12px;font-weight:600">${exameTxt}</div>
+      </div>
+      <div style="text-align:center;min-width:110px">
+        <div style="font-size:11px;color:var(--texto2)">Vencimento</div>
+        <div style="font-size:12px;font-weight:600">${vencTxt}</div>
+      </div>
+      <div style="text-align:center;min-width:110px">
+        <div style="font-size:11px;color:var(--texto2)">Situação</div>
+        <div style="font-size:12px;font-weight:700;color:${cor}">${label} · ${diasTxt}</div>
+      </div>
+      <button onclick="asoAbrirModal(${f.id}, '${(f.nome||'').replace(/'/g,"\\'")}', '${f.data_exame||''}')"
+        style="padding:5px 12px;border:1.5px solid ${cor};border-radius:8px;background:transparent;color:${cor};font-size:12px;font-weight:600;cursor:pointer;white-space:nowrap">
+        <i class="ti ti-calendar-plus"></i> Registrar
+      </button>
+    </div>`;
+  }).join('');
+}
+
+function asoAbrirModal(funcId, nome, dataAtual) {
+  document.getElementById('aso-func-id').value = funcId;
+  document.getElementById('aso-modal-nome').textContent = nome;
+  document.getElementById('aso-data-exame').value = dataAtual ? dataAtual.toString().slice(0,10) : new Date().toISOString().slice(0,10);
+  document.getElementById('modal-aso').style.display = 'flex';
+}
+
+async function asoSalvar() {
+  const funcId = document.getElementById('aso-func-id').value;
+  const dataExame = document.getElementById('aso-data-exame').value;
+  if (!dataExame) { alert('Informe a data do exame.'); return; }
+  const res = await apiFetch(`/api/asos/${funcId}`, {
+    method: 'POST',
+    headers: {'Content-Type':'application/json'},
+    body: JSON.stringify({data_exame: dataExame})
+  }).catch(() => null);
+  if (!res || !res.ok) { alert('Erro ao salvar.'); return; }
+  fecharModal('modal-aso');
+  await asoCarregar();
+}
+// ── FIM CONTROLE DE ASOs ──────────────────────────────────
 </script>
 </body>
 </html>

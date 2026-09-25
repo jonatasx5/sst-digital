@@ -5218,6 +5218,23 @@ async def excluir_ficha_epi(ficha_id: int, _=Depends(verificar_acesso)):
     return {"ok": True}
 
 
+# ══════════════════════════════════════════════════════════
+#  CONTROLE DE ASOs
+# ══════════════════════════════════════════════════════════
+
+@app.get("/api/asos")
+async def listar_asos(_=Depends(verificar_acesso)):
+    return banco.listar_asos_dashboard()
+
+@app.post("/api/asos/{func_id}")
+async def registrar_aso(func_id: int, dados: dict = Body(...), _=Depends(verificar_acesso)):
+    data_exame = dados.get("data_exame")
+    if not data_exame:
+        raise HTTPException(400, "data_exame obrigatória")
+    fid = banco.registrar_aso(func_id, data_exame)
+    return {"ok": True, "id": fid}
+
+
 @app.post("/api/fichas-epi/scan-auto")
 async def scan_fichas_auto(
     files: QueryList[UploadFile] = File(...),

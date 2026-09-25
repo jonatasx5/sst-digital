@@ -1463,6 +1463,144 @@ def _criar_tabela_fichas_epi(conn, use_pg):
     conn.commit()
 
 
+# ── ASOs ──────────────────────────────────────────────────────────────────────
+
+def _criar_tabela_asos(conn, use_pg):
+    cur = conn.cursor()
+    if use_pg:
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS asos (
+                id SERIAL PRIMARY KEY,
+                funcionario_id INTEGER NOT NULL UNIQUE,
+                data_exame DATE,
+                data_vencimento DATE,
+                registrado_em TIMESTAMP DEFAULT NOW()
+            )
+        """)
+    else:
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS asos (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                funcionario_id INTEGER NOT NULL UNIQUE,
+                data_exame TEXT,
+                data_vencimento TEXT,
+                registrado_em TEXT DEFAULT (datetime('now'))
+            )
+        """)
+    conn.commit()
+
+
+def registrar_aso(funcionario_id: int, data_exame: str) -> int:
+    from datetime import date, timedelta
+    conn = conectar()
+    try:
+        _criar_tabela_asos(conn, USE_POSTGRES)
+        dt = date.fromisoformat(data_exame)
+        venc = (dt.replace(year=dt.year + 1)).isoformat()
+        cur = conn.cursor()
+        if USE_POSTGRES:
+            cur.execute("""
+                INSERT INTO asos (funcionario_id, data_exame, data_vencimento)
+                VALUES (%s, %s, %s)
+                ON CONFLICT (funcionario_id) DO UPDATE
+                SET data_exame=%s, data_vencimento=%s, registrado_em=NOW()
+                RETURNING id
+            """, (funcionario_id, data_exame, venc, data_exame, venc))
+            row = cur.fetchone()
+            fid = row[0] if row else None
+        else:
+            cur.execute("""
+                INSERT INTO asos (funcionario_id, data_exame, data_vencimento)
+                VALUES (?, ?, ?)
+                ON CONFLICT (funcionario_id) DO UPDATE
+                SET data_exame=excluded.data_exame, data_vencimento=excluded.data_vencimento,
+                    registrado_em=datetime('now')
+            """, (funcionario_id, data_exame, venc))
+            fid = cur.lastrowid
+        conn.commit()
+        return fid
+    finally:
+        conn.close()
+
+
+def listar_asos_dashboard() -> list:
+    """Retorna todos os funcionários ativos com status de ASO."""
+    from datetime import date
+    conn = conectar()
+    try:
+        _criar_tabela_asos(conn, USE_POSTGRES)
+        hoje = date.today()
+        if USE_POSTGRES:
+            cur = conn.cursor(cursor_factory=_psycopg2_extras.RealDictCursor)
+            cur.execute("""
+                SELECT f.id, f.nome, f.cargo, f.lotacao, f.admissao,
+                       a.data_exame, a.data_vencimento
+                FROM funcionarios f
+                LEFT JOIN asos a ON a.funcionario_id = f.id
+                WHERE f.ativo = true
+                ORDER BY f.nome
+            """)
+        else:
+            cur = conn.cursor()
+            cur.execute("""
+                SELECT f.id, f.nome, f.cargo, f.lotacao, f.admissao,
+                       a.data_exame, a.data_vencimento
+                FROM funcionarios f
+                LEFT JOIN asos a ON a.funcionario_id = f.id
+                WHERE f.ativo = 1
+                ORDER BY f.nome
+            """)
+        rows = cur.fetchall()
+        result = []
+        for r in rows:
+            if USE_POSTGRES:
+                row = dict(r)
+            else:
+                cols = [d[0] for d in cur.description]
+                row = dict(zip(cols, r))
+
+            # Calcular dias para vencer
+            venc_str = row.get("data_vencimento")
+            exame_str = row.get("data_exame")
+
+            if venc_str:
+                try:
+                    venc_dt = date.fromisoformat(str(venc_str)[:10])
+                    dias = (venc_dt - hoje).days
+                except Exception:
+                    dias = None
+            else:
+                # Sem exame: usar admissão + 1 ano
+                adm = row.get("admissao") or ""
+                try:
+                    adm_dt = date.fromisoformat(adm[:10]) if adm else None
+                    if adm_dt:
+                        venc_adm = adm_dt.replace(year=adm_dt.year + 1)
+                        dias = (venc_adm - hoje).days
+                    else:
+                        dias = None
+                except Exception:
+                    dias = None
+
+            if dias is None:
+                status = "sem_admissao"
+            elif dias < 0:
+                status = "vencido"
+            elif dias <= 15:
+                status = "critico"
+            elif dias <= 30:
+                status = "atencao"
+            else:
+                status = "ok"
+
+            row["dias_para_vencer"] = dias
+            row["status_aso"] = status
+            result.append(row)
+        return result
+    finally:
+        conn.close()
+
+
 def listar_fichas_epi(funcionario_id: int) -> list:
     conn = conectar()
     try:

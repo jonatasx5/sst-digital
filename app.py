@@ -1332,10 +1332,99 @@ async def exportar_backup(_=Depends(verificar_acesso)):
                 rows = [dict(zip(cols, r)) for r in cur.fetchall()]
             conn.close()
             if rows:
-                csv_buf = _io.StringIO()
-                w = csv.DictWriter(csv_buf, fieldnames=list(rows[0].keys()), extrasaction="ignore")
-                w.writeheader(); w.writerows(rows)
-                zf.writestr("dados/historico_envios.csv", csv_buf.getvalue())
+                import openpyxl
+                from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
+                from openpyxl.utils import get_column_letter
+
+                wb_env = openpyxl.Workbook()
+                ws = wb_env.active
+                ws.title = "Histórico de Envios"
+
+                # Cabeçalho
+                cabecalhos = ["Funcionário", "Cargo", "Documento", "Status", "Enviado em", "Assinado em", "Link"]
+                hdr_fill = PatternFill("solid", fgColor="1E3A5F")
+                hdr_font = Font(bold=True, color="FFFFFF", size=11)
+                thin = Side(style="thin", color="CCCCCC")
+                borda = Border(left=thin, right=thin, top=thin, bottom=thin)
+
+                for col, cab in enumerate(cabecalhos, 1):
+                    c = ws.cell(row=1, column=col, value=cab)
+                    c.fill = hdr_fill
+                    c.font = hdr_font
+                    c.alignment = Alignment(horizontal="center", vertical="center")
+                    c.border = borda
+
+                status_map = {"signed": "Assinado", "pending": "Aguardando", "refused": "Recusado"}
+                fill_assinado  = PatternFill("solid", fgColor="D1FAE5")
+                fill_aguardando = PatternFill("solid", fgColor="FEF3C7")
+                fill_recusado  = PatternFill("solid", fgColor="FEE2E2")
+                font_link = Font(color="1D4ED8", underline="single")
+
+                # Extrair nome do funcionário do campo doc_nome quando disponível
+                def _nome_func(r):
+                    # doc_nome geralmente é "Kit SST — Nome Func" ou "Ficha de Entrega... — Nome Func"
+                    dn = r.get("doc_nome") or ""
+                    if "—" in dn:
+                        return dn.split("—", 1)[-1].strip()
+                    if "—" in dn:
+                        return dn.split("—", 1)[-1].strip()
+                    return dn
+
+                def _tipo_doc(r):
+                    dn = (r.get("doc_nome") or "").lower()
+                    if "kit sst" in dn or r.get("doc_id","") == "kit_completo":
+                        return "Kit SST"
+                    if "ficha" in dn or "epi" in dn:
+                        return "Ficha EPI"
+                    return r.get("doc_nome") or r.get("doc_id") or ""
+
+                def _fmt_dt(v):
+                    if not v:
+                        return "—"
+                    return str(v)[:16].replace("T", " ")
+
+                for i, r in enumerate(rows, 2):
+                    status_raw = r.get("status") or "pending"
+                    status_txt = status_map.get(status_raw, status_raw)
+                    fill = fill_assinado if status_raw == "signed" else (fill_recusado if status_raw == "refused" else fill_aguardando)
+
+                    # Buscar cargo do funcionário
+                    func_id = r.get("funcionario_id")
+                    cargo = ""
+                    if func_id and 'funcs' in dir():
+                        match = next((f for f in funcs if str(f.get("id")) == str(func_id)), None)
+                        if match:
+                            cargo = match.get("cargo", "")
+
+                    vals = [
+                        _nome_func(r),
+                        cargo,
+                        _tipo_doc(r),
+                        status_txt,
+                        _fmt_dt(r.get("enviado_em")),
+                        _fmt_dt(r.get("assinado_em")),
+                        r.get("link_assinatura") or "",
+                    ]
+                    for col, val in enumerate(vals, 1):
+                        c = ws.cell(row=i, column=col, value=val)
+                        c.fill = fill
+                        c.border = borda
+                        c.alignment = Alignment(vertical="center", wrap_text=False)
+                        if col == 7 and val and val.startswith("http"):
+                            c.font = font_link
+                        else:
+                            c.font = Font(size=10)
+
+                # Larguras
+                larguras = [40, 28, 16, 14, 18, 18, 55]
+                for col, larg in enumerate(larguras, 1):
+                    ws.column_dimensions[get_column_letter(col)].width = larg
+                ws.row_dimensions[1].height = 22
+                ws.freeze_panes = "A2"
+
+                env_buf = _io.BytesIO()
+                wb_env.save(env_buf)
+                zf.writestr("dados/historico_envios.xlsx", env_buf.getvalue())
         except Exception as e:
             zf.writestr("dados/historico_envios_ERRO.txt", str(e))
 

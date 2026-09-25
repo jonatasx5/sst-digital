@@ -1572,8 +1572,15 @@ def listar_asos_dashboard() -> list:
             else:
                 # Sem exame: usar admissão + 1 ano
                 adm = row.get("admissao") or ""
+                adm_dt = None
+                for fmt in ("%d/%m/%Y", "%Y-%m-%d", "%d-%m-%Y"):
+                    try:
+                        from datetime import datetime as _dt2
+                        adm_dt = _dt2.strptime(adm[:10], fmt).date()
+                        break
+                    except Exception:
+                        continue
                 try:
-                    adm_dt = date.fromisoformat(adm[:10]) if adm else None
                     if adm_dt:
                         venc_adm = adm_dt.replace(year=adm_dt.year + 1)
                         dias = (venc_adm - hoje).days

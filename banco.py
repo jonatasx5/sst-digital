@@ -2130,7 +2130,7 @@ def listar_envios(funcionario_id: int = None, status: str = None, limite: int = 
             cur.execute(f"""
                 SELECT e.id, e.doc_id, e.doc_nome,
                        e.funcionario_id,
-                       f.nome AS funcionario, f.cargo, f.celular, f.cpf,
+                       f.nome AS funcionario, f.cargo, f.celular, f.cpf, f.admissao,
                        e.status, e.link_assinatura,
                        e.autentique_id, e.autentique_id AS zapsign_token,
                        COALESCE(e.provedor, 'zapsign') AS provedor,
@@ -2156,7 +2156,7 @@ def listar_envios(funcionario_id: int = None, status: str = None, limite: int = 
             cur.execute(f"""
                 SELECT e.id, e.doc_id, e.doc_nome,
                        e.funcionario_id,
-                       f.nome AS funcionario, f.cargo, f.celular, f.cpf,
+                       f.nome AS funcionario, f.cargo, f.celular, f.cpf, f.admissao,
                        e.status, e.link_assinatura,
                        e.autentique_id, e.autentique_id AS zapsign_token,
                        COALESCE(e.provedor, 'zapsign') AS provedor,

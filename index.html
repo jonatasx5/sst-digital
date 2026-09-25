@@ -5615,6 +5615,7 @@ function histRenderTabela(dados) {
       <td style="padding:10px 14px;">
         <div style="font-weight:600;font-size:13px;">${e.funcionario||'—'}</div>
         <div style="font-size:11px;color:var(--texto2);">${e.cargo||''}</div>
+        ${e.admissao ? `<div style="font-size:11px;color:var(--texto2);">Admissão: ${e.admissao}</div>` : ''}
       </td>
       <td style="padding:10px 14px;">${tipoLabel}</td>
       <td style="padding:10px 14px;color:var(--texto2);font-size:12px;">${enviadoEm}</td>

@@ -1537,7 +1537,7 @@ def listar_asos_dashboard() -> list:
                        a.data_exame, a.data_vencimento
                 FROM funcionarios f
                 LEFT JOIN asos a ON a.funcionario_id = f.id
-                WHERE f.ativo = true
+                WHERE f.ativo = 1
                 ORDER BY f.nome
             """)
         else:

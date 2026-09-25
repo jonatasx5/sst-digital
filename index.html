@@ -1552,6 +1552,7 @@ tr:hover td { background:#F9FAFB; }
           <tr style="background:var(--fundo);border-bottom:2px solid var(--borda);">
             <th style="padding:11px 14px;text-align:left;color:var(--texto2);font-weight:600;">Funcionário</th>
             <th style="padding:11px 14px;text-align:left;color:var(--texto2);font-weight:600;">Documento</th>
+            <th style="padding:11px 14px;text-align:left;color:var(--texto2);font-weight:600;">Admissão</th>
             <th style="padding:11px 14px;text-align:left;color:var(--texto2);font-weight:600;">Enviado em</th>
             <th style="padding:11px 14px;text-align:left;color:var(--texto2);font-weight:600;">Assinado em</th>
             <th style="padding:11px 14px;text-align:center;color:var(--texto2);font-weight:600;">Status</th>
@@ -1559,7 +1560,7 @@ tr:hover td { background:#F9FAFB; }
           </tr>
         </thead>
         <tbody id="hist-tbody">
-          <tr><td colspan="6" style="text-align:center;padding:40px;color:var(--texto2);">Carregando...</td></tr>
+          <tr><td colspan="7" style="text-align:center;padding:40px;color:var(--texto2);">Carregando...</td></tr>
         </tbody>
       </table>
     </div>
@@ -5453,12 +5454,12 @@ let _histDados = [];
 async function carregarHistorico(forcarReload = false) {
   const tbody = document.getElementById('hist-tbody');
   if (!_histCache || forcarReload) {
-    tbody.innerHTML = `<tr><td colspan="6" style="text-align:center;padding:40px;color:var(--texto2);">Carregando...</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="7" style="text-align:center;padding:40px;color:var(--texto2);">Carregando...</td></tr>`;
     try {
       const res  = await apiFetch('/api/envios?limite=500');
       _histCache = await res.json();
     } catch(e) {
-      tbody.innerHTML = `<tr><td colspan="6" style="text-align:center;padding:40px;color:var(--danger);">Erro ao carregar: ${e.message}</td></tr>`;
+      tbody.innerHTML = `<tr><td colspan="7" style="text-align:center;padding:40px;color:var(--danger);">Erro ao carregar: ${e.message}</td></tr>`;
       return;
     }
   }
@@ -5552,7 +5553,7 @@ function histTipoLabel(e) {
 function histRenderTabela(dados) {
   const tbody = document.getElementById('hist-tbody');
   if (!dados.length) {
-    tbody.innerHTML = `<tr><td colspan="6" style="text-align:center;padding:40px;color:var(--texto2);">Nenhum documento encontrado.</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="7" style="text-align:center;padding:40px;color:var(--texto2);">Nenhum documento encontrado.</td></tr>`;
     return;
   }
   tbody.innerHTML = dados.map(e => {
@@ -5615,9 +5616,9 @@ function histRenderTabela(dados) {
       <td style="padding:10px 14px;">
         <div style="font-weight:600;font-size:13px;">${e.funcionario||'—'}</div>
         <div style="font-size:11px;color:var(--texto2);">${e.cargo||''}</div>
-        ${e.admissao ? `<div style="font-size:11px;color:var(--texto2);">Admissão: ${e.admissao}</div>` : ''}
       </td>
       <td style="padding:10px 14px;">${tipoLabel}</td>
+      <td style="padding:10px 14px;color:var(--texto2);font-size:12px;">${e.admissao||'—'}</td>
       <td style="padding:10px 14px;color:var(--texto2);font-size:12px;">${enviadoEm}</td>
       <td style="padding:10px 14px;color:var(--texto2);font-size:12px;">${assinadoEm}</td>
       <td style="padding:10px 14px;text-align:center;">${badge}</td>

@@ -1985,14 +1985,20 @@ tr:hover td { background:#F9FAFB; }
     <div><div class="page-title">Controle de ASOs</div><div class="page-sub">Acompanhe os exames clínicos anuais dos funcionários ativos</div></div>
     <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
       <select id="aso-filtro-status" onchange="asoFiltrar()" style="padding:6px 12px;border:1.5px solid var(--borda);border-radius:8px;font-size:13px;background:var(--card);color:var(--texto)">
-        <option value="">Todos</option>
+        <option value="">Todos os status</option>
         <option value="vencido">Vencidos</option>
         <option value="critico">Vence em 15 dias</option>
         <option value="atencao">Vence em 30 dias</option>
         <option value="ok">Em dia</option>
       </select>
+      <select id="aso-filtro-lotacao" onchange="asoFiltrar()" style="padding:6px 12px;border:1.5px solid var(--borda);border-radius:8px;font-size:13px;background:var(--card);color:var(--texto);max-width:240px">
+        <option value="">Todas as lotações</option>
+      </select>
       <input type="text" id="aso-busca" placeholder="Buscar funcionário..." oninput="asoFiltrar()"
-        style="padding:6px 12px;border:1.5px solid var(--borda);border-radius:8px;font-size:13px;background:var(--card);color:var(--texto);width:200px">
+        style="padding:6px 12px;border:1.5px solid var(--borda);border-radius:8px;font-size:13px;background:var(--card);color:var(--texto);width:180px">
+      <button onclick="asoExportar()" style="display:inline-flex;align-items:center;gap:5px;padding:6px 14px;border:1.5px solid #3b82f6;border-radius:8px;background:var(--card);color:#3b82f6;font-size:13px;font-weight:600;cursor:pointer">
+        <i class="ti ti-file-download"></i>Exportar
+      </button>
     </div>
   </div>
 
@@ -9228,21 +9234,31 @@ async function asoCarregar() {
     return;
   }
   _asoData = await res.json();
+  _asoFiltradoAtual = _asoData;
+  // Popular filtro de lotação
+  const lotacoes = [...new Set(_asoData.map(f => f.lotacao || '').filter(Boolean))].sort();
+  const sel = document.getElementById('aso-filtro-lotacao');
+  sel.innerHTML = '<option value="">Todas as lotações</option>' +
+    lotacoes.map(l => `<option value="${l}">${l}</option>`).join('');
   asoRenderizar(_asoData);
 }
 
+let _asoFiltradoAtual = [];
+
 function asoFiltrar() {
-  const termo = (document.getElementById('aso-busca').value || '').toLowerCase();
-  const status = document.getElementById('aso-filtro-status').value;
+  const termo   = (document.getElementById('aso-busca').value || '').toLowerCase();
+  const status  = document.getElementById('aso-filtro-status').value;
+  const lotacao = document.getElementById('aso-filtro-lotacao').value;
   let filtrado = _asoData;
-  if (status) filtrado = filtrado.filter(f => f.status_aso === status);
-  if (termo)  filtrado = filtrado.filter(f => (f.nome||'').toLowerCase().includes(termo) || (f.cargo||'').toLowerCase().includes(termo));
-  // Ordenação: vencidos = mais atrasado primeiro; demais = mais próximo de vencer primeiro
+  if (status)  filtrado = filtrado.filter(f => f.status_aso === status);
+  if (lotacao) filtrado = filtrado.filter(f => (f.lotacao||'') === lotacao);
+  if (termo)   filtrado = filtrado.filter(f => (f.nome||'').toLowerCase().includes(termo) || (f.cargo||'').toLowerCase().includes(termo));
   if (status === 'vencido') {
     filtrado = [...filtrado].sort((a, b) => (a.dias_para_vencer ?? 0) - (b.dias_para_vencer ?? 0));
   } else if (status) {
     filtrado = [...filtrado].sort((a, b) => (a.dias_para_vencer ?? 9999) - (b.dias_para_vencer ?? 9999));
   }
+  _asoFiltradoAtual = filtrado;
   asoRenderizar(filtrado);
 }
 
@@ -9315,6 +9331,123 @@ async function asoSalvar() {
   if (!res || !res.ok) { alert('Erro ao salvar.'); return; }
   fecharModal('modal-aso');
   await asoCarregar();
+}
+function asoExportar() {
+  const lista = _asoFiltradoAtual.length ? _asoFiltradoAtual : _asoData;
+  if (!lista.length) { alert('Nenhum funcionário para exportar.'); return; }
+
+  const statusLabel = { ok:'Em dia', atencao:'Vence em 30 dias', critico:'Vence em 15 dias', vencido:'Vencido', sem_admissao:'Sem admissão' };
+  const statusCor   = { ok:'#16a34a', atencao:'#d97706', critico:'#ea580c', vencido:'#dc2626', sem_admissao:'#94a3b8' };
+
+  const filtroStatus  = document.getElementById('aso-filtro-status').value;
+  const filtroLotacao = document.getElementById('aso-filtro-lotacao').value;
+  const titulo = filtroStatus ? statusLabel[filtroStatus] || 'ASOs' : 'Controle de ASOs';
+  const subtitulo = filtroLotacao ? `Lotação: ${filtroLotacao}` : 'Todos os funcionários';
+  const hoje = new Date().toLocaleDateString('pt-BR');
+
+  // A4 = 794 x 1123 px a 96dpi
+  const POR_PAGINA = 28;
+  const paginas = Math.ceil(lista.length / POR_PAGINA);
+
+  for (let p = 0; p < paginas; p++) {
+    const fatia = lista.slice(p * POR_PAGINA, (p + 1) * POR_PAGINA);
+    const canvas = document.createElement('canvas');
+    canvas.width = 794; canvas.height = 1123;
+    const ctx = canvas.getContext('2d');
+
+    // Fundo branco
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(0, 0, 794, 1123);
+
+    // Cabeçalho
+    ctx.fillStyle = '#1e3a5f';
+    ctx.fillRect(0, 0, 794, 72);
+    ctx.fillStyle = '#ffffff';
+    ctx.font = 'bold 20px Arial';
+    ctx.fillText('JS Construtora — SST Digital', 24, 28);
+    ctx.font = 'bold 15px Arial';
+    ctx.fillText(titulo, 24, 52);
+    ctx.font = '12px Arial';
+    ctx.fillStyle = '#cbd5e1';
+    ctx.fillText(subtitulo, 24, 68);
+    ctx.fillStyle = '#ffffff';
+    ctx.textAlign = 'right';
+    ctx.font = '11px Arial';
+    ctx.fillText(`Gerado em ${hoje}${paginas > 1 ? `  |  Pág. ${p+1}/${paginas}` : ''}`, 770, 52);
+    ctx.textAlign = 'left';
+
+    // Cabeçalho da tabela
+    const yTbl = 90;
+    ctx.fillStyle = '#f1f5f9';
+    ctx.fillRect(16, yTbl, 762, 22);
+    ctx.fillStyle = '#475569';
+    ctx.font = 'bold 10px Arial';
+    ctx.fillText('#',      22,  yTbl + 15);
+    ctx.fillText('FUNCIONÁRIO',  42,  yTbl + 15);
+    ctx.fillText('CARGO',       270,  yTbl + 15);
+    ctx.fillText('LOTAÇÃO',     420,  yTbl + 15);
+    ctx.fillText('VENCIMENTO',  600,  yTbl + 15);
+    ctx.fillText('SITUAÇÃO',    690,  yTbl + 15);
+
+    // Linhas
+    fatia.forEach((f, i) => {
+      const y = yTbl + 26 + i * 34;
+      // Zebra
+      if (i % 2 === 0) { ctx.fillStyle = '#f8fafc'; ctx.fillRect(16, y - 2, 762, 34); }
+      // Barra de cor lateral
+      ctx.fillStyle = statusCor[f.status_aso] || '#94a3b8';
+      ctx.fillRect(16, y - 2, 4, 34);
+
+      ctx.fillStyle = '#1e293b';
+      ctx.font = 'bold 11px Arial';
+      // Número
+      ctx.fillStyle = '#94a3b8';
+      ctx.font = '10px Arial';
+      ctx.fillText(String(p * POR_PAGINA + i + 1), 22, y + 14);
+      // Nome
+      ctx.fillStyle = '#1e293b';
+      ctx.font = 'bold 11px Arial';
+      const nome = (f.nome || '').length > 32 ? f.nome.slice(0, 30) + '…' : f.nome;
+      ctx.fillText(nome, 42, y + 14);
+      // Cargo
+      ctx.fillStyle = '#475569';
+      ctx.font = '10px Arial';
+      const cargo = (f.cargo || '').length > 22 ? f.cargo.slice(0, 20) + '…' : (f.cargo || '—');
+      ctx.fillText(cargo, 270, y + 14);
+      // Lotação
+      const lot = (f.lotacao || '—').length > 20 ? f.lotacao.slice(0, 18) + '…' : (f.lotacao || '—');
+      ctx.fillText(lot, 420, y + 14);
+      // Vencimento
+      const venc = f.data_vencimento ? f.data_vencimento.toString().slice(0,10) : (f.admissao ? f.admissao : '—');
+      ctx.fillText(venc, 600, y + 14);
+      // Situação
+      const dias = f.dias_para_vencer;
+      const diasTxt = dias === null ? '—' : dias < 0 ? `${Math.abs(dias)}d vencido` : dias === 0 ? 'Hoje' : `${dias}d`;
+      ctx.fillStyle = statusCor[f.status_aso] || '#94a3b8';
+      ctx.font = 'bold 10px Arial';
+      ctx.fillText(diasTxt, 690, y + 14);
+
+      // Linha separadora
+      ctx.strokeStyle = '#e2e8f0';
+      ctx.lineWidth = 0.5;
+      ctx.beginPath();
+      ctx.moveTo(16, y + 32); ctx.lineTo(778, y + 32);
+      ctx.stroke();
+    });
+
+    // Rodapé
+    ctx.fillStyle = '#94a3b8';
+    ctx.font = '10px Arial';
+    ctx.textAlign = 'center';
+    ctx.fillText(`SST Digital — Controle de ASOs | ${hoje}`, 397, 1108);
+    ctx.textAlign = 'left';
+
+    // Download
+    const link = document.createElement('a');
+    link.download = `ASOs_${titulo.replace(/\s+/g,'_')}${paginas > 1 ? `_pag${p+1}` : ''}_${hoje.replace(/\//g,'-')}.png`;
+    link.href = canvas.toDataURL('image/png');
+    link.click();
+  }
 }
 // ── FIM CONTROLE DE ASOs ──────────────────────────────────
 </script>

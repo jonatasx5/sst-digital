@@ -191,6 +191,33 @@ tr:hover td { background:#F9FAFB; }
           style="background:none;border:1.5px solid rgba(255,255,255,.6);color:#fff;border-radius:6px;padding:2px 10px;cursor:pointer;font-size:12px">Fechar</button>
 </div>
 
+<!-- Banner ASOs vencendo hoje -->
+<div id="banner-asos-hoje" style="display:none;position:fixed;top:0;left:0;right:0;z-index:7999;background:#dc2626;color:#fff;
+     padding:8px 20px;align-items:center;justify-content:space-between;gap:12px;font-size:13px;font-weight:600">
+  <span id="banner-asos-hoje-txt" onclick="asoVerVencidosHoje()" style="cursor:pointer">
+    <i class="ti ti-stethoscope" style="margin-right:6px"></i>
+  </span>
+  <button onclick="document.getElementById('banner-asos-hoje').style.display='none'"
+          style="background:none;border:1.5px solid rgba(255,255,255,.6);color:#fff;border-radius:6px;padding:2px 10px;cursor:pointer;font-size:12px">Fechar</button>
+</div>
+
+<!-- Modal ASOs vencidos hoje -->
+<div class="modal-bg" id="modal-asos-hoje">
+  <div class="modal" style="max-width:520px">
+    <div class="modal-title">
+      <i class="ti ti-stethoscope" style="color:#dc2626;margin-right:6px"></i>ASOs Vencidos Hoje
+      <button class="modal-close" onclick="fecharModal('modal-asos-hoje')">×</button>
+    </div>
+    <p style="font-size:12px;color:var(--texto2);margin:0 0 12px">Funcionários com ASO vencendo exatamente hoje (admissão completou 1 ano):</p>
+    <div id="modal-asos-hoje-lista" style="display:flex;flex-direction:column;gap:6px;max-height:360px;overflow-y:auto"></div>
+    <div style="margin-top:14px;display:flex;gap:8px">
+      <button class="btn btn-primary" style="flex:1;justify-content:center" onclick="irPara('asos');fecharModal('modal-asos-hoje')">
+        <i class="ti ti-external-link"></i>Ver Controle de ASOs
+      </button>
+    </div>
+  </div>
+</div>
+
 
 <!-- ═══ TELA DE LOGIN ═══ -->
 <div id="tela-login" style="display:none;position:fixed;inset:0;background:var(--fundo);z-index:9999;
@@ -3068,6 +3095,7 @@ function entrarNoSistema() {
   verificarAPI();
   carregarEmpresa();
   verificarBackup();
+  verificarAsosHoje();
   // Preload geral em background — deixa caches prontos antes do usuário navegar
   _preloadGeral();
 }
@@ -9449,6 +9477,49 @@ function asoExportar() {
     link.click();
   }
 }
+async function verificarAsosHoje() {
+  const res = await apiFetch('/api/asos').catch(() => null);
+  if (!res || !res.ok) return;
+  const dados = await res.json();
+  const hoje = new Date().toISOString().slice(0,10);
+
+  const vencidosHoje = dados.filter(f => {
+    // Vence hoje = dias_para_vencer === 0
+    return f.dias_para_vencer === 0;
+  });
+
+  if (!vencidosHoje.length) return;
+
+  const banner = document.getElementById('banner-asos-hoje');
+  const txt = document.getElementById('banner-asos-hoje-txt');
+  txt.innerHTML = `<i class="ti ti-stethoscope" style="margin-right:6px"></i>
+    <strong>${vencidosHoje.length} funcionário${vencidosHoje.length > 1 ? 's' : ''}</strong> com ASO vencendo hoje!
+    <span style="text-decoration:underline;margin-left:8px;cursor:pointer">Ver relação →</span>`;
+  txt.onclick = () => asoVerVencidosHoje(vencidosHoje);
+
+  // Posicionar abaixo do banner de backup se estiver visível
+  const bannerBackup = document.getElementById('banner-backup');
+  if (bannerBackup && bannerBackup.style.display !== 'none') {
+    banner.style.top = '40px';
+  }
+  banner.style.display = 'flex';
+}
+
+function asoVerVencidosHoje(lista) {
+  if (!lista) return;
+  document.getElementById('modal-asos-hoje-lista').innerHTML = lista.map((f, i) =>
+    `<div style="display:flex;align-items:center;gap:10px;padding:8px 12px;border-radius:8px;background:var(--fundo);border-left:3px solid #dc2626">
+      <div style="min-width:22px;font-size:11px;font-weight:700;color:#94a3b8">${i+1}</div>
+      <div>
+        <div style="font-weight:600;font-size:13px">${f.nome}</div>
+        <div style="font-size:11px;color:var(--texto2)">${f.cargo||''} ${f.lotacao ? '· '+f.lotacao : ''}</div>
+        <div style="font-size:11px;color:#dc2626">Admissão: ${f.admissao||'—'}</div>
+      </div>
+    </div>`
+  ).join('');
+  document.getElementById('modal-asos-hoje').style.display = 'flex';
+}
+
 // ── FIM CONTROLE DE ASOs ──────────────────────────────────
 </script>
 </body>

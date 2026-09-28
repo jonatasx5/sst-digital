@@ -1823,18 +1823,39 @@ def importar_funcionarios(lista):
             existe = cur.fetchone()
 
             if existe:
+                # Busca dados atuais do banco para não sobrescrever o que foi editado manualmente
+                fid = existe[0]
+                if USE_POSTGRES:
+                    cur2 = conn.cursor(cursor_factory=_psycopg2_extras.RealDictCursor)
+                    cur2.execute("SELECT nome,cargo,lotacao,admissao,celular,email,empresa FROM funcionarios WHERE id=%s", (fid,))
+                    atual = dict(cur2.fetchone())
+                else:
+                    cur.execute("SELECT nome,cargo,lotacao,admissao,celular,email,empresa FROM funcionarios WHERE id=?", (fid,))
+                    cols_a = [d[0] for d in cur.description]
+                    atual = dict(zip(cols_a, cur.fetchone()))
+
+                # Só usa o valor da planilha se o banco estiver vazio
+                def _manter(campo, novo):
+                    v_atual = atual.get(campo) or ""
+                    v_novo  = (novo or "").strip()
+                    return v_atual if v_atual else v_novo
+
+                nome    = _manter("nome",    f.get("nome",""))
+                cargo   = _manter("cargo",   f.get("cargo",""))
+                lotacao = _manter("lotacao", f.get("lotacao",""))
+                admissao= _manter("admissao",f.get("admissao",""))
+                celular = _manter("celular", f.get("celular",""))
+                email   = _manter("email",   f.get("email",""))
+                empresa = _manter("empresa", f.get("empresa","JS Construtora")) or "JS Construtora"
+
                 if USE_POSTGRES:
                     cur.execute("""UPDATE funcionarios SET nome=%s,cargo=%s,lotacao=%s,
                         admissao=%s,celular=%s,email=%s,empresa=%s,ativo=1,situacao='ativo' WHERE cpf=%s""",
-                        (f.get("nome",""),f.get("cargo",""),f.get("lotacao",""),
-                         f.get("admissao",""),f.get("celular",""),f.get("email",""),
-                         f.get("empresa","JS Construtora"),cpf))
+                        (nome,cargo,lotacao,admissao,celular,email,empresa,cpf))
                 else:
                     cur.execute("""UPDATE funcionarios SET nome=?,cargo=?,lotacao=?,
                         admissao=?,celular=?,email=?,empresa=?,ativo=1,situacao='ativo' WHERE cpf=?""",
-                        (f.get("nome",""),f.get("cargo",""),f.get("lotacao",""),
-                         f.get("admissao",""),f.get("celular",""),f.get("email",""),
-                         f.get("empresa","JS Construtora"),cpf))
+                        (nome,cargo,lotacao,admissao,celular,email,empresa,cpf))
                 atualizados += 1
             else:
                 if USE_POSTGRES:

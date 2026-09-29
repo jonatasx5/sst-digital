@@ -1465,6 +1465,87 @@ def _criar_tabela_fichas_epi(conn, use_pg):
 
 # ── ASOs ──────────────────────────────────────────────────────────────────────
 
+def executar_migracao_asos_rh():
+    """Roda uma única vez: importa dados de ASO da planilha do RH (set/2026).
+    Usa uma tabela de controle de migrações para não repetir."""
+    import os
+    migration_key = "asos_rh_planilha_set2026"
+    conn = conectar()
+    try:
+        cur = conn.cursor()
+        # Criar tabela de controle de migrações se não existir
+        if USE_POSTGRES:
+            cur.execute("""CREATE TABLE IF NOT EXISTS _migracoes (
+                chave TEXT PRIMARY KEY, executado_em TIMESTAMP DEFAULT NOW())""")
+            cur.execute("SELECT 1 FROM _migracoes WHERE chave = %s", (migration_key,))
+        else:
+            cur.execute("""CREATE TABLE IF NOT EXISTS _migracoes (
+                chave TEXT PRIMARY KEY, executado_em TEXT DEFAULT (datetime('now')))""")
+            cur.execute("SELECT 1 FROM _migracoes WHERE chave = ?", (migration_key,))
+        if cur.fetchone():
+            return  # já executada
+        conn.commit()
+    except Exception:
+        conn.rollback()
+        conn.close()
+        return
+
+    # Importar dados
+    try:
+        from asos_migracao import ASOS_RH_DATA
+    except ImportError:
+        conn.close()
+        return
+
+    try:
+        _criar_tabela_asos(conn, USE_POSTGRES)
+        cur = conn.cursor()
+        atualizados = 0
+        nao_encontrados = 0
+        for rec in ASOS_RH_DATA:
+            cpf = rec["cpf"]
+            de = rec["data_exame"]
+            dv = rec["data_vencimento"]
+            if USE_POSTGRES:
+                cur.execute("SELECT id FROM funcionarios WHERE cpf = %s", (cpf,))
+            else:
+                cur.execute("SELECT id FROM funcionarios WHERE cpf = ?", (cpf,))
+            row = cur.fetchone()
+            if not row:
+                nao_encontrados += 1
+                continue
+            fid = row[0]
+            if USE_POSTGRES:
+                cur.execute("""
+                    INSERT INTO asos (funcionario_id, data_exame, data_vencimento)
+                    VALUES (%s, %s, %s)
+                    ON CONFLICT (funcionario_id) DO UPDATE
+                    SET data_exame=%s, data_vencimento=%s, registrado_em=NOW()
+                """, (fid, de, dv, de, dv))
+            else:
+                cur.execute("""
+                    INSERT INTO asos (funcionario_id, data_exame, data_vencimento)
+                    VALUES (?, ?, ?)
+                    ON CONFLICT (funcionario_id) DO UPDATE
+                    SET data_exame=excluded.data_exame,
+                        data_vencimento=excluded.data_vencimento,
+                        registrado_em=datetime('now')
+                """, (fid, de, dv))
+            atualizados += 1
+        # Marcar migração como executada
+        if USE_POSTGRES:
+            cur.execute("INSERT INTO _migracoes (chave) VALUES (%s) ON CONFLICT DO NOTHING", (migration_key,))
+        else:
+            cur.execute("INSERT OR IGNORE INTO _migracoes (chave) VALUES (?)", (migration_key,))
+        conn.commit()
+        print(f"[migração] ASOs importados: {atualizados}, não encontrados no sistema: {nao_encontrados}")
+    except Exception as e:
+        conn.rollback()
+        print(f"[migração] Erro ao importar ASOs: {e}")
+    finally:
+        conn.close()
+
+
 def _criar_tabela_asos(conn, use_pg):
     cur = conn.cursor()
     if use_pg:

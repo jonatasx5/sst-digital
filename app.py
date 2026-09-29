@@ -403,6 +403,10 @@ async def startup_event():
         _seed_pedidos_junho()
     except Exception as e:
         print(f"[WARN] seed pedidos: {e}")
+    try:
+        banco.executar_migracao_asos_rh()
+    except Exception as e:
+        print(f"[WARN] migração asos rh: {e}")
 
 
 def _seed_pedidos_junho():

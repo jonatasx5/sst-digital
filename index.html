@@ -9594,15 +9594,21 @@ function asoEnviarRH(tipo) {
   const dataAmanha = amanha.toLocaleDateString('pt-BR');
 
   let msg = '';
+  const fmtData = (iso) => {
+    if (!iso) return '—';
+    const [a,m,d] = (iso.includes('/') ? iso.split('/').reverse() : iso.slice(0,10).split('-'));
+    return `${d}/${m}/${a}`;
+  };
+
   if (tipo === 'hoje') {
     msg = `*ASOs Vencidos em ${dataHoje}*\n\nPrezado RH, segue abaixo relação de funcionário${lista.length > 1 ? 's' : ''} com ASO vencido hoje:\n\n`;
     msg += lista.map((f, i) =>
-      `${i+1}. *${f.nome}*\n   Função: ${f.cargo||'—'}\n   Lotação: ${f.lotacao||'—'}`
+      `${i+1}. *${f.nome}*\n   Função: ${f.cargo||'—'}\n   Lotação: ${f.lotacao||'—'}\n   Admissão: ${f.admissao||'—'}\n   Vencimento do ASO: ${fmtData(f.data_vencimento)||dataHoje}`
     ).join('\n\n');
   } else {
     msg = `*ASOs a Vencer em ${dataAmanha}*\n\nPrezado RH, segue abaixo relação de funcionário${lista.length > 1 ? 's' : ''} com ASO vencendo amanhã:\n\n`;
     msg += lista.map((f, i) =>
-      `${i+1}. *${f.nome}*\n   Função: ${f.cargo||'—'}\n   Lotação: ${f.lotacao||'—'}`
+      `${i+1}. *${f.nome}*\n   Função: ${f.cargo||'—'}\n   Lotação: ${f.lotacao||'—'}\n   Admissão: ${f.admissao||'—'}\n   Vencimento do ASO: ${fmtData(f.data_vencimento)||dataAmanha}`
     ).join('\n\n');
   }
 

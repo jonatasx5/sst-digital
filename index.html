@@ -194,10 +194,20 @@ tr:hover td { background:#F9FAFB; }
 <!-- Banner ASOs vencendo hoje -->
 <div id="banner-asos-hoje" style="display:none;position:fixed;top:0;left:0;right:0;z-index:7999;background:#dc2626;color:#fff;
      padding:8px 20px;align-items:center;justify-content:space-between;gap:12px;font-size:13px;font-weight:600">
-  <span id="banner-asos-hoje-txt" onclick="asoVerVencidosHoje()" style="cursor:pointer">
+  <span id="banner-asos-hoje-txt" style="cursor:pointer;flex:1">
     <i class="ti ti-stethoscope" style="margin-right:6px"></i>
   </span>
   <button onclick="document.getElementById('banner-asos-hoje').style.display='none'"
+          style="background:none;border:1.5px solid rgba(255,255,255,.6);color:#fff;border-radius:6px;padding:2px 10px;cursor:pointer;font-size:12px">Fechar</button>
+</div>
+
+<!-- Banner ASOs vencendo amanhã -->
+<div id="banner-asos-amanha" style="display:none;position:fixed;top:0;left:0;right:0;z-index:7998;background:#d97706;color:#fff;
+     padding:8px 20px;align-items:center;justify-content:space-between;gap:12px;font-size:13px;font-weight:600">
+  <span id="banner-asos-amanha-txt" style="cursor:pointer;flex:1">
+    <i class="ti ti-stethoscope" style="margin-right:6px"></i>
+  </span>
+  <button onclick="document.getElementById('banner-asos-amanha').style.display='none'"
           style="background:none;border:1.5px solid rgba(255,255,255,.6);color:#fff;border-radius:6px;padding:2px 10px;cursor:pointer;font-size:12px">Fechar</button>
 </div>
 
@@ -209,9 +219,34 @@ tr:hover td { background:#F9FAFB; }
       <button class="modal-close" onclick="fecharModal('modal-asos-hoje')">×</button>
     </div>
     <p style="font-size:12px;color:var(--texto2);margin:0 0 12px">Funcionários com ASO vencendo exatamente hoje (admissão completou 1 ano):</p>
-    <div id="modal-asos-hoje-lista" style="display:flex;flex-direction:column;gap:6px;max-height:360px;overflow-y:auto"></div>
-    <div style="margin-top:14px;display:flex;gap:8px">
-      <button class="btn btn-primary" style="flex:1;justify-content:center" onclick="irPara('asos');fecharModal('modal-asos-hoje')">
+    <div id="modal-asos-hoje-lista" style="display:flex;flex-direction:column;gap:6px;max-height:320px;overflow-y:auto"></div>
+    <div style="margin-top:14px;display:flex;gap:8px;flex-wrap:wrap">
+      <button class="btn" style="flex:1;justify-content:center;background:#25D366;color:#fff;border:none;min-width:160px"
+              onclick="asoEnviarRH('hoje')">
+        <i class="ti ti-send"></i>Enviar ao RH
+      </button>
+      <button class="btn btn-primary" style="flex:1;justify-content:center;min-width:160px" onclick="irPara('asos');fecharModal('modal-asos-hoje')">
+        <i class="ti ti-external-link"></i>Ver Controle de ASOs
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal ASOs vencendo amanhã -->
+<div class="modal-bg" id="modal-asos-amanha">
+  <div class="modal" style="max-width:520px">
+    <div class="modal-title">
+      <i class="ti ti-stethoscope" style="color:#d97706;margin-right:6px"></i>ASOs Vencendo Amanhã
+      <button class="modal-close" onclick="fecharModal('modal-asos-amanha')">×</button>
+    </div>
+    <p style="font-size:12px;color:var(--texto2);margin:0 0 12px">Funcionários com ASO vencendo amanhã:</p>
+    <div id="modal-asos-amanha-lista" style="display:flex;flex-direction:column;gap:6px;max-height:320px;overflow-y:auto"></div>
+    <div style="margin-top:14px;display:flex;gap:8px;flex-wrap:wrap">
+      <button class="btn" style="flex:1;justify-content:center;background:#25D366;color:#fff;border:none;min-width:160px"
+              onclick="asoEnviarRH('amanha')">
+        <i class="ti ti-send"></i>Enviar ao RH
+      </button>
+      <button class="btn btn-primary" style="flex:1;justify-content:center;min-width:160px" onclick="irPara('asos');fecharModal('modal-asos-amanha')">
         <i class="ti ti-external-link"></i>Ver Controle de ASOs
       </button>
     </div>
@@ -9477,32 +9512,47 @@ function asoExportar() {
     link.click();
   }
 }
+// Armazena listas globais para uso no envio ao RH
+let _asosVencidosHoje = [];
+let _asosVencendoAmanha = [];
+
 async function verificarAsosHoje() {
   const res = await apiFetch('/api/asos').catch(() => null);
   if (!res || !res.ok) return;
   const dados = await res.json();
-  const hoje = new Date().toISOString().slice(0,10);
 
-  const vencidosHoje = dados.filter(f => {
-    // Vence hoje = dias_para_vencer === 0
-    return f.dias_para_vencer === 0;
-  });
+  _asosVencidosHoje = dados.filter(f => f.dias_para_vencer === 0);
+  _asosVencendoAmanha = dados.filter(f => f.dias_para_vencer === 1);
 
-  if (!vencidosHoje.length) return;
-
-  const banner = document.getElementById('banner-asos-hoje');
-  const txt = document.getElementById('banner-asos-hoje-txt');
-  txt.innerHTML = `<i class="ti ti-stethoscope" style="margin-right:6px"></i>
-    <strong>${vencidosHoje.length} funcionário${vencidosHoje.length > 1 ? 's' : ''}</strong> com ASO vencendo hoje!
-    <span style="text-decoration:underline;margin-left:8px;cursor:pointer">Ver relação →</span>`;
-  txt.onclick = () => asoVerVencidosHoje(vencidosHoje);
-
-  // Posicionar abaixo do banner de backup se estiver visível
   const bannerBackup = document.getElementById('banner-backup');
-  if (bannerBackup && bannerBackup.style.display !== 'none') {
-    banner.style.top = '40px';
+  const backupVisivel = bannerBackup && bannerBackup.style.display !== 'none';
+  let offsetTop = 0;
+  if (backupVisivel) offsetTop += 40;
+
+  // Banner hoje (vermelho)
+  if (_asosVencidosHoje.length) {
+    const bannerHoje = document.getElementById('banner-asos-hoje');
+    const txtHoje = document.getElementById('banner-asos-hoje-txt');
+    txtHoje.innerHTML = `<i class="ti ti-stethoscope" style="margin-right:6px"></i>
+      <strong>${_asosVencidosHoje.length} funcionário${_asosVencidosHoje.length > 1 ? 's' : ''}</strong> com ASO vencido hoje!
+      <span style="text-decoration:underline;margin-left:8px">Ver relação →</span>`;
+    txtHoje.onclick = () => asoVerVencidosHoje(_asosVencidosHoje);
+    bannerHoje.style.top = offsetTop + 'px';
+    bannerHoje.style.display = 'flex';
+    offsetTop += 40;
   }
-  banner.style.display = 'flex';
+
+  // Banner amanhã (laranja)
+  if (_asosVencendoAmanha.length) {
+    const bannerAmanha = document.getElementById('banner-asos-amanha');
+    const txtAmanha = document.getElementById('banner-asos-amanha-txt');
+    txtAmanha.innerHTML = `<i class="ti ti-stethoscope" style="margin-right:6px"></i>
+      <strong>${_asosVencendoAmanha.length} funcionário${_asosVencendoAmanha.length > 1 ? 's' : ''}</strong> com ASO vencendo amanhã!
+      <span style="text-decoration:underline;margin-left:8px">Ver relação →</span>`;
+    txtAmanha.onclick = () => asoVerVencendoAmanha(_asosVencendoAmanha);
+    bannerAmanha.style.top = offsetTop + 'px';
+    bannerAmanha.style.display = 'flex';
+  }
 }
 
 function asoVerVencidosHoje(lista) {
@@ -9518,6 +9568,68 @@ function asoVerVencidosHoje(lista) {
     </div>`
   ).join('');
   document.getElementById('modal-asos-hoje').style.display = 'flex';
+}
+
+function asoVerVencendoAmanha(lista) {
+  if (!lista) return;
+  document.getElementById('modal-asos-amanha-lista').innerHTML = lista.map((f, i) =>
+    `<div style="display:flex;align-items:center;gap:10px;padding:8px 12px;border-radius:8px;background:var(--fundo);border-left:3px solid #d97706">
+      <div style="min-width:22px;font-size:11px;font-weight:700;color:#94a3b8">${i+1}</div>
+      <div>
+        <div style="font-weight:600;font-size:13px">${f.nome}</div>
+        <div style="font-size:11px;color:var(--texto2)">${f.cargo||''} ${f.lotacao ? '· '+f.lotacao : ''}</div>
+        <div style="font-size:11px;color:#d97706">Admissão: ${f.admissao||'—'}</div>
+      </div>
+    </div>`
+  ).join('');
+  document.getElementById('modal-asos-amanha').style.display = 'flex';
+}
+
+function asoEnviarRH(tipo) {
+  const lista = tipo === 'hoje' ? _asosVencidosHoje : _asosVencendoAmanha;
+  if (!lista || !lista.length) return;
+
+  const dataHoje = new Date().toLocaleDateString('pt-BR');
+  const amanha = new Date(); amanha.setDate(amanha.getDate() + 1);
+  const dataAmanha = amanha.toLocaleDateString('pt-BR');
+
+  let msg = '';
+  if (tipo === 'hoje') {
+    msg = `*ASOs Vencidos em ${dataHoje}*\n\nPrezado RH, segue abaixo relação de funcionário${lista.length > 1 ? 's' : ''} com ASO vencido hoje:\n\n`;
+    msg += lista.map((f, i) =>
+      `${i+1}. *${f.nome}*\n   Função: ${f.cargo||'—'}\n   Lotação: ${f.lotacao||'—'}`
+    ).join('\n\n');
+  } else {
+    msg = `*ASOs a Vencer em ${dataAmanha}*\n\nPrezado RH, segue abaixo relação de funcionário${lista.length > 1 ? 's' : ''} com ASO vencendo amanhã:\n\n`;
+    msg += lista.map((f, i) =>
+      `${i+1}. *${f.nome}*\n   Função: ${f.cargo||'—'}\n   Lotação: ${f.lotacao||'—'}`
+    ).join('\n\n');
+  }
+
+  msg += '\n\nFavor providenciar o agendamento dos exames. Atenciosamente.';
+
+  navigator.clipboard.writeText(msg).then(() => {
+    // Mostrar confirmação
+    const btn = document.activeElement;
+    const original = btn ? btn.innerHTML : '';
+    if (btn) {
+      btn.innerHTML = '<i class="ti ti-check"></i> Copiado!';
+      btn.style.background = '#16a34a';
+      setTimeout(() => {
+        btn.innerHTML = original;
+        btn.style.background = '#25D366';
+      }, 2500);
+    }
+  }).catch(() => {
+    // Fallback: abrir textarea para copiar manualmente
+    const textarea = document.createElement('textarea');
+    textarea.value = msg;
+    document.body.appendChild(textarea);
+    textarea.select();
+    document.execCommand('copy');
+    document.body.removeChild(textarea);
+    alert('Mensagem copiada! Cole no WhatsApp ou e-mail do RH.');
+  });
 }
 
 // ── FIM CONTROLE DE ASOs ──────────────────────────────────

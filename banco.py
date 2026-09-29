@@ -1490,6 +1490,60 @@ def _criar_tabela_asos(conn, use_pg):
     conn.commit()
 
 
+def importar_asos_planilha(registros: list) -> dict:
+    """Importa ASOs da planilha do RH em lote.
+    registros: lista de dicts com cpf, data_exame (ISO), data_vencimento (ISO)
+    Retorna contadores de atualizados, não_encontrados, erros.
+    """
+    conn = conectar()
+    try:
+        _criar_tabela_asos(conn, USE_POSTGRES)
+        cur = conn.cursor()
+        atualizados = 0
+        nao_encontrados = []
+        erros = []
+        for rec in registros:
+            cpf = (rec.get("cpf") or "").strip()
+            data_exame = rec.get("data_exame", "")
+            data_vencimento = rec.get("data_vencimento", "")
+            if not cpf or not data_exame:
+                continue
+            try:
+                # Buscar funcionario_id pelo CPF
+                if USE_POSTGRES:
+                    cur.execute("SELECT id FROM funcionarios WHERE cpf = %s", (cpf,))
+                else:
+                    cur.execute("SELECT id FROM funcionarios WHERE cpf = ?", (cpf,))
+                row = cur.fetchone()
+                if not row:
+                    nao_encontrados.append(cpf)
+                    continue
+                fid = row[0]
+                if USE_POSTGRES:
+                    cur.execute("""
+                        INSERT INTO asos (funcionario_id, data_exame, data_vencimento)
+                        VALUES (%s, %s, %s)
+                        ON CONFLICT (funcionario_id) DO UPDATE
+                        SET data_exame=%s, data_vencimento=%s, registrado_em=NOW()
+                    """, (fid, data_exame, data_vencimento, data_exame, data_vencimento))
+                else:
+                    cur.execute("""
+                        INSERT INTO asos (funcionario_id, data_exame, data_vencimento)
+                        VALUES (?, ?, ?)
+                        ON CONFLICT (funcionario_id) DO UPDATE
+                        SET data_exame=excluded.data_exame,
+                            data_vencimento=excluded.data_vencimento,
+                            registrado_em=datetime('now')
+                    """, (fid, data_exame, data_vencimento))
+                atualizados += 1
+            except Exception as e:
+                erros.append({"cpf": cpf, "erro": str(e)})
+        conn.commit()
+        return {"atualizados": atualizados, "nao_encontrados": nao_encontrados, "erros": erros}
+    finally:
+        conn.close()
+
+
 def registrar_aso(funcionario_id: int, data_exame: str) -> int:
     from datetime import date, timedelta
     conn = conectar()

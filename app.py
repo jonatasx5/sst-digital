@@ -5234,6 +5234,14 @@ async def registrar_aso(func_id: int, dados: dict = Body(...), _=Depends(verific
     fid = banco.registrar_aso(func_id, data_exame)
     return {"ok": True, "id": fid}
 
+@app.post("/api/asos/importar-planilha")
+async def importar_asos_planilha(dados: dict = Body(...), _=Depends(verificar_acesso)):
+    registros = dados.get("registros", [])
+    if not registros:
+        raise HTTPException(400, "registros obrigatório")
+    resultado = banco.importar_asos_planilha(registros)
+    return {"ok": True, **resultado}
+
 
 @app.post("/api/fichas-epi/scan-auto")
 async def scan_fichas_auto(

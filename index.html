@@ -2049,6 +2049,7 @@ tr:hover td { background:#F9FAFB; }
       <select id="aso-filtro-status" onchange="asoFiltrar()" style="padding:6px 12px;border:1.5px solid var(--borda);border-radius:8px;font-size:13px;background:var(--card);color:var(--texto)">
         <option value="">Todos os status</option>
         <option value="vencido">Vencidos</option>
+        <option value="vence_hoje">Vence hoje</option>
         <option value="critico">Vence em 15 dias</option>
         <option value="atencao">Vence em 30 dias</option>
         <option value="ok">Em dia</option>
@@ -9316,7 +9317,7 @@ function asoFiltrar() {
   if (status)  filtrado = filtrado.filter(f => f.status_aso === status);
   if (lotacao) filtrado = filtrado.filter(f => (f.lotacao||'') === lotacao);
   if (termo)   filtrado = filtrado.filter(f => (f.nome||'').toLowerCase().includes(termo) || (f.cargo||'').toLowerCase().includes(termo));
-  if (status === 'vencido') {
+  if (status === 'vencido' || status === 'vence_hoje') {
     filtrado = [...filtrado].sort((a, b) => (a.dias_para_vencer ?? 0) - (b.dias_para_vencer ?? 0));
   } else if (status) {
     filtrado = [...filtrado].sort((a, b) => (a.dias_para_vencer ?? 9999) - (b.dias_para_vencer ?? 9999));
@@ -9325,16 +9326,23 @@ function asoFiltrar() {
   asoRenderizar(filtrado);
 }
 
-function asoRenderizar(lista) {
-  const statusCor   = { ok:'#22c55e', atencao:'#f59e0b', critico:'#f97316', vencido:'#ef4444', sem_admissao:'#94a3b8' };
-  const statusLabel = { ok:'Em dia', atencao:'Atenção', critico:'Crítico', vencido:'Vencido', sem_admissao:'Sem admissão' };
+function _fmtIso(iso) {
+  if (!iso) return '—';
+  const s = String(iso).slice(0,10);
+  if (s.includes('-')) { const [a,m,d] = s.split('-'); return `${d}/${m}/${a}`; }
+  return s;
+}
 
-  // Contadores
-  const contar = s => _asoData.filter(f => f.status_aso === s).length;
+function asoRenderizar(lista) {
+  const statusCor   = { ok:'#22c55e', atencao:'#f59e0b', critico:'#f97316', vence_hoje:'#dc2626', vencido:'#ef4444', sem_admissao:'#94a3b8' };
+  const statusLabel = { ok:'Em dia', atencao:'30 dias', critico:'15 dias', vence_hoje:'Vence hoje', vencido:'Vencido', sem_admissao:'Sem data' };
+
+  // Contadores — inclui vence_hoje junto com vencido para o card
+  const contar = (...ss) => _asoData.filter(f => ss.includes(f.status_aso)).length;
   document.getElementById('aso-n-ok').textContent      = contar('ok');
   document.getElementById('aso-n-atencao').textContent = contar('atencao');
   document.getElementById('aso-n-critico').textContent = contar('critico');
-  document.getElementById('aso-n-vencido').textContent = contar('vencido');
+  document.getElementById('aso-n-vencido').textContent = contar('vencido','vence_hoje');
 
   if (!lista.length) {
     document.getElementById('aso-lista').innerHTML = '<div style="text-align:center;padding:24px;color:var(--texto2)">Nenhum funcionário encontrado.</div>';
@@ -9342,30 +9350,39 @@ function asoRenderizar(lista) {
   }
 
   document.getElementById('aso-lista').innerHTML = lista.map((f, i) => {
-    const cor = statusCor[f.status_aso] || '#94a3b8';
+    const cor   = statusCor[f.status_aso] || '#94a3b8';
     const label = statusLabel[f.status_aso] || f.status_aso;
-    const dias = f.dias_para_vencer;
-    const diasTxt = dias === null ? '—' : dias < 0 ? `${Math.abs(dias)} dias vencido` : dias === 0 ? 'Vence hoje' : `${dias} dias`;
-    const vencTxt = f.data_vencimento ? f.data_vencimento.toString().slice(0,10) : (f.admissao ? `(base: admissão ${f.admissao})` : '—');
-    const exameTxt = f.data_exame ? f.data_exame.toString().slice(0,10) : '—';
+    const dias  = f.dias_para_vencer;
+    const diasTxt = dias === null ? '—'
+      : dias < 0  ? `${Math.abs(dias)} dias vencido`
+      : dias === 0 ? 'Vence hoje'
+      : `${dias} dias`;
 
-    return `<div style="display:flex;align-items:center;gap:12px;padding:10px 14px;border-radius:10px;background:var(--card);border:1px solid var(--borda);border-left:4px solid ${cor}">
+    const admTxt    = _fmtIso(f.admissao);
+    const exameTxt  = f.data_exame  ? _fmtIso(f.data_exame)  : '—';
+    const proximoTxt = f.proximo_aso ? _fmtIso(f.proximo_aso) : '—';
+
+    return `<div style="display:flex;align-items:center;gap:10px;padding:10px 14px;border-radius:10px;background:var(--card);border:1px solid var(--borda);border-left:4px solid ${cor};flex-wrap:wrap">
       <div style="min-width:24px;text-align:right;font-size:12px;font-weight:700;color:var(--texto2);flex-shrink:0">${i + 1}</div>
-      <div style="flex:1;min-width:0">
+      <div style="flex:1;min-width:140px">
         <div style="font-weight:600;font-size:13px">${f.nome}</div>
         <div style="font-size:11px;color:var(--texto2)">${f.cargo||''} ${f.lotacao ? '· '+f.lotacao : ''}</div>
       </div>
+      <div style="text-align:center;min-width:80px">
+        <div style="font-size:10px;color:var(--texto2);text-transform:uppercase;letter-spacing:.5px">Admissão</div>
+        <div style="font-size:12px;font-weight:600">${admTxt}</div>
+      </div>
       <div style="text-align:center;min-width:90px">
-        <div style="font-size:11px;color:var(--texto2)">Último exame</div>
+        <div style="font-size:10px;color:var(--texto2);text-transform:uppercase;letter-spacing:.5px">Último ASO</div>
         <div style="font-size:12px;font-weight:600">${exameTxt}</div>
       </div>
-      <div style="text-align:center;min-width:110px">
-        <div style="font-size:11px;color:var(--texto2)">Vencimento</div>
-        <div style="font-size:12px;font-weight:600">${vencTxt}</div>
+      <div style="text-align:center;min-width:90px">
+        <div style="font-size:10px;color:var(--texto2);text-transform:uppercase;letter-spacing:.5px">Próximo ASO</div>
+        <div style="font-size:12px;font-weight:700;color:${cor}">${proximoTxt}</div>
       </div>
-      <div style="text-align:center;min-width:110px">
-        <div style="font-size:11px;color:var(--texto2)">Situação</div>
-        <div style="font-size:12px;font-weight:700;color:${cor}">${label} · ${diasTxt}</div>
+      <div style="text-align:center;min-width:100px">
+        <div style="font-size:10px;color:var(--texto2);text-transform:uppercase;letter-spacing:.5px">Situação</div>
+        <div style="font-size:12px;font-weight:700;color:${cor}">${label}<br><span style="font-weight:400;font-size:11px">${diasTxt}</span></div>
       </div>
       <button onclick="asoAbrirModal(${f.id}, '${(f.nome||'').replace(/'/g,"\\'")}', '${f.data_exame||''}')"
         style="padding:5px 12px;border:1.5px solid ${cor};border-radius:8px;background:transparent;color:${cor};font-size:12px;font-weight:600;cursor:pointer;white-space:nowrap">
@@ -9521,7 +9538,7 @@ async function verificarAsosHoje() {
   if (!res || !res.ok) return;
   const dados = await res.json();
 
-  _asosVencidosHoje = dados.filter(f => f.dias_para_vencer === 0);
+  _asosVencidosHoje = dados.filter(f => f.status_aso === 'vence_hoje');
   _asosVencendoAmanha = dados.filter(f => f.dias_para_vencer === 1);
 
   const bannerBackup = document.getElementById('banner-backup');
@@ -9555,33 +9572,32 @@ async function verificarAsosHoje() {
   }
 }
 
-function asoVerVencidosHoje(lista) {
-  if (!lista) return;
-  document.getElementById('modal-asos-hoje-lista').innerHTML = lista.map((f, i) =>
-    `<div style="display:flex;align-items:center;gap:10px;padding:8px 12px;border-radius:8px;background:var(--fundo);border-left:3px solid #dc2626">
-      <div style="min-width:22px;font-size:11px;font-weight:700;color:#94a3b8">${i+1}</div>
+function _itemNotifASO(f, i, cor) {
+  return `<div style="padding:8px 12px;border-radius:8px;background:var(--fundo);border-left:3px solid ${cor}">
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">
+      <span style="min-width:22px;font-size:11px;font-weight:700;color:#94a3b8">${i+1}</span>
       <div>
         <div style="font-weight:600;font-size:13px">${f.nome}</div>
         <div style="font-size:11px;color:var(--texto2)">${f.cargo||''} ${f.lotacao ? '· '+f.lotacao : ''}</div>
-        <div style="font-size:11px;color:#dc2626">Admissão: ${f.admissao||'—'}</div>
       </div>
-    </div>`
-  ).join('');
+    </div>
+    <div style="display:flex;gap:16px;flex-wrap:wrap;padding-left:30px">
+      <span style="font-size:11px"><span style="color:var(--texto2)">Admissão:</span> <strong>${_fmtIso(f.admissao)}</strong></span>
+      <span style="font-size:11px"><span style="color:var(--texto2)">Último ASO:</span> <strong>${_fmtIso(f.data_exame)}</strong></span>
+      <span style="font-size:11px"><span style="color:${cor}">Próximo ASO:</span> <strong style="color:${cor}">${_fmtIso(f.proximo_aso)}</strong></span>
+    </div>
+  </div>`;
+}
+
+function asoVerVencidosHoje(lista) {
+  if (!lista) return;
+  document.getElementById('modal-asos-hoje-lista').innerHTML = lista.map((f, i) => _itemNotifASO(f, i, '#dc2626')).join('');
   document.getElementById('modal-asos-hoje').style.display = 'flex';
 }
 
 function asoVerVencendoAmanha(lista) {
   if (!lista) return;
-  document.getElementById('modal-asos-amanha-lista').innerHTML = lista.map((f, i) =>
-    `<div style="display:flex;align-items:center;gap:10px;padding:8px 12px;border-radius:8px;background:var(--fundo);border-left:3px solid #d97706">
-      <div style="min-width:22px;font-size:11px;font-weight:700;color:#94a3b8">${i+1}</div>
-      <div>
-        <div style="font-weight:600;font-size:13px">${f.nome}</div>
-        <div style="font-size:11px;color:var(--texto2)">${f.cargo||''} ${f.lotacao ? '· '+f.lotacao : ''}</div>
-        <div style="font-size:11px;color:#d97706">Admissão: ${f.admissao||'—'}</div>
-      </div>
-    </div>`
-  ).join('');
+  document.getElementById('modal-asos-amanha-lista').innerHTML = lista.map((f, i) => _itemNotifASO(f, i, '#d97706')).join('');
   document.getElementById('modal-asos-amanha').style.display = 'flex';
 }
 
@@ -9603,12 +9619,12 @@ function asoEnviarRH(tipo) {
   if (tipo === 'hoje') {
     msg = `*ASOs Vencidos em ${dataHoje}*\n\nPrezado RH, segue abaixo relação de funcionário${lista.length > 1 ? 's' : ''} com ASO vencido hoje:\n\n`;
     msg += lista.map((f, i) =>
-      `${i+1}. *${f.nome}*\n   Função: ${f.cargo||'—'}\n   Lotação: ${f.lotacao||'—'}\n   Admissão: ${f.admissao||'—'}\n   Vencimento do ASO: ${fmtData(f.data_vencimento)||dataHoje}`
+      `${i+1}. *${f.nome}*\n   Função: ${f.cargo||'—'}\n   Lotação: ${f.lotacao||'—'}\n   Admissão: ${fmtData(f.admissao)||'—'}\n   Último ASO: ${fmtData(f.data_exame)||'—'}\n   Próximo ASO (vencimento): ${fmtData(f.proximo_aso)||dataHoje}`
     ).join('\n\n');
   } else {
     msg = `*ASOs a Vencer em ${dataAmanha}*\n\nPrezado RH, segue abaixo relação de funcionário${lista.length > 1 ? 's' : ''} com ASO vencendo amanhã:\n\n`;
     msg += lista.map((f, i) =>
-      `${i+1}. *${f.nome}*\n   Função: ${f.cargo||'—'}\n   Lotação: ${f.lotacao||'—'}\n   Admissão: ${f.admissao||'—'}\n   Vencimento do ASO: ${fmtData(f.data_vencimento)||dataAmanha}`
+      `${i+1}. *${f.nome}*\n   Função: ${f.cargo||'—'}\n   Lotação: ${f.lotacao||'—'}\n   Admissão: ${fmtData(f.admissao)||'—'}\n   Último ASO: ${fmtData(f.data_exame)||'—'}\n   Próximo ASO (vencimento): ${fmtData(f.proximo_aso)||dataAmanha}`
     ).join('\n\n');
   }
 

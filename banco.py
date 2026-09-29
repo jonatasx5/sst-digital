@@ -1694,40 +1694,60 @@ def listar_asos_dashboard() -> list:
                 cols = [d[0] for d in cur.description]
                 row = dict(zip(cols, r))
 
-            # Calcular dias para vencer
-            venc_str = row.get("data_vencimento")
-            exame_str = row.get("data_exame")
-
-            if venc_str:
-                try:
-                    venc_dt = date.fromisoformat(str(venc_str)[:10])
-                    dias = (venc_dt - hoje).days
-                except Exception:
-                    dias = None
-            else:
-                # Sem exame: usar admissão + 1 ano
-                adm = row.get("admissao") or ""
-                adm_dt = None
-                for fmt in ("%d/%m/%Y", "%Y-%m-%d", "%d-%m-%Y"):
+            # Parse de data em múltiplos formatos
+            def _parse_dt(s):
+                if not s:
+                    return None
+                from datetime import datetime as _dt2
+                s = str(s)[:10]
+                for fmt in ("%Y-%m-%d", "%d/%m/%Y", "%d-%m-%Y"):
                     try:
-                        from datetime import datetime as _dt2
-                        adm_dt = _dt2.strptime(adm[:10], fmt).date()
-                        break
+                        return _dt2.strptime(s, fmt).date()
                     except Exception:
                         continue
+                return None
+
+            venc_str = row.get("data_vencimento")
+            exame_str = row.get("data_exame")
+            adm_str = row.get("admissao") or ""
+
+            # Data do último ASO feito
+            exame_dt = _parse_dt(exame_str)
+
+            # Próximo ASO = último ASO + 1 ano
+            # Se não tem registro de ASO, estima a partir da admissão + 1 ano
+            proximo_dt = None
+            if exame_dt:
                 try:
-                    if adm_dt:
-                        venc_adm = adm_dt.replace(year=adm_dt.year + 1)
-                        dias = (venc_adm - hoje).days
-                    else:
-                        dias = None
+                    proximo_dt = exame_dt.replace(year=exame_dt.year + 1)
                 except Exception:
-                    dias = None
+                    from datetime import timedelta
+                    proximo_dt = exame_dt + timedelta(days=365)
+            elif venc_str:
+                # Usa data_vencimento da planilha se disponível
+                proximo_dt = _parse_dt(venc_str)
+            else:
+                # Sem exame: estima admissão + 1 ano
+                adm_dt = _parse_dt(adm_str)
+                if adm_dt:
+                    try:
+                        proximo_dt = adm_dt.replace(year=adm_dt.year + 1)
+                    except Exception:
+                        from datetime import timedelta
+                        proximo_dt = adm_dt + timedelta(days=365)
+
+            # Dias até o próximo ASO (negativo = vencido)
+            if proximo_dt:
+                dias = (proximo_dt - hoje).days
+            else:
+                dias = None
 
             if dias is None:
                 status = "sem_admissao"
             elif dias < 0:
                 status = "vencido"
+            elif dias == 0:
+                status = "vence_hoje"
             elif dias <= 15:
                 status = "critico"
             elif dias <= 30:
@@ -1735,6 +1755,8 @@ def listar_asos_dashboard() -> list:
             else:
                 status = "ok"
 
+            row["data_exame"] = exame_dt.isoformat() if exame_dt else None
+            row["proximo_aso"] = proximo_dt.isoformat() if proximo_dt else None
             row["dias_para_vencer"] = dias
             row["status_aso"] = status
             result.append(row)

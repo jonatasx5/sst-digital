@@ -26,7 +26,7 @@ def _montar_signer(signatario: dict) -> dict:
     celular = (signatario.get("celular") or "").strip()
     signer  = {
         "name": nome,
-        "auth_mode": "selfie",  # exige selfie antes de assinar
+        "require_selfie_photo": True,  # exige selfie antes de assinar
     }
     if email:
         signer["email"] = email

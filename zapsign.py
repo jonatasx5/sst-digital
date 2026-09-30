@@ -8,8 +8,9 @@ import os
 import requests
 import base64
 
-ZAPSIGN_TOKEN = os.environ.get("ZAPSIGN_TOKEN", "")
-ZAPSIGN_URL   = "https://api.zapsign.com.br/api/v1"
+ZAPSIGN_TOKEN         = os.environ.get("ZAPSIGN_TOKEN", "")
+ZAPSIGN_URL           = "https://api.zapsign.com.br/api/v1"
+ZAPSIGN_EMAIL_PADRAO  = os.environ.get("ZAPSIGN_EMAIL_PADRAO", "epi@recopav.com.br")
 
 
 def _headers():
@@ -22,7 +23,7 @@ def _headers():
 def _montar_signer(signatario: dict) -> dict:
     """Converte dict interno {nome, celular, email} para formato ZapSign."""
     nome    = signatario.get("nome", "Signatário")
-    email   = (signatario.get("email") or "").strip()
+    email   = (signatario.get("email") or "").strip() or ZAPSIGN_EMAIL_PADRAO
     celular = (signatario.get("celular") or "").strip()
     signer  = {
         "name": nome,

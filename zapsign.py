@@ -25,10 +25,14 @@ def _montar_signer(signatario: dict) -> dict:
     nome    = signatario.get("nome", "Signatário")
     email   = (signatario.get("email") or "").strip() or ZAPSIGN_EMAIL_PADRAO
     celular = (signatario.get("celular") or "").strip()
+    cpf     = "".join(filter(str.isdigit, signatario.get("cpf") or ""))
     signer  = {
-        "name": nome,
-        "require_selfie_photo": True,  # exige selfie antes de assinar
+        "name":                 nome,
+        "require_selfie_photo": True,
+        "auth_mode":            "cpf",   # verifica identidade pelo CPF, sem código por email
     }
+    if cpf:
+        signer["cpf"] = cpf
     if email:
         signer["email"] = email
         signer["send_automatic_email"] = False

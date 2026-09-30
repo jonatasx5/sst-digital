@@ -4740,7 +4740,7 @@ async function buscarFuncEpi() {
         <div class="func-avatar">${ini}</div>
         <div>
           <div style="font-size:13px;font-weight:500">${f.nome}</div>
-          <div style="font-size:11px;color:var(--texto2)">${f.cargo}</div>
+          <div style="font-size:11px;color:var(--texto2)">${f.cargo}${f.lotacao ? ' · <span style="color:var(--azul);font-weight:600">' + f.lotacao + '</span>' : ''}</div>
         </div>
       </div>
       <i class="ti ti-chevron-right" style="color:var(--texto2)"></i>

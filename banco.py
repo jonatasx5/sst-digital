@@ -2044,12 +2044,12 @@ def marcar_desligados(cpfs_ativos: list) -> int:
         if USE_POSTGRES:
             cur = conn.cursor(cursor_factory=_psycopg2_extras.RealDictCursor)
             placeholders = ",".join(["%s"] * len(cpfs_ativos))
-            cur.execute(f"UPDATE funcionarios SET situacao='desligado' WHERE cpf NOT IN ({placeholders})", tuple(cpfs_ativos))
+            cur.execute(f"UPDATE funcionarios SET situacao='desligado', ativo=0 WHERE cpf NOT IN ({placeholders})", tuple(cpfs_ativos))
             count = cur.rowcount
         else:
             cur = conn.cursor()
             placeholders = ",".join(["?"] * len(cpfs_ativos))
-            cur.execute(f"UPDATE funcionarios SET situacao='desligado' WHERE cpf NOT IN ({placeholders})", tuple(cpfs_ativos))
+            cur.execute(f"UPDATE funcionarios SET situacao='desligado', ativo=0 WHERE cpf NOT IN ({placeholders})", tuple(cpfs_ativos))
             count = cur.rowcount
         conn.commit()
         return count

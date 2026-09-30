@@ -24,7 +24,10 @@ def _montar_signer(signatario: dict) -> dict:
     nome    = signatario.get("nome", "Signatário")
     email   = (signatario.get("email") or "").strip()
     celular = (signatario.get("celular") or "").strip()
-    signer  = {"name": nome}
+    signer  = {
+        "name": nome,
+        "auth_mode": "selfie",  # exige selfie antes de assinar
+    }
     if email:
         signer["email"] = email
         signer["send_automatic_email"] = False

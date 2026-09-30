@@ -660,9 +660,17 @@ tr:hover td { background:#F9FAFB; }
           <label>Celular / WhatsApp</label>
           <input type="text" id="epi-cel-ind" placeholder="(11) 99999-9999">
         </div>
-        <button class="btn btn-primary" style="width:100%;justify-content:center;height:42px" onclick="enviarEpiIndividual()">
-          <i class="ti ti-send"></i>Enviar Ficha de EPI
+        <button class="btn btn-primary" id="btn-gerar-ficha-epi" style="width:100%;justify-content:center;height:42px" onclick="gerarFichaEpi()">
+          <i class="ti ti-file-text"></i>Gerar Ficha de EPI
         </button>
+        <div id="epi-ind-acoes" style="display:none;margin-top:8px;display:none;flex-direction:column;gap:8px">
+          <button class="btn" id="btn-epi-whatsapp" style="width:100%;justify-content:center;background:#25D366;color:#fff;border:none;height:40px">
+            <i class="ti ti-brand-whatsapp"></i>Enviar para WhatsApp
+          </button>
+          <button class="btn btn-primary" id="btn-epi-assinar" style="width:100%;justify-content:center;height:40px">
+            <i class="ti ti-writing"></i>Assinar
+          </button>
+        </div>
       </div>
       <div id="epi-ind-resultado"></div>
     </div>
@@ -4829,12 +4837,14 @@ function confirmarCadastroRapidoEpi() {
   selecionarFuncEpi(funcTemp);
 }
 
-async function enviarEpiIndividual() {
+let _epiLinkGerado = null;
+let _epiWppUrl = null;
+
+async function gerarFichaEpi() {
   if (!epiFuncSel) { alert('Selecione um funcionário.'); return; }
   const cel = document.getElementById('epi-cel-ind').value.trim();
   if (cel) epiFuncSel = {...epiFuncSel, celular: cel};
 
-  // Coleta EPIs selecionados do checklist
   const resCat = await apiFetch('/api/epis/catalogo').then(r=>r.json());
   const episSel = resCat
     .filter(e => document.getElementById('epiind-'+e.id)?.checked)
@@ -4843,9 +4853,14 @@ async function enviarEpiIndividual() {
       ca: e.ca,
       quantidade: parseInt(document.getElementById('epiindq-'+e.id)?.value) || 1
     }));
-
   const todosEpis = [...episSel, ...episAvulsos];
   if (!todosEpis.length) { alert('Selecione ao menos um EPI.'); return; }
+
+  // Oculta botões de ação enquanto gera
+  document.getElementById('epi-ind-acoes').style.display = 'none';
+  const btnGerar = document.getElementById('btn-gerar-ficha-epi');
+  btnGerar.disabled = true;
+  btnGerar.innerHTML = '<i class="ti ti-loader-2"></i>Gerando...';
 
   document.getElementById('epi-ind-resultado').innerHTML =
     '<div class="alert al-info"><i class="ti ti-loader-2"></i>Gerando ficha e enviando para ZapSign...</div>';
@@ -4856,35 +4871,54 @@ async function enviarEpiIndividual() {
   });
   const data = await res.json();
 
+  btnGerar.disabled = false;
+  btnGerar.innerHTML = '<i class="ti ti-file-text"></i>Gerar Ficha de EPI';
+
   if (data.ok) {
-    const cel = epiFuncSel?.celular || '';
-    const celNum = cel.replace(/\D/g,'');
+    _epiLinkGerado = data.link;
+    const celular = epiFuncSel?.celular || '';
+    const celNum  = celular.replace(/\D/g,'');
     const celIntl = celNum.startsWith('55') ? celNum : '55' + celNum;
     const primeiroNome = (data.nome || '').split(' ')[0];
-    const msgWpp = encodeURIComponent(
-      `Olá ${primeiroNome}, segue o link para assinatura da sua Ficha de EPI:\n${data.link}`
-    );
-    const wppUrl = `https://wa.me/${celIntl}?text=${msgWpp}`;
-    const btnWpp = celNum
-      ? `<a href="${wppUrl}" target="_blank" class="btn btn-primary" style="justify-content:center;text-decoration:none;display:flex;align-items:center;gap:6px;margin-top:8px">
-           <i class="ti ti-brand-whatsapp"></i>Enviar pelo WhatsApp
-         </a>`
-      : `<div style="font-size:11px;color:var(--texto2);margin-top:8px"><i class="ti ti-alert-circle"></i> Sem celular cadastrado para enviar pelo WhatsApp.</div>`;
+    const msgWpp = encodeURIComponent(`Olá ${primeiroNome}, segue o link para assinatura da sua Ficha de EPI:\n${data.link}`);
+    _epiWppUrl = celNum ? `https://wa.me/${celIntl}?text=${msgWpp}` : null;
+
+    // Configura botões de ação
+    const btnWpp = document.getElementById('btn-epi-whatsapp');
+    const btnAssinar = document.getElementById('btn-epi-assinar');
+    if (_epiWppUrl) {
+      btnWpp.onclick = () => window.open(_epiWppUrl, '_blank');
+      btnWpp.style.opacity = '1';
+      btnWpp.disabled = false;
+    } else {
+      btnWpp.style.opacity = '0.4';
+      btnWpp.disabled = true;
+      btnWpp.title = 'Sem celular cadastrado';
+    }
+    btnAssinar.onclick = () => window.open(_epiLinkGerado, '_blank');
+
+    document.getElementById('epi-ind-acoes').style.display = 'flex';
+
     document.getElementById('epi-ind-resultado').innerHTML = `
       <div class="card" style="margin-top:8px;border-left:4px solid var(--verde)">
-        <div style="font-size:13px;font-weight:600;margin-bottom:8px">Ficha gerada com sucesso!</div>
-        <div style="font-size:12px;color:var(--texto2);margin-bottom:8px">Link para <strong>${data.nome}</strong>:</div>
+        <div style="font-size:13px;font-weight:600;margin-bottom:4px"><i class="ti ti-check" style="color:var(--verde)"></i> Ficha gerada com sucesso!</div>
+        <div style="font-size:12px;color:var(--texto2);margin-bottom:8px">Signatário: <strong>${data.nome}</strong></div>
         <div class="link-box">
           <input type="text" value="${data.link}" readonly>
           <button class="btn btn-primary btn-sm" onclick="copiar('${data.link}',this)"><i class="ti ti-copy"></i>Copiar</button>
         </div>
-        ${btnWpp}
+        <div style="font-size:11px;color:var(--texto2);margin-top:6px"><i class="ti ti-camera-selfie"></i> O funcionário será solicitado a tirar uma selfie antes de assinar.</div>
       </div>`;
   } else {
+    _epiLinkGerado = null;
+    document.getElementById('epi-ind-acoes').style.display = 'none';
     document.getElementById('epi-ind-resultado').innerHTML =
-      `<div class="alert al-error"><i class="ti ti-x"></i>${data.erro || 'Erro ao enviar'}</div>`;
+      `<div class="alert al-error"><i class="ti ti-x"></i>${data.erro || 'Erro ao gerar ficha'}</div>`;
   }
 }
+
+// Mantida para compatibilidade com outros módulos que ainda chamam enviarEpiIndividual
+async function enviarEpiIndividual() { await gerarFichaEpi(); }
 
 // Envio em lote EPI
 async function filtrarEpiLote() {

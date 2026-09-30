@@ -3441,7 +3441,7 @@ async function irPara(aba) {
   if (aba==='funcionarios')  carregarFuncionarios();
   if (aba==='modelos')       { carregarModelos(); carregarTabelaEpiOs(); popularSelectEditor(); }
   if (aba==='cadastro-epi')  carregarPainelCadEpi();
-  if (aba==='envio-epi')     { buscarFuncEpi(); filtrarEpiLote(); }
+  if (aba==='envio-epi')     { _iniciarModuloEpi(); }
   if (aba==='lote')          { filtrarLote(); renderLoteSel(); }
   if (aba==='envio-lote')    { elReset(); filtrarLote(); renderLoteSel(); }
   if (aba==='ordem-servico') carregarOSCargos();
@@ -4698,6 +4698,16 @@ function _debounceBuscarEpiFunc() { clearTimeout(_debEpiFunc); _debEpiFunc = set
 let _debEpiLote = null;
 function _debounceFiltrarEpiLote() { clearTimeout(_debEpiLote); _debEpiLote = setTimeout(filtrarEpiLote, 200); }
 
+function _iniciarModuloEpi() {
+  // Abre o módulo instantaneamente — só pré-carrega cache em background, sem renderizar nada
+  document.getElementById('lista-epi-func').innerHTML =
+    '<div style="text-align:center;padding:16px;color:var(--texto2);font-size:12px"><i class="ti ti-search"></i> Digite o nome para buscar</div>';
+  document.getElementById('lista-epi-lote').innerHTML =
+    '<div style="text-align:center;padding:16px;color:var(--texto2);font-size:12px"><i class="ti ti-search"></i> Digite o nome para buscar</div>';
+  // Pré-aquece o cache em background sem bloquear a UI
+  if (!_funcCache) _garantirFuncCache();
+}
+
 let _funcCacheLoading = null;
 async function _garantirFuncCache() {
   if (_funcCache) return;
@@ -4709,16 +4719,23 @@ async function _garantirFuncCache() {
 }
 
 async function buscarFuncEpi() {
-  const q    = document.getElementById('busca-epi-func').value.toLowerCase().trim();
+  const q   = document.getElementById('busca-epi-func').value.toLowerCase().trim();
+  const div = document.getElementById('lista-epi-func');
+  if (!q) {
+    div.innerHTML = '<div style="text-align:center;padding:16px;color:var(--texto2);font-size:12px"><i class="ti ti-search"></i> Digite o nome para buscar</div>';
+    return;
+  }
   if (!_funcCache) { await _garantirFuncCache(); }
   const list = (_funcCache || []).filter(f =>
-    !q || (f.nome||'').toLowerCase().includes(q) || (f.cargo||'').toLowerCase().includes(q) || (f.cpf||'').includes(q)
+    (f.nome||'').toLowerCase().includes(q) || (f.cargo||'').toLowerCase().includes(q) || (f.cpf||'').includes(q)
   );
-  const div  = document.getElementById('lista-epi-func');
-  div.innerHTML = '';
-  list.forEach(f => {
+  if (!list.length) {
+    div.innerHTML = '<div style="text-align:center;padding:16px;color:var(--texto2);font-size:12px">Nenhum funcionário encontrado.</div>';
+    return;
+  }
+  div.innerHTML = list.map(f => {
     const ini = f.nome.split(' ').map(w=>w[0]).slice(0,2).join('').toUpperCase();
-    div.innerHTML += `<div class="func-item" style="cursor:pointer" onclick='selecionarFuncEpi(${JSON.stringify(f)})'>
+    return `<div class="func-item" style="cursor:pointer" onclick='selecionarFuncEpi(${JSON.stringify(f)})'>
       <div style="display:flex;align-items:center;gap:8px">
         <div class="func-avatar">${ini}</div>
         <div>
@@ -4728,7 +4745,7 @@ async function buscarFuncEpi() {
       </div>
       <i class="ti ti-chevron-right" style="color:var(--texto2)"></i>
     </div>`;
-  });
+  }).join('');
 }
 
 let episAvulsos = [];
@@ -4928,11 +4945,15 @@ async function filtrarEpiLote() {
     !q || (f.nome||'').toLowerCase().includes(q) || (f.cargo||'').toLowerCase().includes(q)
   );
   const div  = document.getElementById('lista-epi-lote');
-  div.innerHTML = '';
-  list.forEach(f => {
+  if (!list.length && !q) {
+    div.innerHTML = '<div style="text-align:center;padding:16px;color:var(--texto2);font-size:12px"><i class="ti ti-search"></i> Digite o nome para buscar</div>';
+    renderEpiLoteSel();
+    return;
+  }
+  div.innerHTML = list.map(f => {
     const sel = epiLoteIds.has(f.id);
     const ini = f.nome.split(' ').map(w=>w[0]).slice(0,2).join('').toUpperCase();
-    div.innerHTML += `<div class="func-item ${sel?'sel':''}">
+    return `<div class="func-item ${sel?'sel':''}">
       <div style="display:flex;align-items:center;gap:8px">
         <div class="func-avatar">${ini}</div>
         <div>
@@ -4944,7 +4965,7 @@ async function filtrarEpiLote() {
         ${sel?'<i class="ti ti-x"></i>':'<i class="ti ti-plus"></i>'}
       </button>
     </div>`;
-  });
+  }).join('');
   renderEpiLoteSel();
 }
 

@@ -10,7 +10,7 @@ import base64
 
 ZAPSIGN_TOKEN         = os.environ.get("ZAPSIGN_TOKEN", "")
 ZAPSIGN_URL           = "https://api.zapsign.com.br/api/v1"
-ZAPSIGN_EMAIL_PADRAO  = os.environ.get("ZAPSIGN_EMAIL_PADRAO", "epi@recopav.com.br")
+ZAPSIGN_EMAIL_PADRAO  = os.environ.get("ZAPSIGN_EMAIL_PADRAO", "seguranca01@jsconstrutora.net")
 
 
 def _headers():

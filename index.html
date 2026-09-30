@@ -607,7 +607,7 @@ tr:hover td { background:#F9FAFB; }
       <div style="display:flex;gap:8px;margin-bottom:10px">
         <input type="text" id="busca-epi-func" placeholder="Nome ou cargo..."
           style="flex:1;padding:8px 12px;border:1px solid var(--borda);border-radius:8px;font-size:13px"
-          oninput="buscarFuncEpi()">
+          oninput="_debounceBuscarEpiFunc()">
         <button class="btn btn-outline btn-sm" onclick="abrirCadastroRapidoEpi()" title="Pessoa não cadastrada no sistema">
           <i class="ti ti-user-plus"></i> Novo
         </button>
@@ -675,7 +675,7 @@ tr:hover td { background:#F9FAFB; }
         <div class="card-title"><i class="ti ti-search"></i>Selecionar funcionários</div>
         <input type="text" id="busca-epi-lote" placeholder="Nome ou cargo..."
           style="width:100%;padding:8px 12px;border:1px solid var(--borda);border-radius:8px;font-size:13px;margin-bottom:10px"
-          oninput="filtrarEpiLote()">
+          oninput="_debounceFiltrarEpiLote()">
         <div class="lista-scroll" id="lista-epi-lote"></div>
       </div>
       <div class="card">
@@ -4684,12 +4684,25 @@ function trocarAbaEpi(aba) {
   document.getElementById('tab-epi-lote').className = 'btn btn-sm ' + (aba==='lote'       ? 'btn-primary' : 'btn-outline');
 }
 
+let _debEpiFunc = null;
+function _debounceBuscarEpiFunc() { clearTimeout(_debEpiFunc); _debEpiFunc = setTimeout(buscarFuncEpi, 200); }
+
+let _debEpiLote = null;
+function _debounceFiltrarEpiLote() { clearTimeout(_debEpiLote); _debEpiLote = setTimeout(filtrarEpiLote, 200); }
+
+let _funcCacheLoading = null;
+async function _garantirFuncCache() {
+  if (_funcCache) return;
+  if (_funcCacheLoading) { await _funcCacheLoading; return; }
+  _funcCacheLoading = apiFetch('/api/funcionarios').then(async res => {
+    if (res && res.ok) { const d = await res.json(); _funcCache = Array.isArray(d) ? d : (d.funcionarios || []); }
+  }).finally(() => { _funcCacheLoading = null; });
+  await _funcCacheLoading;
+}
+
 async function buscarFuncEpi() {
   const q    = document.getElementById('busca-epi-func').value.toLowerCase().trim();
-  if (!_funcCache) {
-    const res = await apiFetch('/api/funcionarios');
-    if (res && res.ok) { const d = await res.json(); _funcCache = Array.isArray(d) ? d : (d.funcionarios || []); }
-  }
+  if (!_funcCache) { await _garantirFuncCache(); }
   const list = (_funcCache || []).filter(f =>
     !q || (f.nome||'').toLowerCase().includes(q) || (f.cargo||'').toLowerCase().includes(q) || (f.cpf||'').includes(q)
   );
@@ -4876,10 +4889,7 @@ async function enviarEpiIndividual() {
 // Envio em lote EPI
 async function filtrarEpiLote() {
   const q = document.getElementById('busca-epi-lote').value.toLowerCase().trim();
-  if (!_funcCache) {
-    const res = await apiFetch('/api/funcionarios');
-    if (res && res.ok) { const d = await res.json(); _funcCache = Array.isArray(d) ? d : (d.funcionarios || []); }
-  }
+  if (!_funcCache) { await _garantirFuncCache(); }
   const list = (_funcCache || []).filter(f =>
     !q || (f.nome||'').toLowerCase().includes(q) || (f.cargo||'').toLowerCase().includes(q)
   );

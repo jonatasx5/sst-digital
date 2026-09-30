@@ -407,6 +407,18 @@ async def startup_event():
         banco.executar_migracao_asos_rh()
     except Exception as e:
         print(f"[WARN] migração asos rh: {e}")
+    try:
+        conn = banco.conectar()
+        cur = conn.cursor()
+        if banco.USE_POSTGRES:
+            cur.execute("CREATE INDEX IF NOT EXISTS idx_cargo_cbo_upper ON cargo_cbo (UPPER(cargo))")
+            cur.execute("CREATE INDEX IF NOT EXISTS idx_func_nome ON funcionarios (nome)")
+            cur.execute("CREATE INDEX IF NOT EXISTS idx_func_ativo ON funcionarios (ativo)")
+        conn.commit()
+        conn.close()
+        print("[STARTUP] índices de performance criados/verificados")
+    except Exception as e:
+        print(f"[WARN] índices: {e}")
 
 
 def _seed_pedidos_junho():

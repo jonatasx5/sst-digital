@@ -9478,121 +9478,58 @@ async function asoSalvar() {
   await asoCarregar();
 }
 function asoExportar() {
-  const lista = _asoFiltradoAtual.length ? _asoFiltradoAtual : _asoData;
-  if (!lista.length) { alert('Nenhum funcionário para exportar.'); return; }
+  const lista = (_asoFiltradoAtual && _asoFiltradoAtual.length) ? _asoFiltradoAtual : _asoData;
+  if (!lista || !lista.length) { alert('Nenhum funcionário para exportar.'); return; }
 
-  const statusLabel = { ok:'Em dia', atencao:'Vence em 30 dias', critico:'Vence em 15 dias', vencido:'Vencido', sem_admissao:'Sem admissão' };
-  const statusCor   = { ok:'#16a34a', atencao:'#d97706', critico:'#ea580c', vencido:'#dc2626', sem_admissao:'#94a3b8' };
-
+  const statusLabel = { ok:'Em dia', atencao:'Vence em 30 dias', critico:'Vence em 15 dias', vencido:'Vencido', vence_hoje:'Vence Hoje', sem_admissao:'Sem admissão' };
   const filtroStatus  = document.getElementById('aso-filtro-status').value;
   const filtroLotacao = document.getElementById('aso-filtro-lotacao').value;
-  const titulo = filtroStatus ? statusLabel[filtroStatus] || 'ASOs' : 'Controle de ASOs';
-  const subtitulo = filtroLotacao ? `Lotação: ${filtroLotacao}` : 'Todos os funcionários';
+  const titulo = filtroStatus ? (statusLabel[filtroStatus] || 'ASOs') : 'Controle de ASOs';
   const hoje = new Date().toLocaleDateString('pt-BR');
 
-  // A4 = 794 x 1123 px a 96dpi
-  const POR_PAGINA = 28;
-  const paginas = Math.ceil(lista.length / POR_PAGINA);
+  const fmtIso = iso => {
+    if (!iso) return '—';
+    const s = String(iso).slice(0,10);
+    if (s.includes('-')) { const [a,m,d] = s.split('-'); return `${d}/${m}/${a}`; }
+    return s;
+  };
 
-  for (let p = 0; p < paginas; p++) {
-    const fatia = lista.slice(p * POR_PAGINA, (p + 1) * POR_PAGINA);
-    const canvas = document.createElement('canvas');
-    canvas.width = 794; canvas.height = 1123;
-    const ctx = canvas.getContext('2d');
+  // Monta linhas da planilha
+  const cabecalho = ['#','Nome','Cargo','Lotação','Admissão','Último ASO','Próximo ASO','Situação','Dias'];
+  const linhas = lista.map((f, i) => {
+    const dias = f.dias_para_vencer;
+    const diasTxt = dias === null ? '—' : dias < 0 ? `-${Math.abs(dias)}` : String(dias);
+    return [
+      i + 1,
+      f.nome || '',
+      f.cargo || '',
+      f.lotacao || '',
+      fmtIso(f.admissao),
+      fmtIso(f.data_exame),
+      fmtIso(f.proximo_aso),
+      statusLabel[f.status_aso] || f.status_aso || '',
+      diasTxt
+    ];
+  });
 
-    // Fundo branco
-    ctx.fillStyle = '#ffffff';
-    ctx.fillRect(0, 0, 794, 1123);
+  const wb = XLSX.utils.book_new();
+  const wsData = [cabecalho, ...linhas];
+  const ws = XLSX.utils.aoa_to_sheet(wsData);
 
-    // Cabeçalho
-    ctx.fillStyle = '#1e3a5f';
-    ctx.fillRect(0, 0, 794, 72);
-    ctx.fillStyle = '#ffffff';
-    ctx.font = 'bold 20px Arial';
-    ctx.fillText('JS Construtora — SST Digital', 24, 28);
-    ctx.font = 'bold 15px Arial';
-    ctx.fillText(titulo, 24, 52);
-    ctx.font = '12px Arial';
-    ctx.fillStyle = '#cbd5e1';
-    ctx.fillText(subtitulo, 24, 68);
-    ctx.fillStyle = '#ffffff';
-    ctx.textAlign = 'right';
-    ctx.font = '11px Arial';
-    ctx.fillText(`Gerado em ${hoje}${paginas > 1 ? `  |  Pág. ${p+1}/${paginas}` : ''}`, 770, 52);
-    ctx.textAlign = 'left';
+  // Larguras das colunas
+  ws['!cols'] = [
+    {wch:4}, {wch:36}, {wch:28}, {wch:20},
+    {wch:12}, {wch:12}, {wch:12}, {wch:16}, {wch:8}
+  ];
 
-    // Cabeçalho da tabela
-    const yTbl = 90;
-    ctx.fillStyle = '#f1f5f9';
-    ctx.fillRect(16, yTbl, 762, 22);
-    ctx.fillStyle = '#475569';
-    ctx.font = 'bold 10px Arial';
-    ctx.fillText('#',      22,  yTbl + 15);
-    ctx.fillText('FUNCIONÁRIO',  42,  yTbl + 15);
-    ctx.fillText('CARGO',       270,  yTbl + 15);
-    ctx.fillText('LOTAÇÃO',     420,  yTbl + 15);
-    ctx.fillText('VENCIMENTO',  600,  yTbl + 15);
-    ctx.fillText('SITUAÇÃO',    690,  yTbl + 15);
+  XLSX.utils.book_append_sheet(wb, ws, 'ASOs');
 
-    // Linhas
-    fatia.forEach((f, i) => {
-      const y = yTbl + 26 + i * 34;
-      // Zebra
-      if (i % 2 === 0) { ctx.fillStyle = '#f8fafc'; ctx.fillRect(16, y - 2, 762, 34); }
-      // Barra de cor lateral
-      ctx.fillStyle = statusCor[f.status_aso] || '#94a3b8';
-      ctx.fillRect(16, y - 2, 4, 34);
+  const sufixo = [
+    filtroStatus  ? statusLabel[filtroStatus]  : '',
+    filtroLotacao ? filtroLotacao : ''
+  ].filter(Boolean).join('_') || 'Todos';
 
-      ctx.fillStyle = '#1e293b';
-      ctx.font = 'bold 11px Arial';
-      // Número
-      ctx.fillStyle = '#94a3b8';
-      ctx.font = '10px Arial';
-      ctx.fillText(String(p * POR_PAGINA + i + 1), 22, y + 14);
-      // Nome
-      ctx.fillStyle = '#1e293b';
-      ctx.font = 'bold 11px Arial';
-      const nome = (f.nome || '').length > 32 ? f.nome.slice(0, 30) + '…' : f.nome;
-      ctx.fillText(nome, 42, y + 14);
-      // Cargo
-      ctx.fillStyle = '#475569';
-      ctx.font = '10px Arial';
-      const cargo = (f.cargo || '').length > 22 ? f.cargo.slice(0, 20) + '…' : (f.cargo || '—');
-      ctx.fillText(cargo, 270, y + 14);
-      // Lotação
-      const lot = (f.lotacao || '—').length > 20 ? f.lotacao.slice(0, 18) + '…' : (f.lotacao || '—');
-      ctx.fillText(lot, 420, y + 14);
-      // Vencimento
-      const venc = f.data_vencimento ? f.data_vencimento.toString().slice(0,10) : (f.admissao ? f.admissao : '—');
-      ctx.fillText(venc, 600, y + 14);
-      // Situação
-      const dias = f.dias_para_vencer;
-      const diasTxt = dias === null ? '—' : dias < 0 ? `${Math.abs(dias)}d vencido` : dias === 0 ? 'Hoje' : `${dias}d`;
-      ctx.fillStyle = statusCor[f.status_aso] || '#94a3b8';
-      ctx.font = 'bold 10px Arial';
-      ctx.fillText(diasTxt, 690, y + 14);
-
-      // Linha separadora
-      ctx.strokeStyle = '#e2e8f0';
-      ctx.lineWidth = 0.5;
-      ctx.beginPath();
-      ctx.moveTo(16, y + 32); ctx.lineTo(778, y + 32);
-      ctx.stroke();
-    });
-
-    // Rodapé
-    ctx.fillStyle = '#94a3b8';
-    ctx.font = '10px Arial';
-    ctx.textAlign = 'center';
-    ctx.fillText(`SST Digital — Controle de ASOs | ${hoje}`, 397, 1108);
-    ctx.textAlign = 'left';
-
-    // Download
-    const link = document.createElement('a');
-    link.download = `ASOs_${titulo.replace(/\s+/g,'_')}${paginas > 1 ? `_pag${p+1}` : ''}_${hoje.replace(/\//g,'-')}.png`;
-    link.href = canvas.toDataURL('image/png');
-    link.click();
-  }
+  XLSX.writeFile(wb, `ASOs_${sufixo}_${hoje.replace(/\//g,'-')}.xlsx`);
 }
 // Armazena listas globais para uso no envio ao RH
 let _asosVencidosHoje = [];

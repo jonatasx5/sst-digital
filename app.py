@@ -1916,41 +1916,39 @@ async def importar_planilha(file: UploadFile = File(...), _=Depends(verificar_ac
     try:
         try:
             lista, avisos = processador.ler_planilha(tmp_path)
+            if not lista:
+                return {"ok": False, "erro": "Nenhum funcionário encontrado na planilha.", "avisos": avisos}
+            ins, atu = banco.importar_funcionarios(lista)
+
+            cbos_salvos = 0
+            cbo_por_cargo: dict[str, str] = {}
+            for f in lista:
+                cbo_num = (f.get("cbo") or "").strip()
+                cargo   = (f.get("cargo") or "").strip()
+                if cbo_num and cargo and cargo not in cbo_por_cargo:
+                    cbo_por_cargo[cargo] = cbo_num
+            mte_cache: dict[str, tuple[str, str]] = {}
+            for cargo, cbo_num in cbo_por_cargo.items():
+                existente = banco.buscar_cargo_cbo(cargo)
+                if not existente or not existente.get("cbo_codigo"):
+                    if cbo_num not in mte_cache:
+                        mte_cache[cbo_num] = _cbo_enriquecer(cbo_num)
+                    titulo, descricao = mte_cache[cbo_num]
+                    banco.salvar_cargo_cbo(cargo, cbo_num, titulo, descricao)
+                    cbos_salvos += 1
+
+            if cbos_salvos:
+                avisos.append(f"ℹ️ {cbos_salvos} cargo(s) com CBO preenchido automaticamente da planilha.")
+
+            cpfs_importados = [f.get("cpf","").strip() for f in lista if f.get("cpf","").strip()]
+            desligados = banco.marcar_desligados(cpfs_importados)
+            if desligados:
+                avisos.append(f"⚠️ {desligados} funcionário(s) não encontrado(s) na planilha foram marcados como DESLIGADOS.")
+
+            return {"ok": True, "inseridos": ins, "atualizados": atu, "desligados": desligados, "avisos": avisos}
         except Exception as e:
-            return {"ok": False, "erro": f"Não foi possível ler o arquivo: {e}", "avisos": []}
-        if not lista:
-            return {"ok": False, "erro": "Nenhum funcionário encontrado", "avisos": avisos}
-        ins, atu = banco.importar_funcionarios(lista)
-
-        # Se a planilha tem coluna CBO, salva CBO por cargo automaticamente
-        # Agrupa por cargo para buscar MTE só uma vez por código único
-        cbos_salvos = 0
-        cbo_por_cargo: dict[str, str] = {}
-        for f in lista:
-            cbo_num = (f.get("cbo") or "").strip()
-            cargo   = (f.get("cargo") or "").strip()
-            if cbo_num and cargo and cargo not in cbo_por_cargo:
-                cbo_por_cargo[cargo] = cbo_num
-        # Códigos únicos → busca MTE uma vez por código
-        mte_cache: dict[str, tuple[str, str]] = {}
-        for cargo, cbo_num in cbo_por_cargo.items():
-            existente = banco.buscar_cargo_cbo(cargo)
-            if not existente or not existente.get("cbo_codigo"):
-                if cbo_num not in mte_cache:
-                    mte_cache[cbo_num] = _cbo_enriquecer(cbo_num)
-                titulo, descricao = mte_cache[cbo_num]
-                banco.salvar_cargo_cbo(cargo, cbo_num, titulo, descricao)
-                cbos_salvos += 1
-
-        if cbos_salvos:
-            avisos.append(f"ℹ️ {cbos_salvos} cargo(s) com CBO preenchido automaticamente da planilha.")
-
-        cpfs_importados = [f.get("cpf","").strip() for f in lista if f.get("cpf","").strip()]
-        desligados = banco.marcar_desligados(cpfs_importados)
-        if desligados:
-            avisos.append(f"⚠️ {desligados} funcionário(s) não encontrado(s) na planilha foram marcados como DESLIGADOS.")
-
-        return {"ok": True, "inseridos": ins, "atualizados": atu, "desligados": desligados, "avisos": avisos}
+            import traceback
+            return {"ok": False, "erro": str(e), "detalhe": traceback.format_exc()[-800:], "avisos": []}
     finally:
         os.unlink(tmp_path)
 

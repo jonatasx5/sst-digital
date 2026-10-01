@@ -4087,7 +4087,7 @@ async function uploadPlanilha(inp) {
         </div>`;
       _funcCache = null; await carregarFuncionarios();  // invalida cache após importação
     } else {
-      resultEl.innerHTML = `<div class="alert al-error"><i class="ti ti-x"></i> ${data.erro||'Erro desconhecido'}</div>`;
+      resultEl.innerHTML = `<div class="alert al-error"><i class="ti ti-x"></i> ${data.erro||'Erro desconhecido'}</div>${data.detalhe?`<pre style="font-size:11px;white-space:pre-wrap;margin-top:8px">${data.detalhe}</pre>`:''}`;
     }
   } catch(e) {
     resultEl.innerHTML = `<div class="alert al-error"><i class="ti ti-x"></i> Erro: ${e.message}</div>`;

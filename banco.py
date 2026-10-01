@@ -1981,7 +1981,7 @@ def importar_funcionarios(lista):
 
             if existe:
                 # Busca dados atuais do banco para não sobrescrever o que foi editado manualmente
-                fid = existe[0]
+                fid = existe["id"] if USE_POSTGRES else existe[0]
                 if USE_POSTGRES:
                     cur2 = conn.cursor(cursor_factory=_psycopg2_extras.RealDictCursor)
                     cur2.execute("SELECT nome,cargo,lotacao,admissao,celular,email,empresa FROM funcionarios WHERE id=%s", (fid,))

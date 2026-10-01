@@ -4072,7 +4072,10 @@ async function uploadPlanilha(inp) {
   resultEl.innerHTML = '<div class="alert al-info"><i class="ti ti-loader-2"></i> Importando, aguarde...</div>';
   try {
     const res = await apiFetch('/api/funcionarios/importar', { method:'POST', body:fd });
-    if (!res || !res.ok) { resultEl.innerHTML = '<div class="alert al-error"><i class="ti ti-x"></i> Erro na importação.</div>'; return; }
+    if (!res || !res.ok) {
+      try { const d = await res.json(); if (d && d.erro) { resultEl.innerHTML = `<div class="alert al-error"><i class="ti ti-x"></i> ${d.erro}</div>`; return; } } catch(_) {}
+      resultEl.innerHTML = '<div class="alert al-error"><i class="ti ti-x"></i> Erro na importação.</div>'; return;
+    }
     const data = await res.json();
     if (data.ok) {
       const avisos = (data.avisos||[]).filter(a=>a).map(a=>`<div style="font-size:12px;margin-top:4px;color:#856404">⚠️ ${a}</div>`).join('');

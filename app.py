@@ -1907,11 +1907,17 @@ async def salvar_funcionario(dados: dict, _=Depends(verificar_acesso)):
 
 @app.post("/api/funcionarios/importar")
 async def importar_planilha(file: UploadFile = File(...), _=Depends(verificar_acesso)):
-    with tempfile.NamedTemporaryFile(delete=False, suffix=".xlsx") as tmp:
+    orig_ext = os.path.splitext(file.filename or "")[1].lower() or ".xlsx"
+    if orig_ext not in (".xlsx", ".xls", ".xlsm"):
+        orig_ext = ".xlsx"
+    with tempfile.NamedTemporaryFile(delete=False, suffix=orig_ext) as tmp:
         shutil.copyfileobj(file.file, tmp)
         tmp_path = tmp.name
     try:
-        lista, avisos = processador.ler_planilha(tmp_path)
+        try:
+            lista, avisos = processador.ler_planilha(tmp_path)
+        except Exception as e:
+            return {"ok": False, "erro": f"Não foi possível ler o arquivo: {e}", "avisos": []}
         if not lista:
             return {"ok": False, "erro": "Nenhum funcionário encontrado", "avisos": avisos}
         ins, atu = banco.importar_funcionarios(lista)

@@ -15,6 +15,7 @@ from pathlib import Path
 import io as _io_mod
 
 import openpyxl
+import xlrd
 from docx import Document
 from docx.oxml.ns import qn
 
@@ -53,17 +54,43 @@ def _mapear_cabecalho(headers: list[str]) -> dict:
     return mapa
 
 
+def _ler_rows_xls(caminho: str) -> list[tuple]:
+    """Lê todas as linhas de um arquivo .xls usando xlrd."""
+    wb = xlrd.open_workbook(caminho)
+    ws = wb.sheet_by_index(0)
+    result = []
+    for r in range(ws.nrows):
+        row = []
+        for c in range(ws.ncols):
+            cell = ws.cell(r, c)
+            if cell.ctype == xlrd.XL_CELL_EMPTY:
+                row.append(None)
+            elif cell.ctype == xlrd.XL_CELL_NUMBER:
+                v = cell.value
+                row.append(int(v) if v == int(v) else v)
+            else:
+                row.append(cell.value)
+        result.append(tuple(row))
+    return result
+
+
 def ler_planilha(caminho: str) -> tuple[list[dict], list[str]]:
     """
-    Lê planilha Excel do DP.
+    Lê planilha Excel do DP (.xlsx ou .xls).
     Retorna (lista_funcionarios, avisos).
     """
-    wb = openpyxl.load_workbook(caminho, read_only=True, data_only=True)
-    try:
-        ws = wb.active
+    ext = Path(caminho).suffix.lower()
+    if ext == ".xls":
+        rows = _ler_rows_xls(caminho)
+    else:
+        wb = openpyxl.load_workbook(caminho, read_only=True, data_only=True)
+        try:
+            ws = wb.active
+            rows = list(ws.iter_rows(values_only=True))
+        finally:
+            wb.close()
 
-        rows = list(ws.iter_rows(values_only=True))
-        if not rows:
+    if not rows:
             return [], ["Planilha vazia."]
 
         # Encontra linha de cabeçalho (primeira linha não vazia)
@@ -126,8 +153,6 @@ def ler_planilha(caminho: str) -> tuple[list[dict], list[str]]:
             })
 
         return funcionarios, avisos
-    finally:
-        wb.close()
 
 
 # ══════════════════════════════════════════════════════════

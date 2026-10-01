@@ -9682,12 +9682,12 @@ function asoEnviarRH(tipo) {
   };
 
   if (tipo === 'hoje') {
-    msg = `*ASOs Vencidos em ${dataHoje}*\n\nPrezado Adm, segue abaixo relação de funcionário${lista.length > 1 ? 's' : ''} com ASO vencido hoje:\n\n`;
+    msg = `*ASOs Vencidos em ${dataHoje}*\n\nPrezado ADM, segue abaixo relação de funcionário${lista.length > 1 ? 's' : ''} com ASO vencido hoje:\n\n`;
     msg += lista.map((f, i) =>
       `${i+1}. *${f.nome}*\n   Função: ${f.cargo||'—'}\n   Lotação: ${f.lotacao||'—'}\n   Admissão: ${fmtData(f.admissao)||'—'}\n   Último ASO: ${fmtData(f.data_exame)||'—'}\n   Próximo ASO (vencimento): ${fmtData(f.proximo_aso)||dataHoje}`
     ).join('\n\n');
   } else {
-    msg = `*ASOs a Vencer em ${dataAmanha}*\n\nPrezado Adm, segue abaixo relação de funcionário${lista.length > 1 ? 's' : ''} com ASO vencendo amanhã:\n\n`;
+    msg = `*ASOs a Vencer em ${dataAmanha}*\n\nPrezado ADM, segue abaixo relação de funcionário${lista.length > 1 ? 's' : ''} com ASO vencendo amanhã:\n\n`;
     msg += lista.map((f, i) =>
       `${i+1}. *${f.nome}*\n   Função: ${f.cargo||'—'}\n   Lotação: ${f.lotacao||'—'}\n   Admissão: ${fmtData(f.admissao)||'—'}\n   Último ASO: ${fmtData(f.data_exame)||'—'}\n   Próximo ASO (vencimento): ${fmtData(f.proximo_aso)||dataAmanha}`
     ).join('\n\n');

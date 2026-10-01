@@ -9453,6 +9453,10 @@ function asoRenderizar(lista) {
         style="padding:5px 12px;border:1.5px solid ${cor};border-radius:8px;background:transparent;color:${cor};font-size:12px;font-weight:600;cursor:pointer;white-space:nowrap">
         <i class="ti ti-calendar-plus"></i> Registrar
       </button>
+      ${['vencido','vence_hoje','critico','atencao'].includes(f.status_aso) ? `<button onclick="asoMsgIndividual(${JSON.stringify(f).replace(/"/g,'&quot;')})"
+        style="padding:5px 12px;border:1.5px solid #25D366;border-radius:8px;background:transparent;color:#25D366;font-size:12px;font-weight:600;cursor:pointer;white-space:nowrap">
+        <i class="ti ti-send"></i> Msg ADM
+      </button>` : ''}
     </div>`;
   }).join('');
 }
@@ -9531,6 +9535,41 @@ function asoExportar() {
 
   XLSX.writeFile(wb, `ASOs_${sufixo}_${hoje.replace(/\//g,'-')}.xlsx`);
 }
+function asoMsgIndividual(f) {
+  const fmtData = iso => {
+    if (!iso) return '—';
+    const s = String(iso).slice(0,10);
+    if (s.includes('-')) { const [a,m,d] = s.split('-'); return `${d}/${m}/${a}`; }
+    return s;
+  };
+  const statusLabel = { ok:'Em dia', atencao:'Vence em 30 dias', critico:'Vence em 15 dias', vence_hoje:'Vence hoje', vencido:'Vencido', sem_admissao:'Sem data' };
+  const hoje = new Date().toLocaleDateString('pt-BR');
+  const msg =
+`*Aviso de ASO — ${hoje}*
+
+Prezado ADM,
+
+O funcionário abaixo possui ASO com situação: *${statusLabel[f.status_aso] || f.status_aso}*
+
+*${f.nome}*
+Função: ${f.cargo||'—'}
+Lotação: ${f.lotacao||'—'}
+Admissão: ${fmtData(f.admissao)}
+Último ASO: ${fmtData(f.data_exame)}
+Próximo ASO (vencimento): ${fmtData(f.proximo_aso)}
+
+Favor providenciar o agendamento do exame. Atenciosamente.`;
+
+  navigator.clipboard.writeText(msg).then(() => {
+    alert('Mensagem copiada! Cole no WhatsApp ou e-mail do ADM responsável.');
+  }).catch(() => {
+    const ta = document.createElement('textarea');
+    ta.value = msg; document.body.appendChild(ta); ta.select();
+    document.execCommand('copy'); document.body.removeChild(ta);
+    alert('Mensagem copiada!');
+  });
+}
+
 // Armazena listas globais para uso no envio ao RH
 let _asosVencidosHoje = [];
 let _asosVencendoAmanha = [];

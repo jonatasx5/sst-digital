@@ -1896,9 +1896,9 @@ async def listar_visualizacoes(_=Depends(verificar_acesso)):
 # ══════════════════════════════════════════════════════════
 
 @app.get("/api/funcionarios")
-async def listar_funcionarios(busca: str = "", q: str = "", _=Depends(verificar_acesso)):
+async def listar_funcionarios(busca: str = "", q: str = "", todos: bool = False, _=Depends(verificar_acesso)):
     termo = q or busca
-    return banco.buscar_funcionarios(termo)
+    return banco.buscar_funcionarios(termo, apenas_ativos=not todos)
 
 @app.post("/api/funcionarios")
 async def salvar_funcionario(dados: dict, _=Depends(verificar_acesso)):

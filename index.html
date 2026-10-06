@@ -375,7 +375,7 @@ tr:hover td { background:#F9FAFB; }
       <option value="JS Construtora">JS Construtora</option>
       <option value="RECOPAV ASFALTOS LTDA">RECOPAV ASFALTOS LTDA</option>
     </select>
-    <select id="filtro-situacao" onchange="_funcRenderTabela()" style="border:1px solid var(--borda);border-radius:8px;padding:4px 8px;font-size:12px;background:var(--card);color:var(--texto);cursor:pointer">
+    <select id="filtro-situacao" onchange="carregarFuncionarios(true)" style="border:1px solid var(--borda);border-radius:8px;padding:4px 8px;font-size:12px;background:var(--card);color:var(--texto);cursor:pointer">
       <option value="ativo">Ativos</option>
       <option value="desligado">Desligados</option>
       <option value="">Todos</option>
@@ -3017,6 +3017,7 @@ tr:hover td { background:#F9FAFB; }
 let loteIds   = new Set();
 let todosFunc = [];
 let _funcCache     = null;
+let _funcCacheTodos = null;
 let _histCache     = null;
 let _tercCache     = null;
 let _empresasCache = null;
@@ -3466,13 +3467,23 @@ function toggleSidebar() {
 //  FUNCIONÁRIOS
 // ══════════════════════════════════════════════════════
 async function carregarFuncionarios(forcarReload = false) {
-  if (!_funcCache || forcarReload) {
+  const filtroSit = document.getElementById('filtro-situacao')?.value ?? 'ativo';
+  const precisaTodos = filtroSit === 'desligado';
+  if (!_funcCache || forcarReload || (precisaTodos && !_funcCacheTodos)) {
     const tbody = document.getElementById('func-tbody');
     if (!_funcCache) tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;padding:24px;color:var(--texto2);">Carregando...</td></tr>';
-    const res = await apiFetch('/api/funcionarios');
-    if (!res || !res.ok) return;
-    const data = await res.json();
-    _funcCache = Array.isArray(data) ? data : (data.funcionarios || []);
+    if (precisaTodos) {
+      const res = await apiFetch('/api/funcionarios?todos=true');
+      if (!res || !res.ok) return;
+      const data = await res.json();
+      _funcCacheTodos = Array.isArray(data) ? data : (data.funcionarios || []);
+      _funcCache = _funcCacheTodos.filter(f => (f.situacao||'ativo') === 'ativo');
+    } else {
+      const res = await apiFetch('/api/funcionarios');
+      if (!res || !res.ok) return;
+      const data = await res.json();
+      _funcCache = Array.isArray(data) ? data : (data.funcionarios || []);
+    }
   }
   // Garante histórico atualizado (com funcionario_id) para cruzamento Kit SST
   if (!_histCache || (_histCache.length && _histCache[0].funcionario_id === undefined)) {
@@ -3593,7 +3604,8 @@ function renderPainelLotacoes() {
 function _funcRenderTabela() {
   const busca = (document.getElementById('busca-func')?.value || '').toLowerCase().trim();
   const filtroEmpresa = document.getElementById('filtro-empresa')?.value || '';
-  let lista = _funcCache || [];
+  const _filtroSit = document.getElementById('filtro-situacao')?.value ?? 'ativo';
+  let lista = (_filtroSit === 'desligado' && _funcCacheTodos) ? _funcCacheTodos : (_funcCache || []);
   todosFunc = lista;
   if (busca) {
     const buscaDigitos = busca.replace(/\D/g, '');
@@ -4058,7 +4070,7 @@ async function salvarFunc() {
 
   await apiFetch('/api/funcionarios', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(dados) });
   fecharModal('modal-func');
-  _funcCache = null;
+  _funcCache = null; _funcCacheTodos = null;
   carregarFuncionarios();
 }
 
@@ -4085,7 +4097,7 @@ async function uploadPlanilha(inp) {
           <div>${data.inseridos} novo(s) inserido(s) &nbsp;·&nbsp; ${data.atualizados} atualizado(s)</div>
           ${avisos}
         </div>`;
-      _funcCache = null; await carregarFuncionarios();  // invalida cache após importação
+      _funcCache = null; _funcCacheTodos = null; await carregarFuncionarios();  // invalida cache após importação
     } else {
       resultEl.innerHTML = `<div class="alert al-error"><i class="ti ti-x"></i> ${data.erro||'Erro desconhecido'}</div>${data.detalhe?`<pre style="font-size:11px;white-space:pre-wrap;margin-top:8px">${data.detalhe}</pre>`:''}`;
     }

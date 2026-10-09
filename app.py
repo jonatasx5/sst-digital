@@ -1920,30 +1920,35 @@ async def importar_planilha(file: UploadFile = File(...), _=Depends(verificar_ac
                 return {"ok": False, "erro": "Nenhum funcionário encontrado na planilha.", "avisos": avisos}
             ins, atu = banco.importar_funcionarios(lista)
 
-            cbos_salvos = 0
+            cpfs_importados = [f.get("cpf","").strip() for f in lista if f.get("cpf","").strip()]
+            desligados = banco.marcar_desligados(cpfs_importados)
+            if desligados:
+                avisos.append(f"⚠️ {desligados} funcionário(s) não encontrado(s) na planilha foram marcados como DESLIGADOS.")
+
             cbo_por_cargo: dict[str, str] = {}
             for f in lista:
                 cbo_num = (f.get("cbo") or "").strip()
                 cargo   = (f.get("cargo") or "").strip()
                 if cbo_num and cargo and cargo not in cbo_por_cargo:
                     cbo_por_cargo[cargo] = cbo_num
-            mte_cache: dict[str, tuple[str, str]] = {}
-            for cargo, cbo_num in cbo_por_cargo.items():
-                existente = banco.buscar_cargo_cbo(cargo)
-                if not existente or not existente.get("cbo_codigo"):
-                    if cbo_num not in mte_cache:
-                        mte_cache[cbo_num] = _cbo_enriquecer(cbo_num)
-                    titulo, descricao = mte_cache[cbo_num]
-                    banco.salvar_cargo_cbo(cargo, cbo_num, titulo, descricao)
-                    cbos_salvos += 1
 
-            if cbos_salvos:
-                avisos.append(f"ℹ️ {cbos_salvos} cargo(s) com CBO preenchido automaticamente da planilha.")
+            def _preencher_cbos(mapa: dict[str, str]):
+                mte_cache: dict[str, tuple[str, str]] = {}
+                for cargo, cbo_num in mapa.items():
+                    try:
+                        existente = banco.buscar_cargo_cbo(cargo)
+                        if not existente or not existente.get("cbo_codigo"):
+                            if cbo_num not in mte_cache:
+                                mte_cache[cbo_num] = _cbo_enriquecer(cbo_num)
+                            titulo, descricao = mte_cache[cbo_num]
+                            banco.salvar_cargo_cbo(cargo, cbo_num, titulo, descricao)
+                    except Exception as e:
+                        print(f"  ⚠️  CBO '{cargo}': {e}")
 
-            cpfs_importados = [f.get("cpf","").strip() for f in lista if f.get("cpf","").strip()]
-            desligados = banco.marcar_desligados(cpfs_importados)
-            if desligados:
-                avisos.append(f"⚠️ {desligados} funcionário(s) não encontrado(s) na planilha foram marcados como DESLIGADOS.")
+            if cbo_por_cargo:
+                import threading
+                threading.Thread(target=_preencher_cbos, args=(cbo_por_cargo,), daemon=True).start()
+                avisos.append("ℹ️ Os CBOs dos cargos da planilha estão sendo preenchidos em segundo plano.")
 
             return {"ok": True, "inseridos": ins, "atualizados": atu, "desligados": desligados, "avisos": avisos}
         except Exception as e:

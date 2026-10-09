@@ -4085,8 +4085,8 @@ async function uploadPlanilha(inp) {
   try {
     const res = await apiFetch('/api/funcionarios/importar', { method:'POST', body:fd });
     if (!res || !res.ok) {
-      try { const d = await res.json(); if (d && d.erro) { resultEl.innerHTML = `<div class="alert al-error"><i class="ti ti-x"></i> ${d.erro}</div>`; return; } } catch(_) {}
-      resultEl.innerHTML = '<div class="alert al-error"><i class="ti ti-x"></i> Erro na importação.</div>'; return;
+      try { const d = await res.json(); const msg = d && (d.erro || (typeof d.detail === 'string' ? d.detail : JSON.stringify(d.detail))); if (msg) { resultEl.innerHTML = `<div class="alert al-error"><i class="ti ti-x"></i> ${msg}</div>`; return; } } catch(_) {}
+      resultEl.innerHTML = `<div class="alert al-error"><i class="ti ti-x"></i> Erro na importação (HTTP ${res ? res.status : '?'}). Tente novamente.</div>`; return;
     }
     const data = await res.json();
     if (data.ok) {
